@@ -1,0 +1,188 @@
+{
+  "id": "beamline_control",
+  "title": "Beamline Control Dashboard",
+  "description": "Example configuration for dynamically creating widgets from JSON/protobuf",
+  "widgets": [
+    {
+      "id": "beam_current_sp",
+      "pv_name": "SR:C01-BI:G02A<CURRENT:1>RB-I",
+      "type": "TEXT_ENTRY",
+      "label": "Beam Current Setpoint",
+      "description": "Target beam current in mA",
+      "config": {
+        "text_entry": {
+          "show_units": true,
+          "show_readback": true,
+          "precision": 3,
+          "min_value": 0.0,
+          "max_value": 500.0,
+          "placeholder": "Enter current...",
+          "entry_style": {
+            "background_color": "#e6f3ff",
+            "text_color": "#333",
+            "border_style": "solid",
+            "font_size": 15,
+            "font_family": "monospace"
+          },
+          "readback_style": {
+            "background_color": "#f0f0f0",
+            "text_color": "#00cc66",
+            "show_alarm_border": true,
+            "alarm_viz": "ICON_AND_BORDER"
+          },
+          "auto_submit": false,
+          "debounce_ms": 0
+        }
+      },
+      "style": {
+        "padding": {
+          "top": 10,
+          "right": 0,
+          "bottom": 10,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "quad_magnet_sp",
+      "pv_name": "SR:C01-MG:G02A<QUAD:01>Fld:I1-SP",
+      "type": "TEXT_ENTRY",
+      "label": "Quadrupole Magnet Field",
+      "description": "Magnetic field strength in Tesla",
+      "config": {
+        "text_entry": {
+          "show_units": true,
+          "show_readback": true,
+          "precision": 4,
+          "min_value": -10.0,
+          "max_value": 10.0,
+          "placeholder": "Enter field strength...",
+          "entry_style": {
+            "background_color": "#fff5e6",
+            "text_color": "#333",
+            "border_style": "solid",
+            "font_size": 15,
+            "font_family": "monospace"
+          },
+          "readback_style": {
+            "background_color": "#f0f0f0",
+            "text_color": "#ff8800",
+            "show_alarm_border": true,
+            "alarm_viz": "BORDER_ONLY"
+          },
+          "auto_submit": false,
+          "debounce_ms": 0
+        }
+      }
+    },
+    {
+      "id": "vacuum_pressure_gauge",
+      "pv_name": "SR:C01-VA:G02A<PRES:1>RB",
+      "type": "GAUGE",
+      "label": "Vacuum Pressure (Torr)",
+      "config": {
+        "gauge": {
+          "min_value": 1e-10,
+          "max_value": 1e-6,
+          "num_ticks": 10,
+          "show_needle": true,
+          "show_value_text": true,
+          "ranges": [
+            {
+              "start": 1e-10,
+              "end": 1e-9,
+              "color": "#00cc66",
+              "label": "Excellent"
+            },
+            {
+              "start": 1e-9,
+              "end": 1e-7,
+              "color": "#ffa500",
+              "label": "Good"
+            },
+            {
+              "start": 1e-7,
+              "end": 1e-6,
+              "color": "#ff0000",
+              "label": "Poor"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "shutter_status_led",
+      "pv_name": "SR:C01-PS:G02A<SHUT:1>Sts:I",
+      "type": "LED",
+      "label": "Beam Shutter Status",
+      "config": {
+        "led": {
+          "states": [
+            {
+              "value": 0.0,
+              "color": "#ff0000",
+              "label": "Closed"
+            },
+            {
+              "value": 1.0,
+              "color": "#00cc66",
+              "label": "Open"
+            }
+          ],
+          "size": 32,
+          "show_label": true
+        }
+      }
+    },
+    {
+      "id": "shutter_open_btn",
+      "pv_name": "SR:C01-PS:G02A<SHUT:1>Cmd:Opn-Cmd",
+      "type": "BUTTON",
+      "label": "Open Shutter",
+      "config": {
+        "button": {
+          "put_value": 1.0,
+          "label": "Open Shutter",
+          "button_style": {
+            "background_color": "#1e90ff",
+            "text_color": "#ffffff",
+            "hover_color": "#1c7ed6",
+            "width": 150,
+            "height": 40
+          },
+          "confirm_action": true
+        }
+      }
+    },
+    {
+      "id": "temperature_chart",
+      "pv_name": "SR:C01-BI:G02A<TEMP:1>RB",
+      "type": "CHART",
+      "label": "Temperature History (°C)",
+      "config": {
+        "chart": {
+          "history_length": 1000,
+          "time_window_sec": 300.0,
+          "auto_scale": false,
+          "y_min": 15.0,
+          "y_max": 30.0,
+          "line_style": {
+            "color": "#00cc66",
+            "width": 2,
+            "style": "solid"
+          }
+        }
+      }
+    }
+  ],
+  "layout": {
+    "type": "GRID",
+    "columns": 2,
+    "gap": 20
+  },
+  "style": {
+    "background": "linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%)",
+    "text_color": "#ffffff",
+    "font_family": "system-ui, -apple-system, sans-serif"
+  }
+}

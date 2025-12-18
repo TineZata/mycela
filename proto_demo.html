@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proto Widget Demo - EPICS Control System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        #app {
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #888;
+        }
+
+        /* Widget styling */
+        .text-entry-widget {
+            position: relative;
+        }
+
+        .pv-input:focus {
+            outline: 2px solid #1e90ff;
+            outline-offset: 2px;
+        }
+
+        .gauge-widget {
+            transition: all 0.3s ease;
+        }
+
+        .gauge-widget:hover {
+            transform: translateY(-2px);
+        }
+
+        .led-widget {
+            transition: all 0.2s ease;
+        }
+
+        .pv-button {
+            transition: all 0.2s ease;
+        }
+
+        .pv-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 144, 255, 0.4);
+        }
+
+        .pv-button:active {
+            transform: translateY(0);
+        }
+
+        /* Page layout */
+        .page-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .widget-grid {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Navigation */
+        .nav-bar {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-bottom: 1px solid #3e3e3e;
+            margin-bottom: 20px;
+        }
+
+        .nav-bar button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            background: #1e90ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-bar button:hover {
+            background: #1c7ed6;
+            transform: translateY(-1px);
+        }
+
+        .nav-bar button.active {
+            background: #00cc66;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <button onclick="loadHomePage()">Home (WebSocket Demo)</button>
+        <button onclick="loadProtoDemo()" class="active">Proto Widget Demo</button>
+    </div>
+
+    <div id="app">
+        <div class="loading">Loading WASM module...</div>
+    </div>
+
+    <script type="module">
+        import init, { init_app, init_proto_demo } from './pkg/ctrl_sys_widgets.js';
+
+        async function run() {
+            try {
+                await init();
+                console.log('WASM initialized');
+                
+                // Load the proto demo by default
+                loadProtoDemo();
+                
+            } catch (error) {
+                console.error('Failed to initialize WASM:', error);
+                document.getElementById('app').innerHTML = `
+                    <div style="padding: 40px; color: #ff6b6b;">
+                        <h2>Error Loading Application</h2>
+                        <p>${error.message}</p>
+                        <pre style="margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: auto;">
+${error.stack}
+                        </pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Make functions globally available
+        window.loadHomePage = function() {
+            try {
+                init_app();
+                updateActiveButton(0);
+            } catch (e) {
+                console.error('Failed to load home page:', e);
+            }
+        };
+
+        window.loadProtoDemo = function() {
+            try {
+                if (typeof init_proto_demo === 'function') {
+                    init_proto_demo();
+                    updateActiveButton(1);
+                } else {
+                    console.error('Proto demo not available - feature may not be enabled');
+                    document.getElementById('app').innerHTML = `
+                        <div style="padding: 40px; color: #ffa500;">
+                            <h2>Proto Feature Not Available</h2>
+                            <p>The proto feature may not be enabled. Build with:</p>
+                            <pre style="margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+cargo build --target wasm32-unknown-unknown --release --features proto
+wasm-bindgen target/wasm32-unknown-unknown/release/ctrl_sys_widgets.wasm --out-dir pkg --target web
+                            </pre>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error('Failed to load proto demo:', e);
+            }
+        };
+
+        function updateActiveButton(index) {
+            const buttons = document.querySelectorAll('.nav-bar button');
+            buttons.forEach((btn, i) => {
+                if (i === index) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        run();
+    </script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package epics.pv;
+
+// Import the widgets and PV data types
+import "widgets.proto";
+
+// ============================================================================
+// RPC Request/Response Messages
+// ============================================================================
+
+message GetPVRequest {
+  string name = 1;
+  double timeout = 2;  // seconds
+}
+
+message PutPVRequest {
+  string name = 1;
+  oneof value {
+    double double_value = 2;
+    int32 int32_value = 3;
+    string string_value = 4;
+    DoubleArray double_array = 5;
+    Int32Array int32_array = 6;
+    StringArray string_array = 7;
+  }
+  double timeout = 8;
+}
+
+message PutPVResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message SubscribeRequest {
+  string name = 1;
+  bool include_connection_events = 2;
+  bool include_disconnection_events = 3;
+}
+
+message MonitorEvent {
+  oneof event {
+    PVValue value = 1;
+    ConnectionEvent connection = 2;
+    DisconnectionEvent disconnection = 3;
+    FinishedEvent finished = 4;
+  }
+}
+
+message ConnectionEvent {
+  string message = 1;
+  int64 timestamp_sec = 2;
+}
+
+message DisconnectionEvent {
+  string message = 1;
+  int64 timestamp_sec = 2;
+}
+
+message FinishedEvent {
+  string message = 1;
+}
+
+message InfoRequest {
+  string name = 1;
+  double timeout = 2;
+}
+
+message InfoResponse {
+  string structure = 1;  // JSON representation of PV structure
+  PVMetadata metadata = 2;
+}
+
+message BatchGetRequest {
+  repeated string names = 1;
+  double timeout = 2;
+}
+
+message BatchGetResponse {
+  map<string, PVValue> values = 1;
+  map<string, string> errors = 2;
+}
+
+message PageConfigRequest {
+  string page_id = 1;
+}
+
+// ============================================================================
+// Main gRPC Service
+// ============================================================================
+
+service PVService {
+  // Unary operations
+  rpc GetPV(GetPVRequest) returns (PVValue);
+  rpc PutPV(PutPVRequest) returns (PutPVResponse);
+  rpc GetInfo(InfoRequest) returns (InfoResponse);
+  
+  // Server streaming - continuous PV monitoring
+  rpc MonitorPV(SubscribeRequest) returns (stream MonitorEvent);
+  
+  // Batch operations
+  rpc BatchGet(BatchGetRequest) returns (BatchGetResponse);
+  
+  // Widget configuration
+  rpc GetPageConfig(PageConfigRequest) returns (PageConfig);
+}
