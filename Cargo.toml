@@ -7,32 +7,11 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "pvxs-server"
-path = "src/bin/server.rs"
-required-features = ["server"]
-
-[[bin]]
-name = "pvxs-client"
-path = "src/bin/client.rs"
-required-features = ["server"]
-
-[[bin]]
-name = "pvxs-bridge"
-path = "src/bin/bridge.rs"
-required-features = ["bridge"]
-
-[[bin]]
-name = "launcher"
-path = "src/bin/launcher.rs"
-required-features = ["launcher"]
-
-[[bin]]
 name = "grpc-server"
 path = "src/bin/grpc_server.rs"
 required-features = ["server"]
 
 [dependencies]
-ctrlc = { version = "3.4", features = ["termination"], optional = true }
 pvxs-sys = { path = "../pvxs-sys", optional = true }
 wasm-bindgen = "0.2"
 serde = { version = "1.0", features = ["derive"] }
@@ -69,7 +48,6 @@ web-sys = { version = "0.3", features = [
     "DedicatedWorkerGlobalScope",
     "WorkerGlobalScope",
     "BroadcastChannel",
-    "WebSocket",
     "KeyboardEvent",
     "console",
     "Request",
@@ -82,11 +60,8 @@ js-sys = "0.3"
 console_error_panic_hook = "0.1"
 tokio = { version = "1", features = ["full"], optional = true }
 tokio-stream = { version = "0.1", optional = true }
-tokio-tungstenite = { version = "0.24", optional = true }
-futures-util = { version = "0.3", optional = true }
 tonic = { version = "0.12", optional = true }
 tonic-web = { version = "0.12", optional = true }
-grpc-web-client = { version = "0.1", optional = true }
 tower-http = { version = "0.5", features = ["cors"], optional = true }
 
 [build-dependencies]
@@ -96,10 +71,7 @@ tonic-build = "0.12"
 [features]
 default = ["proto"]
 server = ["pvxs-sys", "tokio", "tokio-stream", "tonic", "tonic-web", "tower-http"]
-bridge = ["pvxs-sys", "tokio", "tokio-tungstenite", "futures-util"]
-launcher = ["ctrlc"]
 proto = []
-grpc-client = ["grpc-web-client", "tonic"]
 
 [profile.release]
 opt-level = "z"

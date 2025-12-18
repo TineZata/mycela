@@ -1,0 +1,89 @@
+{
+  "id": "motor_control",
+  "title": "Motor Control Dashboard",
+  "description": "Demo configuration with gRPC-Web PVXS integration",
+  "widgets": [
+    {
+      "id": "motor_position_sp",
+      "pv_name": "demo:motor:position",
+      "type": 0,
+      "label": "Motor Position",
+      "description": "Setpoint for motor position in mm",
+      "config": {
+        "text_entry": {
+          "show_units": true,
+          "show_readback": true,
+          "precision": 2,
+          "min_value": -100.0,
+          "max_value": 100.0,
+          "placeholder": "Enter position...",
+          "entry_style": {
+            "background_color": "#e6f3ff",
+            "text_color": "#333",
+            "border_style": "solid",
+            "font_size": 15,
+            "font_family": "monospace"
+          },
+          "readback_style": {
+            "background_color": "#f0f0f0",
+            "text_color": "#00cc66",
+            "show_alarm_border": true,
+            "alarm_viz": 2
+          },
+          "auto_submit": false,
+          "debounce_ms": 0
+        }
+      },
+      "style": {
+        "padding": {
+          "top": 10,
+          "right": 0,
+          "bottom": 10,
+          "left": 0
+        }
+      }
+    },
+    {
+      "id": "motor_velocity_sp",
+      "pv_name": "demo:motor:velocity",
+      "type": 0,
+      "label": "Motor Velocity",
+      "description": "Target velocity in mm/s",
+      "config": {
+        "text_entry": {
+          "show_units": true,
+          "show_readback": true,
+          "precision": 1,
+          "min_value": 0.0,
+          "max_value": 50.0,
+          "placeholder": "Enter velocity...",
+          "entry_style": {
+            "background_color": "#fff5e6",
+            "text_color": "#333",
+            "border_style": "solid",
+            "font_size": 15,
+            "font_family": "monospace"
+          },
+          "readback_style": {
+            "background_color": "#f0f0f0",
+            "text_color": "#ff8800",
+            "show_alarm_border": true,
+            "alarm_viz": 1
+          },
+          "auto_submit": false,
+          "debounce_ms": 0
+        }
+      }
+    }
+  ],
+  "layout": {
+    "type": 0,
+    "columns": 2,
+    "gap": 20
+  },
+  "style": {
+    "background": "linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%)",
+    "text_color": "#ffffff",
+    "font_family": "system-ui, -apple-system, sans-serif"
+  }
+}

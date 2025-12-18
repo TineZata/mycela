@@ -30,28 +30,6 @@ pub fn main() -> Result<(), JsValue> {
     Ok(())
 }
 
-#[wasm_bindgen]
-pub fn init_app() -> Result<(), JsValue> {
-    let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
-    let document = window.document().ok_or_else(|| JsValue::from_str("No document"))?;
-    
-    // Get the root element
-    let root = document
-        .get_element_by_id("app")
-        .ok_or_else(|| JsValue::from_str("No app element"))?;
-    
-    // Render the home page
-    let html = pages::home::render();
-    root.set_inner_html(&html);
-    
-    // Setup event handlers
-    pages::home::setup_handlers(&document, &window)?;
-    
-    web_sys::console::log_1(&"App initialized successfully".into());
-    
-    Ok(())
-}
-
 #[cfg(feature = "proto")]
 #[wasm_bindgen]
 pub fn init_proto_demo() -> Result<(), JsValue> {

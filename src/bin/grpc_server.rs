@@ -4,6 +4,7 @@ use tower_http::cors::{CorsLayer, Any};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 use std::sync::Arc;
+use std::fs;
 
 // Include generated protobuf code from src/generated
 #[path = "../generated/epics.pv.rs"]
@@ -11,6 +12,13 @@ mod pv_service;
 
 use pv_service::*;
 use pv_service::pv_service_server::{PvService, PvServiceServer};
+
+// Helper to load page configuration from JSON
+fn load_page_config(path: &str) -> Result<PageConfig, Box<dyn std::error::Error>> {
+    let json_str = fs::read_to_string(path)?;
+    let config: PageConfig = serde_json::from_str(&json_str)?;
+    Ok(config)
+}
 
 // Commands to send to the PVXS thread
 enum PvCommand {
@@ -31,8 +39,41 @@ pub struct PvServiceImpl {
 }
 
 impl PvServiceImpl {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(config_path: Option<&str>) -> Result<Self, Box<dyn std::error::Error>> {
         let (command_tx, mut command_rx) = mpsc::unbounded_channel::<PvCommand>();
+        
+        // Load configuration to extract PV names
+        let config_path = config_path.unwrap_or("examples/demo_config.json");
+        let page_config = match load_page_config(config_path) {
+            Ok(config) => {
+                println!("Loaded page configuration from: {}", config_path);
+                config
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to load config from {}: {}", config_path, e);
+                eprintln!("Using default configuration");
+                // Return a default config with demo:motor:position
+                PageConfig {
+                    id: "default".to_string(),
+                    title: "Default Config".to_string(),
+                    description: String::new(),
+                    widgets: vec![
+                        WidgetConfig {
+                            id: "motor_position_sp".to_string(),
+                            pv_name: "demo:motor:position".to_string(),
+                            r#type: 0,
+                            config: None,
+                            style: None,
+                            label: "Motor Position".to_string(),
+                            description: String::new(),
+                            layout: None,
+                        }
+                    ],
+                    layout: None,
+                    style: None,
+                }
+            }
+        };
         
         // Spawn PVXS thread
         std::thread::spawn(move || {
@@ -57,37 +98,40 @@ impl PvServiceImpl {
             };
             println!("PVXS client context created for put operations");
             
-            // Create demo PVs
-            let metadata = pvxs_sys::NTScalarMetadataBuilder::new()
-                .alarm(0, 0, "OK")
-                .display(pvxs_sys::DisplayMetadata {
-                    limit_low: 0,
-                    limit_high: 100,
-                    description: "Demo Motor Position".to_string(),
-                    units: "mm".to_string(),
-                    precision: 2,
-                })
-                .value_alarm(pvxs_sys::ValueAlarmMetadata {
-                    active: true,
-                    low_alarm_limit: 5.0,
-                    low_warning_limit: 10.0,
-                    high_warning_limit: 90.0,
-                    high_alarm_limit: 100.0,
-                    low_alarm_severity: 2,
-                    low_warning_severity: 1,
-                    high_warning_severity: 1,
-                    high_alarm_severity: 2,
-                    hysteresis: 0,
-                });
-            
-            // Create PV and get handle with initial value of 50.0
-            let pv_handle = match server.create_pv_double("demo:motor:position", 50.0, metadata) {
-                Ok(handle) => handle,
-                Err(e) => {
-                    eprintln!("Failed to create PV: {}", e);
-                    return;
+            // Create PVs from configuration
+            println!("\nCreating PVs from configuration:");
+            for widget in &page_config.widgets {
+                let pv_name = &widget.pv_name;
+                
+                // Default metadata - in a real system you'd extract from widget config
+                let metadata = pvxs_sys::NTScalarMetadataBuilder::new()
+                    .alarm(0, 0, "OK")
+                    .display(pvxs_sys::DisplayMetadata {
+                        limit_low: 0,
+                        limit_high: 100,
+                        description: widget.label.clone(),
+                        units: "mm".to_string(),
+                        precision: 2,
+                    })
+                    .value_alarm(pvxs_sys::ValueAlarmMetadata {
+                        active: true,
+                        low_alarm_limit: 5.0,
+                        low_warning_limit: 10.0,
+                        high_warning_limit: 90.0,
+                        high_alarm_limit: 100.0,
+                        low_alarm_severity: 2,
+                        low_warning_severity: 1,
+                        high_warning_severity: 1,
+                        high_alarm_severity: 2,
+                        hysteresis: 0,
+                    });
+                
+                // Create PV with initial value of 50.0
+                match server.create_pv_double(pv_name, 50.0, metadata) {
+                    Ok(_) => println!("  ✓ Created PV: {}", pv_name),
+                    Err(e) => eprintln!("  ✗ Failed to create PV {}: {}", pv_name, e),
                 }
-            };
+            }
             
             if let Err(e) = server.start() {
                 eprintln!("Failed to start PVXS server: {}", e);
@@ -95,9 +139,7 @@ impl PvServiceImpl {
             }
             
             let port = server.tcp_port();
-            println!("PVXS server started on TCP port {}", port);
-            println!("Available PVs:");
-            println!("  - demo:motor:position");
+            println!("\nPVXS server started on TCP port {}", port);
             
             // Process commands - this is a blocking loop in the PVXS thread
             while let Some(cmd) = command_rx.blocking_recv() {
@@ -363,13 +405,17 @@ impl PvService for PvServiceImpl {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting gRPC-Web server for PV access...");
     
-    let addr = "0.0.0.0:50051".parse()?;
-    let service = PvServiceImpl::new()?;
+    // Allow config path from command line arg, or use default
+    let config_path = std::env::args().nth(1);
+    let config_path_str = config_path.as_deref();
     
-    println!("gRPC-Web server listening on {}", addr);
+    let addr = "0.0.0.0:50051".parse()?;
+    let service = PvServiceImpl::new(config_path_str)?;
+    
+    println!("\ngRPC-Web server listening on {}", addr);
     println!("CORS enabled for all origins");
-    println!("Available PVs:");
-    println!("  - demo:motor:position");
+    println!("\nUsage: grpc-server [config.json]");
+    println!("Default config: examples/demo_config.json\n");
     
     Server::builder()
         .accept_http1(true)

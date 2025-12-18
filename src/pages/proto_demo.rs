@@ -3,11 +3,31 @@ use crate::generated::pv_service::*;
 use crate::widget_factory;
 use wasm_bindgen::prelude::*;
 
-/// Create a sample page configuration
-pub fn create_sample_page() -> PageConfig {
+/// Load page configuration from embedded JSON
+/// In production, this could fetch from server or load from localStorage
+pub fn load_page_config() -> PageConfig {
+    // Embedded JSON config - same as examples/demo_config.json
+    // In production, you could fetch this from the server via gRPC
+    let config_json = include_str!("../../examples/demo_config.json");
+    
+    match serde_json::from_str::<PageConfig>(config_json) {
+        Ok(config) => {
+            web_sys::console::log_1(&format!("Loaded page config: {} ({} widgets)", 
+                config.title, config.widgets.len()).into());
+            config
+        }
+        Err(e) => {
+            web_sys::console::error_1(&format!("Failed to parse config: {}", e).into());
+            create_fallback_config()
+        }
+    }
+}
+
+/// Create fallback configuration if JSON fails to load
+fn create_fallback_config() -> PageConfig {
     PageConfig {
         id: "motor_control".to_string(),
-        title: "Motor Control Dashboard".to_string(),
+        title: "Motor Control Dashboard (Fallback)".to_string(),
         description: "Dynamically generated from protobuf configuration".to_string(),
         widgets: vec![
             // Text entry for position setpoint
@@ -189,7 +209,7 @@ pub fn create_sample_page() -> PageConfig {
 
 /// Render the demo page
 pub fn render() -> String {
-    let page_config = create_sample_page();
+    let page_config = load_page_config();
     widget_factory::render_page(&page_config)
 }
 
@@ -281,14 +301,21 @@ pub fn setup_handlers(
     // Set up input event handlers for all PV inputs
     setup_pv_input_handlers(document)?;
     
-    // Start monitoring the demo PV
+    // Start monitoring the first PV from config
     use wasm_bindgen_futures::spawn_local;
     use crate::grpc_client;
     
+    // Get first widget's PV name from config
+    let config = load_page_config();
+    let first_pv = config.widgets.first()
+        .map(|w| w.pv_name.clone())
+        .unwrap_or_else(|| "demo:motor:position".to_string());
+    
+    let first_pv_clone = first_pv.clone();
     spawn_local(async move {
-        // web_sys::console::log_1(&"Fetching demo PV value...".into());
+        // web_sys::console::log_1(&format!("Fetching PV value: {}...", first_pv_clone).into());
         
-        match grpc_client::get_pv_value("demo:motor:position").await {
+        match grpc_client::get_pv_value(&first_pv_clone).await {
             Ok(pv_value) => {
                 let value = match pv_value.value {
                     Some(crate::generated::pv_service::pv_value::Value::DoubleValue(v)) => v,
@@ -310,9 +337,9 @@ pub fn setup_handlers(
                                    border-radius: 8px; 
                                    color: #00cc66; 
                                    font-family: monospace;">
-                                   <strong>Live PV:</strong> demo:motor:position = {:.2}
+                                   <strong>Live PV:</strong> {} = {:.2}
                                 </div>"#,
-                                value
+                                first_pv_clone, value
                             );
                             
                             let div = document.create_element("div").ok();
@@ -333,8 +360,8 @@ pub fn setup_handlers(
                         if let Some(document) = window.document() {
                             if let Some(live_display) = document.query_selector("div[style*='position: fixed']").ok().flatten() {
                                 let updated_html = format!(
-                                    r#"<strong>Live PV:</strong> demo:motor:position = {:.2}"#,
-                                    value
+                                    r#"<strong>Live PV:</strong> {} = {:.2}"#,
+                                    pv_name, value
                                 );
                                 live_display.set_inner_html(&updated_html);
                             }
@@ -343,7 +370,7 @@ pub fn setup_handlers(
                 }) as Box<dyn FnMut(f64, String)>);
                 
                 let js_callback: js_sys::Function = callback.as_ref().clone().into();
-                grpc_client::start_pv_monitoring("demo:motor:position".to_string(), js_callback);
+                grpc_client::start_pv_monitoring(first_pv_clone.clone(), js_callback);
                 callback.forget(); // Keep the closure alive
             }
             Err(e) => {

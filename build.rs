@@ -35,6 +35,7 @@ fn main() -> Result<()> {
             match prost_build::Config::new()
                 .compile_well_known_types()
                 .extern_path(".google.protobuf", "::prost_types")
+                .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
                 .compile_protos(&["proto/widgets.proto", "proto/pv_service.proto"], &["proto"]) 
             {
                 Ok(_) => {
@@ -72,6 +73,7 @@ fn main() -> Result<()> {
                 .build_server(true)
                 .build_client(true)
                 .out_dir(out_dir)
+                .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
                 .compile_protos(&["proto/widgets.proto", "proto/pv_service.proto"], &["proto"]) 
             {
                 Ok(_) => {
