@@ -1,77 +1,43 @@
 [package]
 name = "ctrl-sys-widgets"
-version = "0.1.0"
-edition = "2024"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
+version = "0.2.0"
+edition = "2021"
 
 [[bin]]
-name = "grpc-server"
-path = "src/bin/grpc_server.rs"
-required-features = ["server"]
+name = "server"
+path = "src/main.rs"
 
 [dependencies]
-pvxs-sys = { path = "../pvxs-sys", optional = true }
-wasm-bindgen = "0.2"
+# Web framework
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
+
+# HTML templating
+maud = { version = "0.25", features = ["axum"] }
+
+# Data handling
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-wasm-bindgen-futures = "0.4"
-prost = "0.13"
-prost-types = "0.13"
-bytes = "1.5"
-web-sys = { version = "0.3", features = [
-    "Document",
-    "Element",
-    "HtmlElement",
-    "HtmlHeadElement",
-    "HtmlBodyElement",
-    "Node",
-    "Window",
-    "HtmlInputElement",
-    "HtmlButtonElement",
-    "HtmlSelectElement",
-    "Event",
-    "EventTarget",
-    "MouseEvent",
-    "DragEvent",
-    "DataTransfer",
-    "DomRect",
-    "DomTokenList",
-    "NodeList",
-    "Storage",
-    "StorageEvent",
-    "Location",
-    "SharedWorker",
-    "MessagePort",
-    "MessageEvent",
-    "DedicatedWorkerGlobalScope",
-    "WorkerGlobalScope",
-    "BroadcastChannel",
-    "KeyboardEvent",
-    "console",
-    "Request",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "Headers",
-] }
-js-sys = "0.3"
-console_error_panic_hook = "0.1"
-tokio = { version = "1", features = ["full"], optional = true }
-tokio-stream = { version = "0.1", optional = true }
-tonic = { version = "0.12", optional = true }
-tonic-web = { version = "0.12", optional = true }
-tower-http = { version = "0.5", features = ["cors"], optional = true }
 
-[build-dependencies]
-prost-build = "0.13"
-tonic-build = "0.12"
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-[features]
-default = ["proto"]
-server = ["pvxs-sys", "tokio", "tokio-stream", "tonic", "tonic-web", "tower-http"]
-proto = []
+# Concurrent caching
+dashmap = "6"
+
+# Async streams (for SSE)
+tokio-stream = "0.1"
+futures = "0.3"
+async-stream = "0.3"
+
+# Time handling
+chrono = "0.4"
+
+# EPICS
+pvxs-sys = { path = "../pvxs-sys" }
 
 [profile.release]
 opt-level = "z"

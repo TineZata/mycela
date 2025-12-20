@@ -1,7 +1,65 @@
 {
-  "id": "motor_control",
-  "title": "Motor Control Dashboard",
-  "description": "Demo configuration with gRPC-Web PVXS integration",
+  "id": "demo",
+  "title": "Demo Control Screen",
+  "description": "Basic demonstration of widget types and EPICS PV integration",
+  "widgets": [
+    {
+      "id": "motor_x_pos",
+      "pv_name": "demo:motor:x",
+      "type": "text_entry",
+      "label": "Motor X Position",
+      "description": "Horizontal stage position"
+    },
+    {
+      "id": "motor_y_pos",
+      "pv_name": "demo:motor:y",
+      "type": "text_entry",
+      "label": "Motor Y Position",
+      "description": "Vertical stage position"
+    },
+    {
+      "id": "motor_z_pos",
+      "pv_name": "demo:motor:z",
+      "type": "slider",
+      "label": "Motor Z Position",
+      "description": "Focus position control"
+    },
+    {
+      "id": "beam_current",
+      "pv_name": "demo:beam:current",
+      "type": "gauge",
+      "label": "Beam Current",
+      "description": "Synchrotron beam current in mA"
+    },
+    {
+      "id": "shutter_status",
+      "pv_name": "demo:shutter:open",
+      "type": "led",
+      "label": "Shutter Status",
+      "description": "Beam shutter open/closed"
+    },
+    {
+      "id": "shutter_open_btn",
+      "pv_name": "demo:shutter:open:cmd",
+      "type": "button",
+      "label": "Open Shutter"
+    },
+    {
+      "id": "temperature",
+      "pv_name": "demo:temp:sample",
+      "type": "gauge",
+      "label": "Sample Temperature",
+      "description": "Current sample temperature in K"
+    },
+    {
+      "id": "pressure",
+      "pv_name": "demo:vacuum:pressure",
+      "type": "gauge",
+      "label": "Vacuum Pressure",
+      "description": "Chamber pressure in Torr"
+    }
+  ]
+}
   "widgets": [
     {
       "id": "motor_position_sp",
