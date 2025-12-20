@@ -26,6 +26,7 @@ use crate::config::ScreenConfig;
 struct AppState {
     pv_monitor: Arc<PvMonitorManager>,
     pvxs_client: Arc<RwLock<pvxs_sys::Context>>,
+    config: Arc<ScreenConfig>,
 }
 
 #[tokio::main]
@@ -41,6 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Starting EPICS Web UI Server");
 
+    // Load configuration
+    let config = ScreenConfig::load("examples/demo_config.json")
+        .expect("Failed to load demo_config.json");
+    tracing::info!("✅ Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
+
     // Initialize PVXS client
     let pvxs_client = Arc::new(RwLock::new(pvxs_sys::Context::from_env()?));
     tracing::info!("✅ PVXS client initialized successfully");
@@ -52,6 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState {
         pv_monitor,
         pvxs_client,
+        config: Arc::new(config),
     };
 
     // Build the application router
@@ -168,7 +175,7 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
-                title { "EPICS Motor Control" }
+                title { (state.config.title) }
                 
                 // Self-hosted HTMX
                 script src="/static/htmx.min.js" {}
@@ -178,46 +185,19 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
             }
             body {
                 header class="main-header" {
-                    h1 { "🎛️ EPICS Motor Control" }
+                    h1 { "🎛️ " (state.config.title) }
                 }
                 
                 main class="container" {
-                    h2 { "Demo Control Screen" }
+                    h2 { (state.config.description) }
                     
                     div class="widget-grid" {
-                        // Motor X Position
-                        div class="widget" hx-get="/poll/widget/motor_x" hx-trigger="every 1s" {
-                            (widgets::render_text_entry_simple("demo:motor:x", "Motor X Position", &state).await)
-                        }
-                        
-                        // Motor Y Position
-                        div class="widget" hx-get="/poll/widget/motor_y" hx-trigger="every 1s" {
-                            (widgets::render_text_entry_simple("demo:motor:y", "Motor Y Position", &state).await)
-                        }
-                        
-                        // Motor Z Slider
-                        div class="widget" hx-get="/poll/widget/motor_z" hx-trigger="every 1s" {
-                            (widgets::render_slider_simple("demo:motor:z", "Motor Z Position", &state).await)
-                        }
-                        
-                        // Beam Current Gauge
-                        div class="widget" hx-get="/poll/widget/beam_current" hx-trigger="every 1s" {
-                            (widgets::render_gauge_simple("demo:beam:current", "Beam Current", "mA", &state).await)
-                        }
-                        
-                        // Shutter Status LED
-                        div class="widget" hx-get="/poll/widget/shutter_status" hx-trigger="every 1s" {
-                            (widgets::render_led_simple("demo:shutter:open", "Shutter Status", &state).await)
-                        }
-                        
-                        // Temperature Gauge
-                        div class="widget" hx-get="/poll/widget/temperature" hx-trigger="every 1s" {
-                            (widgets::render_gauge_simple("demo:temp:sample", "Sample Temperature", "K", &state).await)
-                        }
-                        
-                        // Pressure Gauge
-                        div class="widget" hx-get="/poll/widget/pressure" hx-trigger="every 1s" {
-                            (widgets::render_gauge_simple("demo:vacuum:pressure", "Vacuum Pressure", "Torr", &state).await)
+                        @for widget in &state.config.widgets {
+                            div class="widget" 
+                                hx-get={"/poll/widget/" (widget.id)} 
+                                hx-trigger="every 1s" {
+                                (widgets::render_widget_from_config(widget, &state).await)
+                            }
                         }
                     }
                 }
@@ -326,37 +306,19 @@ async fn poll_widget(
     Path(widget_id): Path<String>,
     State(state): State<AppState>,
 ) -> Html<String> {
-    // Map widget_id to actual PV name
-    let pv_name = match widget_id.as_str() {
-        "motor_x" => "demo:motor:x",
-        "motor_y" => "demo:motor:y",
-        "motor_z" => "demo:motor:z",
-        "beam_current" => "demo:beam:current",
-        "shutter_status" => "demo:shutter:open",
-        "temperature" => "demo:temp:sample",
-        "pressure" => "demo:vacuum:pressure",
-        _ => &widget_id.replace("-", ":"),
-    };
+    // Look up widget from config
+    let widget = state.config.widgets.iter()
+        .find(|w| w.id == widget_id);
     
-    let value = state.pv_monitor.get_value(pv_name).await;
-    
-    // Re-render the appropriate widget based on type
-    let markup = match widget_id.as_str() {
-        "motor_x" => widgets::render_text_entry_simple(pv_name, "Motor X Position", &state).await,
-        "motor_y" => widgets::render_text_entry_simple(pv_name, "Motor Y Position", &state).await,
-        "motor_z" => widgets::render_slider_simple(pv_name, "Motor Z Position", &state).await,
-        "beam_current" => widgets::render_gauge_simple(pv_name, "Beam Current", "mA", &state).await,
-        "shutter_status" => widgets::render_led_simple(pv_name, "Shutter Status", &state).await,
-        "temperature" => widgets::render_gauge_simple(pv_name, "Sample Temperature", "K", &state).await,
-        "pressure" => widgets::render_gauge_simple(pv_name, "Vacuum Pressure", "Torr", &state).await,
-        _ => {
-            maud::html! {
-                div class="widget-error" { "Unknown widget: " (widget_id) }
-            }
-        }
-    };
-    
-    Html(markup.into_string())
+    if let Some(widget) = widget {
+        let markup = widgets::render_widget_from_config(widget, &state).await;
+        Html(markup.into_string())
+    } else {
+        let error = maud::html! {
+            div class="widget-error" { "Unknown widget: " (widget_id) }
+        };
+        Html(error.into_string())
+    }
 }
 
 /// Poll a group of widgets (more efficient)
