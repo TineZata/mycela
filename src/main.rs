@@ -1,4 +1,5 @@
 mod pv_monitor;
+mod pv_server;
 mod widgets;
 mod config;
 
@@ -19,12 +20,14 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::pv_monitor::PvMonitorManager;
+use crate::pv_server::PvServerManager;
 use crate::config::ScreenConfig;
 
 /// Application state shared across handlers
 #[derive(Clone)]
 struct AppState {
     pv_monitor: Arc<PvMonitorManager>,
+    pv_server: Arc<PvServerManager>,
     pvxs_client: Arc<RwLock<pvxs_sys::Context>>,
     config: Arc<ScreenConfig>,
 }
@@ -47,6 +50,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to load demo_config.json");
     tracing::info!("✅ Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
 
+    // Initialize PVXS server if any widgets have server configuration
+    let pv_server = Arc::new(PvServerManager::new().expect("Failed to create PV server manager"));
+    
+    let widgets_with_server: Vec<_> = config.widgets.iter()
+        .filter(|w| w.server.is_some())
+        .collect();
+    
+    if !widgets_with_server.is_empty() {
+        tracing::info!("Found {} widgets with server configuration", widgets_with_server.len());
+        pv_server.start(&config.widgets).expect("Failed to start PVXS server");
+    } else {
+        tracing::info!("No server PVs configured, running in client-only mode");
+    }
+
     // Initialize PVXS client
     let pvxs_client = Arc::new(RwLock::new(pvxs_sys::Context::from_env()?));
     tracing::info!("✅ PVXS client initialized successfully");
@@ -57,6 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create shared state
     let state = AppState {
         pv_monitor,
+        pv_server,
         pvxs_client,
         config: Arc::new(config),
     };
@@ -73,12 +91,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/pv/:name", get(get_pv))
         .route("/api/pv/:name/set", post(put_pv))
         
-        // Live update routes (HTMX polling endpoints)
-        .route("/poll/widget/:widget_id", get(poll_widget))
-        .route("/poll/group/:group_id", get(poll_widget_group))
+        // Server control routes
+        .route("/api/server/start", post(start_server))
+        .route("/api/server/stop", post(stop_server))
+        .route("/api/server/status", get(server_status))
         
         // Server-Sent Events for real-time monitoring
-        .route("/stream/pv/:name", get(stream_pv))
+        .route("/stream/widget/:name", get(stream_widget))
         
         // Static files (CSS, JS, images)
         .nest_service("/static", ServeDir::new("static"))
@@ -186,6 +205,32 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
             body {
                 header class="main-header" {
                     h1 { "🎛️ " (state.config.title) }
+                    div class="server-controls" style="display: flex; align-items: center; gap: 1rem;" {
+                        div id="server-status" 
+                            hx-get="/api/server/status" 
+                            hx-trigger="load, every 2s" 
+                            class=(if state.pv_server.is_running() { "success" } else { "warning" }) {
+                            span { 
+                                @if state.pv_server.is_running() {
+                                    "🟢 Server Running"
+                                } @else {
+                                    "🔴 Server Stopped"
+                                }
+                            }
+                        }
+                        button class="pv-button" 
+                                hx-post="/api/server/start" 
+                                hx-target="#server-status"
+                                style="padding: 0.5rem 1rem;" {
+                            "▶️ Start Server"
+                        }
+                        button class="pv-button" 
+                                hx-post="/api/server/stop" 
+                                hx-target="#server-status"
+                                style="padding: 0.5rem 1rem; background: #dc3545;" {
+                            "⏹️ Stop Server"
+                        }
+                    }
                 }
                 
                 main class="container" {
@@ -193,9 +238,10 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
                     
                     div class="widget-grid" {
                         @for widget in &state.config.widgets {
-                            div class="widget" 
-                                hx-get={"/poll/widget/" (widget.id)} 
-                                hx-trigger="every 1s" {
+                            div hx-ext="sse" 
+                                sse-connect={"/stream/widget/" (widget.pv_name)} 
+                                sse-swap="message" 
+                                hx-swap="innerHTML" {
                                 (widgets::render_widget_from_config(widget, &state).await)
                             }
                         }
@@ -343,34 +389,138 @@ async fn poll_widget_group(
     widgets::render_widget_group(&config.widgets, &state).await
 }
 
-/// Server-Sent Events stream for real-time PV monitoring
-async fn stream_pv(
-    Path(name): Path<String>,
-    State(_state): State<AppState>,
+/// Server-Sent Events stream for widget updates driven by PVXS monitors
+async fn stream_widget(
+    Path(pv_name): Path<String>,
+    State(state): State<AppState>,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>>> {
-    tracing::info!("Starting SSE stream for PV: {}", name);
+    tracing::info!("Starting SSE stream for widget with PV: {}", pv_name);
     
-    // Create a stream that updates every second
-    // In production, this would use pvxs monitor subscriptions
+    // Find the widget config for this PV
+    let widget_config = state.config.widgets.iter()
+        .find(|w| w.pv_name == pv_name)
+        .cloned();
+    
+    let monitor = state.pv_monitor.clone();
+    let pv_name_clone = pv_name.clone();
+    
     let stream = async_stream::stream! {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
-        let mut counter = 0.0;
+        let mut last_value: Option<f64> = None;
+        let mut last_connection: Option<String> = None;
+        let mut last_alarm: Option<i32> = None;
+        
+        // Send initial state immediately
+        let pv_value = monitor.get_value(&pv_name_clone).await;
+        if let Some(widget) = &widget_config {
+            let markup = widgets::render_widget_by_type_public(widget, Some(&pv_value));
+            let html = markup.into_string();
+            last_value = Some(pv_value.value);
+            last_connection = Some(format!("{:?}", pv_value.connection_status));
+            last_alarm = Some(pv_value.alarm_severity);
+            yield Ok(Event::default().data(html));
+        }
+        
+        // Then poll for updates at 10Hz
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
         
         loop {
             interval.tick().await;
             
-            // Simulate PV update (replace with real pvxs monitor)
-            counter += 1.0;
-            let value = 50.0 + (counter * 0.1_f64).sin() * 10.0;
+            // Get current PV value from monitor cache
+            let pv_value = monitor.get_value(&pv_name_clone).await;
             
-            let html = format!(
-                r#"<span class="pv-value">{:.2}</span>"#,
-                value
-            );
+            // Check if anything significant changed
+            let current_value = pv_value.value;
+            let current_connection = format!("{:?}", pv_value.connection_status);
+            let current_alarm = pv_value.alarm_severity;
             
-            yield Ok(Event::default().data(html));
+            let value_changed = last_value.map_or(true, |v| (v - current_value).abs() > 0.001);
+            let connection_changed = last_connection.as_ref() != Some(&current_connection);
+            let alarm_changed = last_alarm != Some(current_alarm);
+            
+            if value_changed || connection_changed || alarm_changed {
+                // Generate and send updated widget HTML
+                if let Some(widget) = &widget_config {
+                    let markup = widgets::render_widget_by_type_public(widget, Some(&pv_value));
+                    let html = markup.into_string();
+                    
+                    last_value = Some(current_value);
+                    last_connection = Some(current_connection);
+                    last_alarm = Some(current_alarm);
+                    
+                    yield Ok(Event::default().data(html));
+                }
+            }
         }
     };
     
     Sse::new(stream)
+}
+
+/// Start the PVXS server
+async fn start_server(State(state): State<AppState>) -> Response {
+    tracing::info!("POST /api/server/start");
+    
+    // Get the widgets configuration from state
+    let widgets = state.config.widgets.clone();
+    
+    match state.pv_server.start(&widgets) {
+        Ok(_) => {
+            let success_html = maud::html! {
+                div class="success" hx-swap-oob="true" id="server-status" {
+                    span { "🟢 Server Running" }
+                }
+            };
+            Html(success_html.into_string()).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to start server: {}", e);
+            let error_html = maud::html! {
+                div class="error" { "Error: " (e.to_string()) }
+            };
+            (StatusCode::BAD_REQUEST, Html(error_html.into_string())).into_response()
+        }
+    }
+}
+
+/// Stop the PVXS server
+async fn stop_server(State(state): State<AppState>) -> Response {
+    tracing::info!("POST /api/server/stop");
+    
+    match state.pv_server.stop() {
+        Ok(_) => {
+            let success_html = maud::html! {
+                div class="warning" hx-swap-oob="true" id="server-status" {
+                    span { "🔴 Server Stopped" }
+                }
+            };
+            Html(success_html.into_string()).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to stop server: {}", e);
+            let error_html = maud::html! {
+                div class="error" { "Error: " (e.to_string()) }
+            };
+            (StatusCode::BAD_REQUEST, Html(error_html.into_string())).into_response()
+        }
+    }
+}
+
+/// Get server status
+async fn server_status(State(state): State<AppState>) -> Html<String> {
+    let is_running = state.pv_server.is_running();
+    
+    let status_html = maud::html! {
+        div id="server-status" class=(if is_running { "success" } else { "warning" }) {
+            span { 
+                @if is_running {
+                    "🟢 Server Running"
+                } @else {
+                    "🔴 Server Stopped"
+                }
+            }
+        }
+    };
+    
+    Html(status_html.into_string())
 }

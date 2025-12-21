@@ -243,21 +243,83 @@ body {
     gap: 0.5rem;
 }
 
+.input-with-icon {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    z-index: 1;
+}
+
 .pv-input {
     flex: 1;
-    background: var(--bg-secondary);
-    border: 2px solid #444;
-    border-radius: 4px;
-    color: var(--text-primary);
+    background: #e6f2ff;
+    border: 2px solid #b3d9ff;
+    border-radius: 6px;
+    color: #1a1a1a;
     font-size: 1.1rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 0.75rem;
+    padding-right: 3.5rem;
     transition: all 0.2s;
+    font-weight: 500;
+}
+
+.pv-input.alarm-disconnected,
+.pv-input.alarm-major,
+.pv-input.alarm-minor,
+.pv-input.alarm-invalid {
+    padding-left: 2.2rem;
 }
 
 .pv-input:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.15);
+    background: #fffacd !important;
+}
+
+.pv-input:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: #f0f0f0;
+}
+
+/* Alarm state styling for inputs */
+.pv-input.alarm-disconnected {
+    border-color: #fa00fa;
+    border-width: 2px;
+}
+
+.pv-input.alarm-major {
+    border-color: #ff0000;
+    border-width: 2px;
+}
+
+.pv-input.alarm-minor {
+    border-color: #ffa500;
+    border-width: 2px;
+}
+
+.pv-input.alarm-invalid {
+    border-color: #999999;
+    border-width: 2px;
+}
+
+.units-overlay {
+    position: absolute;
+    right: 10px;
+    color: #666;
+    font-size: 0.9rem;
+    pointer-events: none;
+    font-weight: 500;
 }
 
 .units {
