@@ -292,6 +292,17 @@ body {
     background: #f0f0f0;
 }
 
+/* Hide spinner arrows for number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* Alarm state styling for inputs */
 .pv-input.alarm-disconnected {
     border-color: #fa00fa;
@@ -309,6 +320,47 @@ body {
 }
 
 .pv-input.alarm-invalid {
+    border-color: #999999;
+    border-width: 2px;
+}
+
+/* Read-only display (when min_step = 0) */
+.pv-display {
+    flex: 1;
+    background: #e6f2ff;
+    border: 2px solid #b3d9ff;
+    border-radius: 6px;
+    color: #1a1a1a;
+    font-size: 1.1rem;
+    padding: 0.6rem 0.75rem;
+    padding-right: 3.5rem;
+    font-weight: 500;
+    cursor: default;
+}
+
+.pv-display.alarm-disconnected,
+.pv-display.alarm-major,
+.pv-display.alarm-minor,
+.pv-display.alarm-invalid {
+    padding-left: 2.2rem;
+}
+
+.pv-display.alarm-disconnected {
+    border-color: #fa00fa;
+    border-width: 2px;
+}
+
+.pv-display.alarm-major {
+    border-color: #ff0000;
+    border-width: 2px;
+}
+
+.pv-display.alarm-minor {
+    border-color: #ffa500;
+    border-width: 2px;
+}
+
+.pv-display.alarm-invalid {
     border-color: #999999;
     border-width: 2px;
 }

@@ -16,7 +16,7 @@ const INVALID_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWd
 pub async fn render_widget_from_config(widget: &WidgetConfig, state: &AppState) -> Markup {
     let markup = match widget.widget_type {
         WidgetType::TextEntry => {
-            render_text_entry_simple(&widget.pv_name, &widget.label, state).await
+            render_text_entry_with_config(widget, state).await
         }
         WidgetType::Slider => {
             render_slider_simple(&widget.pv_name, &widget.label, state).await
@@ -172,7 +172,10 @@ fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     };
     
     let current_value = value
-        .map(|v| format!("{:.2}", v.value))
+        .map(|v| {
+            let prec = v.precision.unwrap_or(2) as usize;
+            format!("{:.prec$}", v.value, prec = prec)
+        })
         .unwrap_or_else(|| "--".to_string());
     
     let units = value
@@ -180,6 +183,10 @@ fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
         .unwrap_or("");
     
     let disabled = !matches!(value.map(|v| &v.connection_status), Some(&ConnectionStatus::Connected));
+    
+    let step_value = value.and_then(|v| v.min_step).unwrap_or(0.01);
+    let input_type = if step_value == 0.0 { "text" } else { "number" };
+    let is_string_type = widget.data_type.as_deref() == Some("string");
     
     html! {
         div class={"widget text-entry " (alarm_class)} 
@@ -193,16 +200,30 @@ fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
                     @if let Some(icon) = icon_html {
                         img class="input-icon" src=(icon) alt="status";
                     }
-                    input type="number"
-                        class=(input_class)
-                        name="value"
-                        value=(current_value)
-                        step="1.00"
-                        disabled[disabled]
-                        hx-post={"/api/pv/" (widget.pv_name) "/set"}
-                        hx-trigger="keyup[key=='Enter']"
-                        hx-target="next .status"
-                        hx-swap="innerHTML";
+                    @if is_string_type {
+                        input type="text"
+                            class=(input_class)
+                            name="value"
+                            value=(current_value)
+                            disabled[disabled]
+                            hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                            hx-trigger="keyup[key=='Enter']"
+                            hx-target="next .status"
+                            hx-swap="innerHTML";
+                    } @else {
+                        input type=(input_type)
+                            class=(input_class)
+                            name="value"
+                            value=(current_value)
+                            data-original-value=(current_value)
+                            step=(format!("{}", step_value))
+                            disabled[disabled]
+                            hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                            hx-trigger="keyup[key=='Enter']"
+                            hx-target="next .status"
+                            hx-swap="innerHTML"
+                            hx-on--before-request="if(isNaN(parseFloat(this.value)) || !isFinite(this.value)) { this.value = this.dataset.originalValue; event.preventDefault(); this.parentElement.nextElementSibling.textContent = 'Invalid number'; return false; } else { this.dataset.originalValue = this.value; this.parentElement.nextElementSibling.textContent = ''; }";
+                    }
                     
                     @if !units.is_empty() {
                         span class="units-overlay" { (units) }
@@ -390,6 +411,70 @@ fn alarm_severity_class(severity: i32) -> &'static str {
 
 // Simple widget renderers without config complexity
 
+pub async fn render_text_entry_with_config(widget: &WidgetConfig, state: &AppState) -> Markup {
+    let value = state.pv_monitor.get_value(&widget.pv_name).await;
+    
+    let (alarm_class, icon_html, input_class) = match (&value.connection_status, value.alarm_severity) {
+        (ConnectionStatus::Disconnected, _) | (ConnectionStatus::Timeout, _) | (ConnectionStatus::Error(_), _) => 
+            ("alarm-disconnected", Some(OFFLINE_SVG), "pv-input alarm-disconnected"),
+        (ConnectionStatus::Connected, 2) => 
+            ("alarm-major", Some(MAJOR_ALARM_SVG), "pv-input alarm-major"),
+        (ConnectionStatus::Connected, 1) => 
+            ("alarm-minor", Some(MINOR_ALARM_SVG), "pv-input alarm-minor"),
+        (ConnectionStatus::Connected, 3) => 
+            ("alarm-invalid", Some(INVALID_SVG), "pv-input alarm-invalid"),
+        _ => ("alarm-none", None, "pv-input"),
+    };
+    
+    let disabled = !matches!(value.connection_status, ConnectionStatus::Connected);
+    let units = value.units.as_deref().unwrap_or("");
+    let step_value = value.min_step.unwrap_or(0.01);
+    let is_string_type = widget.data_type.as_deref() == Some("string");
+    let input_type = if is_string_type { "text" } else if step_value == 0.0 { "text" } else { "number" };
+    let precision = value.precision.unwrap_or(2) as usize;
+    let formatted_value = format!("{:.prec$}", value.value, prec = precision);
+    
+    html! {
+        label class="widget-label" { (widget.label) }
+        
+        div class="text-entry-container" {
+            div class="input-with-icon" {
+                @if let Some(icon) = icon_html {
+                    img class="input-icon" src=(icon) alt="status";
+                }
+                @if is_string_type {
+                    input type="text"
+                        class=(input_class)
+                        name="value"
+                        value=(formatted_value)
+                        disabled[disabled]
+                        hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                        hx-trigger="keyup[key=='Enter']"
+                        hx-vals={"js:{value: event.target.value}"};
+                } @else {
+                    input type=(input_type)
+                        class=(input_class)
+                        name="value"
+                        value=(formatted_value)
+                        data-original-value=(formatted_value)
+                        step=(format!("{}", step_value))
+                        disabled[disabled]
+                        hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                        hx-trigger="keyup[key=='Enter']"
+                        hx-vals={"js:{value: event.target.value}"}
+                        hx-on--before-request="if(isNaN(parseFloat(this.value)) || !isFinite(this.value)) { this.value = this.dataset.originalValue; event.preventDefault(); this.parentElement.nextElementSibling.textContent = 'Invalid number'; return false; } else { this.dataset.originalValue = this.value; this.parentElement.nextElementSibling.textContent = ''; }";
+                }
+                
+                @if !units.is_empty() {
+                    span class="units-overlay" { (units) }
+                }
+            }
+            
+            span class="status" {}
+        }
+    }
+}
+
 pub async fn render_text_entry_simple(pv_name: &str, label: &str, state: &AppState) -> Markup {
     let value = state.pv_monitor.get_value(pv_name).await;
     
@@ -407,6 +492,10 @@ pub async fn render_text_entry_simple(pv_name: &str, label: &str, state: &AppSta
     
     let disabled = !matches!(value.connection_status, ConnectionStatus::Connected);
     let units = value.units.as_deref().unwrap_or("");
+    let step_value = value.min_step.unwrap_or(0.01);
+    let input_type = if step_value == 0.0 { "text" } else { "number" };
+    let precision = value.precision.unwrap_or(2) as usize;
+    let formatted_value = format!("{:.prec$}", value.value, prec = precision);
     
     html! {
         label class="widget-label" { (label) }
@@ -416,15 +505,17 @@ pub async fn render_text_entry_simple(pv_name: &str, label: &str, state: &AppSta
                 @if let Some(icon) = icon_html {
                     img class="input-icon" src=(icon) alt="status";
                 }
-                input type="number"
+                input type=(input_type)
                     class=(input_class)
                     name="value"
-                    value=(format!("{:.2}", value.value))
-                    step="0.01"
+                    value=(formatted_value)
+                    data-original-value=(formatted_value)
+                    step=(format!("{}", step_value))
                     disabled[disabled]
                     hx-post={"/api/pv/" (pv_name) "/set"}
                     hx-trigger="keyup[key=='Enter']"
-                    hx-vals={"js:{value: event.target.value}"};
+                    hx-vals={"js:{value: event.target.value}"}
+                    hx-on--before-request="if(isNaN(parseFloat(this.value)) || !isFinite(this.value)) { this.value = this.dataset.originalValue; event.preventDefault(); this.parentElement.nextElementSibling.textContent = 'Invalid number'; return false; } else { this.dataset.originalValue = this.value; this.parentElement.nextElementSibling.textContent = ''; }";
                 
                 @if !units.is_empty() {
                     span class="units-overlay" { (units) }

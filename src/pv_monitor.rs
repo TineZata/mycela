@@ -25,6 +25,15 @@ pub struct PvValue {
     pub alarm_status: i32,
     pub alarm_message: Option<String>,
     pub units: Option<String>,
+    // Display metadata
+    pub precision: Option<i32>,
+    pub limit_low: Option<f64>,
+    pub limit_high: Option<f64>,
+    pub description: Option<String>,
+    // Control metadata
+    pub control_low: Option<f64>,
+    pub control_high: Option<f64>,
+    pub min_step: Option<f64>,
 }
 
 /// Monitor manager - creates and maintains persistent PVXS monitors
@@ -79,6 +88,13 @@ impl PvMonitorManager {
                 alarm_status: 0,
                 alarm_message: Some("Connecting...".to_string()),
                 units: None,
+                precision: None,
+                limit_low: None,
+                limit_high: None,
+                description: None,
+                control_low: None,
+                control_high: None,
+                min_step: None,
             }
         }
     }
@@ -132,6 +148,13 @@ fn monitor_pv_loop(
                 alarm_status: 0,
                 alarm_message: Some(format!("Error: {}", e)),
                 units: None,
+                precision: None,
+                limit_low: None,
+                limit_high: None,
+                description: None,
+                control_low: None,
+                control_high: None,
+                min_step: None,
             });
             return;
         }
@@ -163,7 +186,18 @@ fn monitor_pv_loop(
                 let alarm_severity = value.get_field_int32("alarm.severity").unwrap_or(0);
                 let alarm_status = value.get_field_int32("alarm.status").unwrap_or(0);
                 let alarm_message = value.get_field_string("alarm.message").ok();
+                
+                // Extract display metadata
                 let units = value.get_field_string("display.units").ok();
+                let precision = value.get_field_int32("display.precision").ok();
+                let limit_low = value.get_field_double("display.limitLow").ok();
+                let limit_high = value.get_field_double("display.limitHigh").ok();
+                let description = value.get_field_string("display.description").ok();
+                
+                // Extract control metadata
+                let control_low = value.get_field_double("control.limitLow").ok();
+                let control_high = value.get_field_double("control.limitHigh").ok();
+                let min_step = value.get_field_double("control.minStep").ok();
                 
                 values.insert(pv_name.clone(), PvValue {
                     name: pv_name.clone(),
@@ -174,6 +208,13 @@ fn monitor_pv_loop(
                     alarm_status,
                     alarm_message,
                     units,
+                    precision,
+                    limit_low,
+                    limit_high,
+                    description,
+                    control_low,
+                    control_high,
+                    min_step,
                 });
                 
                 tracing::debug!("PV {} updated: value={}, alarm_severity={}", pv_name, double_value, alarm_severity);

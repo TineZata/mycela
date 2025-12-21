@@ -22,7 +22,8 @@
           },
           "control": {
             "limit_low": 0.0,
-            "limit_high": 120.0
+            "limit_high": 120.0,
+            "min_step": 0.0
           },
           "alarm": {
             "low_alarm_limit": -90.0,
