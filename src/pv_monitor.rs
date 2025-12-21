@@ -159,18 +159,24 @@ fn monitor_pv_loop(
                     .unwrap()
                     .as_secs() as i64;
                 
+                // Extract alarm information from the value
+                let alarm_severity = value.get_field_int32("alarm.severity").unwrap_or(0);
+                let alarm_status = value.get_field_int32("alarm.status").unwrap_or(0);
+                let alarm_message = value.get_field_string("alarm.message").ok();
+                let units = value.get_field_string("display.units").ok();
+                
                 values.insert(pv_name.clone(), PvValue {
                     name: pv_name.clone(),
                     value: double_value,
                     timestamp,
                     connection_status: ConnectionStatus::Connected,
-                    alarm_severity: 0,
-                    alarm_status: 0,
-                    alarm_message: None,
-                    units: None,
+                    alarm_severity,
+                    alarm_status,
+                    alarm_message,
+                    units,
                 });
                 
-                tracing::debug!("PV {} updated: {}", pv_name, double_value);
+                tracing::debug!("PV {} updated: value={}, alarm_severity={}", pv_name, double_value, alarm_severity);
             }
             Ok(None) => {
                 // No data available, keep polling

@@ -439,6 +439,14 @@ async fn stream_widget(
             let alarm_changed = last_alarm != Some(current_alarm);
             
             if value_changed || connection_changed || alarm_changed {
+                tracing::debug!(
+                    "PV {} changed - value: {} ({}), conn: {} ({}), alarm: {} ({})",
+                    pv_name_clone,
+                    current_value, value_changed,
+                    current_connection, connection_changed,
+                    current_alarm, alarm_changed
+                );
+                
                 // Generate and send updated widget HTML
                 if let Some(widget) = &widget_config {
                     let markup = widgets::render_widget_by_type_public(widget, Some(&pv_value));

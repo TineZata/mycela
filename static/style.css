@@ -219,7 +219,7 @@ body {
 .alarm-major {
     border-left-color: var(--alarm-major);
     background: rgba(255, 51, 51, 0.08);
-    animation: pulse 1.5s ease-in-out infinite;
+    animation: pulse 4.0s ease-in-out infinite;
 }
 
 .alarm-invalid {
