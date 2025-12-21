@@ -34,6 +34,16 @@ pub struct PvValue {
     pub control_low: Option<f64>,
     pub control_high: Option<f64>,
     pub min_step: Option<f64>,
+    // Alarm limits
+    pub low_alarm_limit: Option<f64>,
+    pub low_warning_limit: Option<f64>,
+    pub high_alarm_limit: Option<f64>,
+    pub high_warning_limit: Option<f64>,
+    pub low_alarm_severity: Option<String>,
+    pub low_warning_severity: Option<String>,
+    pub high_alarm_severity: Option<String>,
+    pub high_warning_severity: Option<String>,
+    pub hysteresis: Option<i32>,
 }
 
 /// Monitor manager - creates and maintains persistent PVXS monitors
@@ -95,6 +105,15 @@ impl PvMonitorManager {
                 control_low: None,
                 control_high: None,
                 min_step: None,
+                low_alarm_limit: None,
+                low_warning_limit: None,
+                high_alarm_limit: None,
+                high_warning_limit: None,
+                low_alarm_severity: None,
+                low_warning_severity: None,
+                high_alarm_severity: None,
+                high_warning_severity: None,
+                hysteresis: None,
             }
         }
     }
@@ -155,6 +174,15 @@ fn monitor_pv_loop(
                 control_low: None,
                 control_high: None,
                 min_step: None,
+                low_alarm_limit: None,
+                low_warning_limit: None,
+                high_alarm_limit: None,
+                high_warning_limit: None,
+                low_alarm_severity: None,
+                low_warning_severity: None,
+                high_alarm_severity: None,
+                high_warning_severity: None,
+                hysteresis: None,
             });
             return;
         }
@@ -199,6 +227,19 @@ fn monitor_pv_loop(
                 let control_high = value.get_field_double("control.limitHigh").ok();
                 let min_step = value.get_field_double("control.minStep").ok();
                 
+                // Extract alarm limits
+                let low_alarm_limit = value.get_field_double("valueAlarm.lowAlarmLimit").ok();
+                let low_warning_limit = value.get_field_double("valueAlarm.lowWarningLimit").ok();
+                let high_alarm_limit = value.get_field_double("valueAlarm.highAlarmLimit").ok();
+                let high_warning_limit = value.get_field_double("valueAlarm.highWarningLimit").ok();
+                
+                // Extract alarm severity strings
+                let low_alarm_severity = value.get_field_string("valueAlarm.lowAlarmSeverity").ok();
+                let low_warning_severity = value.get_field_string("valueAlarm.lowWarningSeverity").ok();
+                let high_alarm_severity = value.get_field_string("valueAlarm.highAlarmSeverity").ok();
+                let high_warning_severity = value.get_field_string("valueAlarm.highWarningSeverity").ok();
+                let hysteresis = value.get_field_int32("valueAlarm.hysteresis").ok();
+                
                 values.insert(pv_name.clone(), PvValue {
                     name: pv_name.clone(),
                     value: double_value,
@@ -215,6 +256,15 @@ fn monitor_pv_loop(
                     control_low,
                     control_high,
                     min_step,
+                    low_alarm_limit,
+                    low_warning_limit,
+                    high_alarm_limit,
+                    high_warning_limit,
+                    low_alarm_severity,
+                    low_warning_severity,
+                    high_alarm_severity,
+                    high_warning_severity,
+                    hysteresis,
                 });
                 
                 tracing::debug!("PV {} updated: value={}, alarm_severity={}", pv_name, double_value, alarm_severity);
