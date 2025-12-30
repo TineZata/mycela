@@ -38,6 +38,20 @@
           }
         }
       }
+    },
+    {
+      "id": "motor_x_pos_readback",
+      "pv_name": "demo:motor:x",
+      "type": "text_update",
+      "label": "Motor X Position Readback",
+      "data_type": "double"
+    },
+    {
+      "id": "motor_x_pos_readback_2",
+      "pv_name": "demo:motor:x",
+      "type": "text_update",
+      "label": "Motor X Position Readback 2",
+      "data_type": "double"
     }
   ]
 }

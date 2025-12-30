@@ -45,10 +45,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Starting EPICS Web UI Server");
 
-    // Load configuration
-    let config = ScreenConfig::load("examples/demo_config.json")
-        .expect("Failed to load demo_config.json");
+    // Load configuration - try multiple paths to handle different execution contexts
+    let config_paths = [
+        "examples/demo_config.json",           // Running from project root
+        "../examples/demo_config.json",        // Running from target/debug or target/release
+        "../../examples/demo_config.json",     // Running from nested target dirs
+    ];
+    
+    let config = config_paths.iter()
+        .find_map(|path| {
+            match ScreenConfig::load(path) {
+                Ok(cfg) => {
+                    tracing::info!("✅ Loaded configuration from: {}", path);
+                    Some(cfg)
+                }
+                Err(e) => {
+                    tracing::debug!("Could not load config from {}: {}", path, e);
+                    None
+                }
+            }
+        })
+        .expect("Failed to load demo_config.json from any expected location. Try running from project root.");
+    
     tracing::info!("✅ Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
+    for (idx, widget) in config.widgets.iter().enumerate() {
+        tracing::info!("  Widget {}: id={}, type={:?}, label='{}', pv={}", 
+            idx, widget.id, widget.widget_type, widget.label, widget.pv_name);
+    }
 
     // Initialize PVXS server if any widgets have server configuration
     let pv_server = Arc::new(PvServerManager::new().expect("Failed to create PV server manager"));
@@ -239,7 +262,7 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
                     div class="widget-grid" {
                         @for widget in &state.config.widgets {
                             div hx-ext="sse" 
-                                sse-connect={"/stream/widget/" (widget.pv_name)} 
+                                sse-connect={"/stream/widget/" (widget.id)} 
                                 sse-swap="message" 
                                 hx-swap="innerHTML" {
                                 (widgets::render_widget_from_config(widget, &state).await)
@@ -391,20 +414,37 @@ async fn poll_widget_group(
 
 /// Server-Sent Events stream for widget updates driven by PVXS monitors
 async fn stream_widget(
-    Path(pv_name): Path<String>,
+    Path(widget_id): Path<String>,
     State(state): State<AppState>,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>>> {
-    tracing::info!("Starting SSE stream for widget with PV: {}", pv_name);
+    tracing::info!("Starting SSE stream for widget ID: {}", widget_id);
     
-    // Find the widget config for this PV
+    // Find the widget config by ID
     let widget_config = state.config.widgets.iter()
-        .find(|w| w.pv_name == pv_name)
+        .find(|w| w.id == widget_id)
         .cloned();
     
+    if widget_config.is_none() {
+        tracing::error!("Widget not found with ID: {}", widget_id);
+    }
+    
+    let pv_name = widget_config.as_ref().map(|w| w.pv_name.clone()).unwrap_or_else(|| {
+        tracing::error!("No PV name for widget ID: {}", widget_id);
+        String::new()
+    });
+    
+    tracing::info!("SSE stream for widget '{}' monitoring PV: {}", widget_id, pv_name);
+    
     let monitor = state.pv_monitor.clone();
-    let pv_name_clone = pv_name.clone();
+    let pv_name_clone = pv_name;
     
     let stream = async_stream::stream! {
+        // If no valid widget config, return empty stream
+        if widget_config.is_none() || pv_name_clone.is_empty() {
+            tracing::error!("Cannot start stream for widget '{}' - invalid configuration", widget_id);
+            return;
+        }
+        
         let mut last_value: Option<f64> = None;
         let mut last_connection: Option<String> = None;
         let mut last_alarm: Option<i32> = None;

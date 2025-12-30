@@ -86,6 +86,7 @@ pub struct AlarmMetadata {
 #[serde(rename_all = "snake_case")]
 pub enum WidgetType {
     TextEntry,
+    TextUpdate,
     Gauge,
     Led,
     Button,
