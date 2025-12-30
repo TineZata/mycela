@@ -188,10 +188,13 @@ fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     let input_type = if step_value == 0.0 { "text" } else { "number" };
     let is_string_type = widget.data_type.as_deref() == Some("string");
     
+    let tooltip_text = value.map(|v| generate_tooltip(v)).unwrap_or_default();
+    
     html! {
         div class={"widget text-entry " (alarm_class)} 
             data-widget-id=(widget.id) 
-            data-pv=(widget.pv_name) {
+            data-pv=(widget.pv_name)
+            title=(tooltip_text) {
             
             label class="widget-label" { (widget.label) }
             
@@ -256,10 +259,13 @@ fn render_gauge(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     
     let percentage = ((current_value - min) / (max - min) * 100.0).clamp(0.0, 100.0);
     
+    let tooltip_text = value.map(|v| generate_tooltip(v)).unwrap_or_default();
+    
     html! {
         div class={"widget gauge " (alarm_class)} 
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name) {
+            data-pv=(widget.pv_name)
+            title=(tooltip_text) {
             
             label class="widget-label" { (widget.label) }
             
@@ -286,10 +292,13 @@ fn render_led(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
         .map(|v| alarm_severity_class(v.alarm_severity))
         .unwrap_or("alarm-disconnected");
     
+    let tooltip_text = value.map(|v| generate_tooltip(v)).unwrap_or_default();
+    
     html! {
         div class={"widget led " (alarm_class)} 
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name) {
+            data-pv=(widget.pv_name)
+            title=(tooltip_text) {
             
             label class="widget-label" { (widget.label) }
             
@@ -335,10 +344,13 @@ fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
         .map(|v| alarm_severity_class(v.alarm_severity))
         .unwrap_or("alarm-disconnected");
     
+    let tooltip_text = value.map(|v| generate_tooltip(v)).unwrap_or_default();
+    
     html! {
         div class={"widget slider " (alarm_class)} 
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name) {
+            data-pv=(widget.pv_name)
+            title=(tooltip_text) {
             
             label class="widget-label" { (widget.label) }
             
@@ -407,6 +419,79 @@ fn alarm_severity_class(severity: i32) -> &'static str {
         2 => "alarm-major",
         _ => "alarm-invalid",
     }
+}
+
+/// Generate tooltip text with PV metadata
+fn generate_tooltip(value: &PvValue) -> String {
+    let mut tooltip = String::new();
+    
+    // Connection and alarm info
+    tooltip.push_str(&format!("PV: {}\n", value.name));
+    // Description
+    if let Some(desc) = &value.description {
+        tooltip.push_str(&format!("Description: {}\n", desc));
+    }
+    tooltip.push_str(&format!("Status: {:?}\n", value.connection_status));
+    tooltip.push_str(&format!("Alarm Severity: {}\n", value.alarm_severity));
+    tooltip.push_str(&format!("Alarm Status: {}\n", value.alarm_status));
+    
+    if let Some(msg) = &value.alarm_message {
+        tooltip.push_str(&format!("Alarm Message: {}\n", msg));
+    }
+    
+    // Value and display info
+    tooltip.push_str(&format!("Value: {:.6}\n", value.value));
+    if let Some(units) = &value.units {
+        tooltip.push_str(&format!("Units: {}\n", units));
+    }
+    if let Some(prec) = value.precision {
+        tooltip.push_str(&format!("Precision: {}\n", prec));
+    }
+    
+    // Display limits
+    if let Some(low) = value.limit_low {
+        tooltip.push_str(&format!("Display Low: {}\n", low));
+    }
+    if let Some(high) = value.limit_high {
+        tooltip.push_str(&format!("Display High: {}\n", high));
+    }
+    
+    // Control limits
+    if let Some(low) = value.control_low {
+        tooltip.push_str(&format!("Control Low: {}\n", low));
+    }
+    if let Some(high) = value.control_high {
+        tooltip.push_str(&format!("Control High: {}\n", high));
+    }
+    if let Some(step) = value.min_step {
+        tooltip.push_str(&format!("Min Step: {}\n", step));
+    }
+    
+    // Alarm limits
+    if let Some(lal) = value.low_alarm_limit {
+        tooltip.push_str(&format!("Low Alarm Limit: {}\n", lal));
+    }
+    if let Some(lwl) = value.low_warning_limit {
+        tooltip.push_str(&format!("Low Warning Limit: {}\n", lwl));
+    }
+    if let Some(hwl) = value.high_warning_limit {
+        tooltip.push_str(&format!("High Warning Limit: {}\n", hwl));
+    }
+    if let Some(hal) = value.high_alarm_limit {
+        tooltip.push_str(&format!("High Alarm Limit: {}\n", hal));
+    }
+    
+    // Timestamp
+    tooltip.push_str(&format!("Timestamp: {}\n", to_human_time_string(value.timestamp)));
+    
+    tooltip.trim_end().to_string()
+}
+
+/// Convert timestamp to human-readable string
+pub fn to_human_time_string(timestamp: i64) -> String {
+    // Timestamp is already in Unix epoch format (seconds since 1970-01-01)
+    let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(timestamp, 0).unwrap_or_default();
+    datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 }
 
 // Simple widget renderers without config complexity
