@@ -1,7 +1,7 @@
 use maud::{html, Markup};
 use axum::response::Html;
 use crate::{AppState, config::{ScreenConfig, WidgetConfig, WidgetType}};
-use crate::pv_monitor::{PvValue, ConnectionStatus};
+use crate::pv_monitor::{PvValue, ConnectionStatus, NTType};
 
 // Base64 encoded SVG icons for different alarm states (shared across all widgets)
 pub const OFFLINE_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9IiNmYTAwZmEiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbWl0ZXJsaW1pdD0iNCIgc3Ryb2tlLXdpZHRoPSIxLjUiIGQ9Ik0yLjc1NyA2LjA5N2MwLTEuODQ1IDEuNDk2LTMuMzQgMy4zNC0zLjM0aDExLjgxOWMxLjg0NSAwIDMuMzQgMS40OTUgMy4zNCAzLjM0djExLjgxOWMwIDEuODQ1LTEuNDk1IDMuMzQtMy4zNCAzLjM0aC0xMS44MTljLTEuODQ1IDAtMy4zNC0xLjQ5NS0zLjM0LTMuMzR2LTExLjgxOXoiPjwvcGF0aD48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLW1pdGVybGltaXQ9IjQiIHN0cm9rZS13aWR0aD0iMS41IiBkPSJNMTcuODIgMTQuNDAyYzAuMTE2LTAuMjkzIDAuMTgtMC42MTEgMC4xOC0wLjk0NCAwLTEuMzY3LTEuMDc1LTIuNDktMi40NDgtMi42MTQtMC4yODEtMS42NjEtMS43NjQtMi45MjgtMy41NTItMi45MjgtMC4yNjggMC0wLjUyOSAwLjAyOC0wLjc4IDAuMDgyTTkuMTcyIDkuMjVjLTAuMzY5IDAuNDU0LTAuNjI0IDAuOTk5LTAuNzI1IDEuNTk1LTEuMzczIDAuMTI0LTIuNDQ4IDEuMjQ3LTIuNDQ4IDIuNjE0IDAgMS40NSAxLjIwOSAyLjYyNSAyLjcgMi42MjVoNi42YzAuMjc0IDAgMC41MzgtMC4wMzkgMC43ODctMC4xMTNNNi42IDYuNzVsMTAuOCAxMC41Ij48L3BhdGg+PC9zdmc+";
@@ -147,7 +147,7 @@ fn render_pv_value_inline(_pv_name: &str, value: &PvValue) -> Markup {
     
     html! {
         span class={"pv-value " (alarm_class)} {
-            (format!("{:.2}", value.value))
+            (value.value.to_display_string(value.precision))
             @if let Some(units) = &value.units {
                 " " (units)
             }
@@ -190,6 +190,26 @@ pub fn generate_tooltip(value: &PvValue) -> String {
     if let Some(desc) = &value.description {
         tooltip.push_str(&format!("Description: {}\n", desc));
     }
+    
+    // Value and display info
+    tooltip.push_str(&format!("Value: {}\n", value.value.to_display_string(value.precision)));
+
+    // NTType
+    match value.value {
+        NTType::String(_) => {
+            tooltip.push_str(&format!("Type: String\n"));
+        }
+        NTType::Double(_) => {
+            tooltip.push_str(&format!("Type: Double\n"));
+        }
+        NTType::Int32(_) => {
+            tooltip.push_str(&format!("Type: Int32\n"));
+        }
+        NTType::Enum { .. } => {
+            tooltip.push_str(&format!("Type: Enum\n"));
+        }
+    }
+
     tooltip.push_str(&format!("Status: {:?}\n", value.connection_status));
     tooltip.push_str(&format!("Alarm Severity: {}\n", value.alarm_severity));
     tooltip.push_str(&format!("Alarm Status: {}\n", value.alarm_status));
@@ -198,8 +218,6 @@ pub fn generate_tooltip(value: &PvValue) -> String {
         tooltip.push_str(&format!("Alarm Message: {}\n", msg));
     }
     
-    // Value and display info
-    tooltip.push_str(&format!("Value: {:.6}\n", value.value));
     if let Some(units) = &value.units {
         tooltip.push_str(&format!("Units: {}\n", units));
     }

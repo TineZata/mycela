@@ -17,7 +17,7 @@
             "limit_low": 0.0,
             "limit_high": 100.0,
             "description": "Horizontal stage position",
-            "precision": 3,
+            "precision": 2,
             "units": "mm"
           },
           "control": {

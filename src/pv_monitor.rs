@@ -14,11 +14,55 @@ pub enum ConnectionStatus {
     Error(String),
 }
 
+/// Scalar value type that can hold different data types
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum NTType {
+    Double(f64),
+    Int32(i32),
+    String(String),
+    Enum { index: i16, choice: String },
+}
+
+impl NTType {
+    /// Try to get as f64 for backwards compatibility
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            NTType::Double(v) => Some(*v),
+            NTType::Int32(v) => Some(*v as f64),
+            NTType::Enum { index, .. } => Some(*index as f64),
+            NTType::String(_) => None,
+        }
+    }
+    
+    /// Format value as string for display
+    pub fn to_display_string(&self, precision: Option<i32>) -> String {
+        match self {
+            NTType::Double(v) => {
+                if let Some(prec) = precision {
+                    format!("{:.prec$}", v, prec = prec as usize)
+                } else {
+                    format!("{:.6}", v)
+                }
+            }
+            NTType::Int32(v) => v.to_string(),
+            NTType::String(s) => s.clone(),
+            NTType::Enum { choice, .. } => choice.clone(),
+        }
+    }
+}
+
+impl Default for NTType {
+    fn default() -> Self {
+        // TODO: Default should be string
+        NTType::Double(0.0)
+    }
+}
+
 /// Cached PV value with metadata and connection status
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PvValue {
     pub name: String,
-    pub value: f64,
+    pub value: NTType,
     pub timestamp: i64,
     pub connection_status: ConnectionStatus,
     pub alarm_severity: i32,
@@ -91,7 +135,7 @@ impl PvMonitorManager {
         } else {
             PvValue {
                 name: pv_name.to_string(),
-                value: 0.0,
+                value: NTType::default(),
                 timestamp: 0,
                 connection_status: ConnectionStatus::Disconnected,
                 alarm_severity: 3, // Invalid
@@ -160,7 +204,7 @@ fn monitor_pv_loop(
             tracing::error!("Failed to create monitor for {}: {}", pv_name, e);
             values.insert(pv_name.clone(), PvValue {
                 name: pv_name,
-                value: 0.0,
+                value: NTType::default(),
                 timestamp: 0,
                 connection_status: ConnectionStatus::Error(format!("Monitor creation failed: {}", e)),
                 alarm_severity: 3,
@@ -203,8 +247,33 @@ fn monitor_pv_loop(
     loop {
         match monitor.pop() {
             Ok(Some(value)) => {
-                // Got data update
-                let double_value = value.get_field_double("value").unwrap_or(0.0);
+                // Got data update - detect the type and extract appropriately
+                // Check specific types first (double, int32, enum) before string, since string conversion is more permissive
+                let nt_value = if let Ok(d) = value.get_field_double("value") {
+                    // Double type
+                    NTType::Double(d)
+                } else if let Ok(i) = value.get_field_int32("value") {
+                    // Int32 type
+                    NTType::Int32(i)
+                } else if let Ok(en) = value.get_field_enum("value") {
+                    // Enum type
+                    NTType::Enum {
+                        index: en,
+                        choice: value.get_field_string("value.choices").ok()
+                            .and_then(|choices| {
+                                let parts: Vec<&str> = choices.split(',').collect();
+                                parts.get(en as usize).map(|s| s.to_string())
+                            })
+                            .unwrap_or_else(|| format!("Enum#{}", en)),
+                }
+                } else if let Ok(s) = value.get_field_string("value") {
+                    // String type (check last since it's more permissive)
+                    NTType::String(s)
+                } else {
+                    // Fallback to unknown string
+                    NTType::String("??".to_string())
+                };
+                
                 let timestamp = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
@@ -242,7 +311,7 @@ fn monitor_pv_loop(
                 
                 values.insert(pv_name.clone(), PvValue {
                     name: pv_name.clone(),
-                    value: double_value,
+                    value: nt_value.clone(),
                     timestamp,
                     connection_status: ConnectionStatus::Connected,
                     alarm_severity,
@@ -267,7 +336,7 @@ fn monitor_pv_loop(
                     hysteresis,
                 });
                 
-                tracing::debug!("PV {} updated: value={}, alarm_severity={}", pv_name, double_value, alarm_severity);
+                tracing::debug!("PV {} updated: value={}, alarm_severity={}", pv_name, nt_value.to_display_string(precision), alarm_severity);
             }
             Ok(None) => {
                 // No data available, keep polling

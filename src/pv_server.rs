@@ -148,8 +148,25 @@ impl PvServerManager {
         
         metadata_builder = metadata_builder.with_form(true);
         
-        // Create PV with initial value (0.0) and metadata
-        let pv = server.create_pv_double(pv_name, 0.0, metadata_builder)?;
+        // Create PV based on data_type
+        let pv = match data_type.as_deref() {
+            Some("double") | Some("float") => {
+                tracing::info!("Creating DOUBLE PV: {}", pv_name);
+                server.create_pv_double(pv_name, 0.0, metadata_builder)?
+            }
+            Some("int32") | Some("int") => {
+                tracing::info!("Creating INT32 PV: {}", pv_name);
+                server.create_pv_int32(pv_name, 0, metadata_builder)?
+            }
+            Some("string") | None => {
+                tracing::info!("Creating STRING PV: {}", pv_name);
+                server.create_pv_string(pv_name, "", metadata_builder)?
+            }
+            Some(other) => {
+                tracing::warn!("Unknown data_type '{}' for {}, defaulting to STRING", other, pv_name);
+                server.create_pv_string(pv_name, "", metadata_builder)?
+            }
+        };
         
         Ok(pv)
     }

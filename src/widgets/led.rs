@@ -4,7 +4,7 @@ use crate::pv_monitor::{PvValue, ConnectionStatus};
 
 /// LED indicator widget
 pub fn render_led(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let is_on = value.map(|v| v.value > 0.5).unwrap_or(false);
+    let is_on = value.and_then(|v| v.value.as_f64().map(|val| val > 0.5)).unwrap_or(false);
     let led_state = if is_on { "led-on" } else { "led-off" };
     
     let alarm_class = value
@@ -42,7 +42,7 @@ pub fn render_led(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
 pub async fn render_led_simple(pv_name: &str, label: &str, state: &AppState) -> Markup {
     let value = state.pv_monitor.get_value(pv_name).await;
     let is_connected = matches!(value.connection_status, ConnectionStatus::Connected);
-    let is_on = is_connected && value.value > 0.5;
+    let is_on = is_connected && value.value.as_f64().unwrap_or(0.0) > 0.5;
     let led_class = if !is_connected {
         "led-disconnected"
     } else if is_on {

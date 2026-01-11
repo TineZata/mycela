@@ -17,8 +17,8 @@ pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Mar
     
     let current_value = value
         .map(|v| {
-            let prec = v.precision.unwrap_or(2) as usize;
-            format!("{:.prec$}", v.value, prec = prec)
+            let prec = v.precision.unwrap_or(2);
+            v.value.to_display_string(Some(prec))
         })
         .unwrap_or_else(|| "--".to_string());
     

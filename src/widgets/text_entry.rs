@@ -17,8 +17,8 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
     
     let current_value = value
         .map(|v| {
-            let prec = v.precision.unwrap_or(2) as usize;
-            format!("{:.prec$}", v.value, prec = prec)
+            let prec = v.precision.unwrap_or(2);
+            v.value.to_display_string(Some(prec))
         })
         .unwrap_or_else(|| "--".to_string());
     
@@ -102,7 +102,7 @@ pub async fn render_text_entry_with_config(widget: &WidgetConfig, state: &AppSta
     let is_string_type = widget.data_type.as_deref() == Some("string");
     let input_type = if is_string_type { "text" } else if step_value == 0.0 { "text" } else { "number" };
     let precision = value.precision.unwrap_or(2) as usize;
-    let formatted_value = format!("{:.prec$}", value.value, prec = precision);
+    let formatted_value = value.value.to_display_string(Some(precision as i32));
     
     html! {
         label class="widget-label" { (widget.label) }
@@ -157,7 +157,7 @@ pub async fn render_text_entry_simple(pv_name: &str, label: &str, state: &AppSta
     let step_value = value.min_step.unwrap_or(0.01);
     let input_type = if step_value == 0.0 { "text" } else { "number" };
     let precision = value.precision.unwrap_or(2) as usize;
-    let formatted_value = format!("{:.prec$}", value.value, prec = precision);
+    let formatted_value = value.value.to_display_string(Some(precision as i32));
     
     html! {
         label class="widget-label" { (label) }

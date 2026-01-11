@@ -19,7 +19,7 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::pv_monitor::PvMonitorManager;
+use crate::pv_monitor::{PvMonitorManager, NTType};
 use crate::pv_server::PvServerManager;
 use crate::config::ScreenConfig;
 
@@ -445,7 +445,7 @@ async fn stream_widget(
             return;
         }
         
-        let mut last_value: Option<f64> = None;
+        let mut last_value: Option<NTType> = None;
         let mut last_connection: Option<String> = None;
         let mut last_alarm: Option<i32> = None;
         
@@ -454,7 +454,7 @@ async fn stream_widget(
         if let Some(widget) = &widget_config {
             let markup = widgets::render_widget_by_type_public(widget, Some(&pv_value));
             let html = markup.into_string();
-            last_value = Some(pv_value.value);
+            last_value = Some(pv_value.value.clone());
             last_connection = Some(format!("{:?}", pv_value.connection_status));
             last_alarm = Some(pv_value.alarm_severity);
             yield Ok(Event::default().data(html));
@@ -470,11 +470,19 @@ async fn stream_widget(
             let pv_value = monitor.get_value(&pv_name_clone).await;
             
             // Check if anything significant changed
-            let current_value = pv_value.value;
+            let current_value = pv_value.value.clone();
             let current_connection = format!("{:?}", pv_value.connection_status);
             let current_alarm = pv_value.alarm_severity;
             
-            let value_changed = last_value.map_or(true, |v| (v - current_value).abs() > 0.001);
+            // Compare values based on type
+            let value_changed = match (&last_value, &current_value) {
+                (Some(NTType::Double(old)), NTType::Double(new)) => (old - new).abs() > 0.001,
+                (Some(NTType::Int32(old)), NTType::Int32(new)) => old != new,
+                (Some(NTType::String(old)), NTType::String(new)) => old != new,
+                (Some(NTType::Enum { index: old_idx, .. }), NTType::Enum { index: new_idx, .. }) => old_idx != new_idx,
+                (None, _) => true,
+                (Some(_), _) => true, // Type changed
+            };
             let connection_changed = last_connection.as_ref() != Some(&current_connection);
             let alarm_changed = last_alarm != Some(current_alarm);
             
@@ -482,7 +490,7 @@ async fn stream_widget(
                 tracing::debug!(
                     "PV {} changed - value: {} ({}), conn: {} ({}), alarm: {} ({})",
                     pv_name_clone,
-                    current_value, value_changed,
+                    current_value.to_display_string(None), value_changed,
                     current_connection, connection_changed,
                     current_alarm, alarm_changed
                 );

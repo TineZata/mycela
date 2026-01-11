@@ -4,7 +4,7 @@ use crate::pv_monitor::{PvValue, ConnectionStatus};
 
 /// Slider widget - adjustable value
 pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let current_value = value.map(|v| v.value).unwrap_or(0.0);
+    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
     
     // Extract control range from PV metadata or use defaults
     let (min, max) = value
@@ -22,9 +22,8 @@ pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     // Use min_step from metadata if available
     let step = value.and_then(|v| v.min_step).unwrap_or(0.1);
     
-    // Format value with precision from metadata
-    let precision = value.and_then(|v| v.precision).unwrap_or(2) as usize;
-    let display_value = format!("{:.prec$}", current_value, prec = precision);
+    // Use NTType display method for formatting
+    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
     
     let units = value
         .and_then(|v| v.units.as_deref())
@@ -95,12 +94,12 @@ pub async fn render_slider_simple(pv_name: &str, label: &str, state: &AppState) 
             label { (label) }
             input type="range" 
                 min="-100" max="100" step="1"
-                value=(value.value)
+                value=(value.value.as_f64().unwrap_or(0.0))
                 disabled[!matches!(value.connection_status, ConnectionStatus::Connected)]
                 hx-post={"/api/pv/" (pv_name) "/set"}
                 hx-trigger="change"
                 hx-vals={"js:{value: event.target.value}"};
-            span class="slider-value" { (format!("{:.1}", value.value)) }
+            span class="slider-value" { (value.value.to_display_string(Some(1))) }
         }
     }
 }

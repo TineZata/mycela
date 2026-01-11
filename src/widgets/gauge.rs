@@ -8,7 +8,7 @@ pub fn render_gauge(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
         .map(|v| super::alarm_severity_class(v.alarm_severity))
         .unwrap_or("alarm-disconnected");
     
-    let current_value = value.map(|v| v.value).unwrap_or(0.0);
+    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
     
     // Extract display range from PV metadata or use defaults
     let (min, max) = value
@@ -21,9 +21,8 @@ pub fn render_gauge(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
         })
         .unwrap_or((0.0, 100.0));
     
-    // Format value with precision from metadata
-    let precision = value.and_then(|v| v.precision).unwrap_or(2) as usize;
-    let display_value = format!("{:.prec$}", current_value, prec = precision);
+    // Use NTType display method for formatting
+    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
     
     let percentage = ((current_value - min) / (max - min) * 100.0).clamp(0.0, 100.0);
     
@@ -85,7 +84,7 @@ pub async fn render_gauge_simple(pv_name: &str, label: &str, units: &str, state:
             label { (label) }
             div class="gauge-display" {
                 @if matches!(value.connection_status, ConnectionStatus::Connected) {
-                    span class="gauge-value" { (format!("{:.2}", value.value)) }
+                    span class="gauge-value" { (value.value.to_display_string(Some(2))) }
                     span class="gauge-units" { (units) }
                 } @else {
                     span class="gauge-value disconnected" { "---" }
