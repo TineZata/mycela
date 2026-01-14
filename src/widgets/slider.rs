@@ -83,7 +83,7 @@ pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
 }
 
 pub async fn render_slider_simple(pv_name: &str, label: &str, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(pv_name).await;
+    let value = state.pv_monitor.get_value(pv_name, ).await;
     let status_class = match value.connection_status {
         ConnectionStatus::Connected => "status-connected",
         _ => "status-disconnected",

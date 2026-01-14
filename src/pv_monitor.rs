@@ -20,7 +20,7 @@ pub enum NTType {
     Double(f64),
     Int32(i32),
     String(String),
-    Enum { index: i16, choice: String },
+    Enum { index: i16, choices: Vec<String> },
 }
 
 impl NTType {
@@ -46,7 +46,7 @@ impl NTType {
             }
             NTType::Int32(v) => v.to_string(),
             NTType::String(s) => s.clone(),
-            NTType::Enum { choice, .. } => choice.clone(),
+            NTType::Enum { choices, .. } => choices.join(", "),
         }
     }
 }
@@ -63,6 +63,7 @@ impl Default for NTType {
 pub struct PvValue {
     pub name: String,
     pub value: NTType,
+    pub display_data_type: Option<String>,
     pub timestamp: i64,
     pub connection_status: ConnectionStatus,
     pub alarm_severity: i32,
@@ -107,35 +108,36 @@ impl PvMonitorManager {
     }
     
     /// Get current value for a PV (creates monitor if doesn't exist)
-    pub async fn get_value(&self, pv_name: &str) -> PvValue {
+    pub async fn get_value(&self, pv_name: String, pv_type: &Option<String>) -> PvValue {
         // Check if we already have a value
-        if let Some(entry) = self.values.get(pv_name) {
+        if let Some(entry) = self.values.get(pv_name.as_str()) {
             return entry.value().clone();
         }
         
         // Check if monitor is already running for this PV
         let should_start = {
             let mut monitors = self.active_monitors.lock().unwrap();
-            if monitors.contains(pv_name) {
+            if monitors.contains(pv_name.as_str()) {
                 false // Monitor already exists
             } else {
-                monitors.insert(pv_name.to_string());
+                monitors.insert(pv_name.clone());
                 true // Start new monitor
             }
         };
         
         if should_start {
             // Start monitoring this PV in background
-            self.start_monitor(pv_name).await;
+            self.start_monitor(&pv_name, pv_type.clone()).await;
         }
         
         // Return disconnected state initially (or cached value if it exists now)
-        if let Some(entry) = self.values.get(pv_name) {
+        if let Some(entry) = self.values.get(pv_name.as_str()) {
             entry.value().clone()
         } else {
             PvValue {
                 name: pv_name.to_string(),
                 value: NTType::default(),
+                display_data_type: pv_type.clone(),
                 timestamp: 0,
                 connection_status: ConnectionStatus::Disconnected,
                 alarm_severity: 3, // Invalid
@@ -163,14 +165,15 @@ impl PvMonitorManager {
     }
     
     /// Start a background monitor for a PV
-    async fn start_monitor(&self, pv_name: &str) {
+    async fn start_monitor(&self, pv_name: &str, pv_type: Option<String>) {
         let pv_name = pv_name.to_string();
+        let pv_type = pv_type.map(|s| s.to_string());
         let values = self.values.clone();
         let client = self.client.clone();
         
         tokio::spawn(async move {
             let result = tokio::task::spawn_blocking(move || {
-                monitor_pv_loop(pv_name, values, client)
+                monitor_pv_loop(pv_name, pv_type, values, client)
             }).await;
             
             if let Err(e) = result {
@@ -183,6 +186,7 @@ impl PvMonitorManager {
 /// Monitor loop - runs in blocking thread
 fn monitor_pv_loop(
     pv_name: String,
+    pv_data_type: Option<String>,
     values: Arc<DashMap<String, PvValue>>,
     client_arc: Arc<RwLock<pvxs_sys::Context>>,
 ) {
@@ -205,6 +209,7 @@ fn monitor_pv_loop(
             values.insert(pv_name.clone(), PvValue {
                 name: pv_name,
                 value: NTType::default(),
+                display_data_type: pv_data_type.clone(),
                 timestamp: 0,
                 connection_status: ConnectionStatus::Error(format!("Monitor creation failed: {}", e)),
                 alarm_severity: 3,
@@ -248,30 +253,34 @@ fn monitor_pv_loop(
         match monitor.pop() {
             Ok(Some(value)) => {
                 // Got data update - detect the type and extract appropriately
-                // Check specific types first (double, int32, enum) before string, since string conversion is more permissive
-                let nt_value = if let Ok(d) = value.get_field_double("value") {
-                    // Double type
-                    NTType::Double(d)
-                } else if let Ok(i) = value.get_field_int32("value") {
-                    // Int32 type
-                    NTType::Int32(i)
-                } else if let Ok(en) = value.get_field_enum("value") {
-                    // Enum type
-                    NTType::Enum {
-                        index: en,
-                        choice: value.get_field_string("value.choices").ok()
-                            .and_then(|choices| {
-                                let parts: Vec<&str> = choices.split(',').collect();
-                                parts.get(en as usize).map(|s| s.to_string())
-                            })
-                            .unwrap_or_else(|| format!("Enum#{}", en)),
-                }
-                } else if let Ok(s) = value.get_field_string("value") {
-                    // String type (check last since it's more permissive)
-                    NTType::String(s)
-                } else {
-                    // Fallback to unknown string
-                    NTType::String("??".to_string())
+                let nt_value = match pv_data_type.as_ref() {
+                    Some(s) if s == "double" || s == "float" => {
+                        value.get_field_double("value").map(NTType::Double)
+                    } Some(s) if s == "int32" || s == "int" || s == "integer" => {
+                        value.get_field_int32("value").map(NTType::Int32)
+                    } Some(s) if s == "enum" => {
+                        if let Ok(index) = value.get_field_int32("value") {
+                            let choices = value.get_field_string_array("value.choices");
+                            Ok(NTType::Enum { index: index as i16, choices: choices.unwrap_or_default() })
+                        } else {
+                            Ok(NTType::String("??".to_string())) 
+                        } 
+                    } Some(s) if s == "string" => {
+                        value.get_field_string("value").map(NTType::String)
+                    }
+                    Some(_) | None => {
+                        // Default to string for unknown types
+                        value.get_field_string("value").map(NTType::String)
+                    }
+                };
+                
+                // Unwrap the nt_value result, or continue on error
+                let nt_value = match nt_value {
+                    Ok(val) => val,
+                    Err(e) => {
+                        tracing::error!("Error extracting value for PV {}: {:?}", pv_name, e);
+                        continue;
+                    }
                 };
                 
                 let timestamp = SystemTime::now()
@@ -312,6 +321,7 @@ fn monitor_pv_loop(
                 values.insert(pv_name.clone(), PvValue {
                     name: pv_name.clone(),
                     value: nt_value.clone(),
+                    display_data_type: pv_data_type.clone(),
                     timestamp,
                     connection_status: ConnectionStatus::Connected,
                     alarm_severity,

@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 
 [[bin]]
-name = "server"
+name = "ctrl-demo-server"
 path = "src/main.rs"
 
 [dependencies]
@@ -37,7 +37,8 @@ async-stream = "0.3"
 chrono = "0.4"
 
 # EPICS
-pvxs-sys = { path = "../pvxs-sys" }
+# pvxs-sys = { path = "../pvxs-sys" }
+pvxs-sys = "0.1"
 
 [profile.release]
 opt-level = "z"

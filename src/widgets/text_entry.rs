@@ -90,7 +90,7 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
 }
 
 pub async fn render_text_entry_with_config(widget: &WidgetConfig, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(&widget.pv_name).await;
+    let value = state.pv_monitor.get_value(&widget.pv_name, &widget.data_type).await;
     
     let alarm_class = super::alarm_severity_class(value.alarm_severity);
     let icon_html = super::get_status_icon(&value.connection_status, value.alarm_severity);

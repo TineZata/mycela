@@ -154,7 +154,7 @@ impl PvServerManager {
                 tracing::info!("Creating DOUBLE PV: {}", pv_name);
                 server.create_pv_double(pv_name, 0.0, metadata_builder)?
             }
-            Some("int32") | Some("int") => {
+            Some("int32") | Some("int") | Some("integer") => {
                 tracing::info!("Creating INT32 PV: {}", pv_name);
                 server.create_pv_int32(pv_name, 0, metadata_builder)?
             }

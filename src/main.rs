@@ -110,9 +110,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Screen routes
         .route("/screen/:screen_id", get(render_screen))
         
-        // PV API routes
-        .route("/api/pv/:name", get(get_pv))
-        .route("/api/pv/:name/set", post(put_pv))
+        // PV API routes (using widget ID)
+        .route("/api/widget/:widget_id/value", get(get_pv))
+        .route("/api/widget/:widget_id/set", post(put_pv))
         
         // Server control routes
         .route("/api/server/start", post(start_server))
@@ -297,14 +297,24 @@ async fn render_screen(
     Ok(Html(markup.into_string()))
 }
 
-/// Get current PV value (JSON API)
+/// Get current PV value (JSON API) - using widget ID from config
 async fn get_pv(
-    Path(name): Path<String>,
+    Path(widget_id): Path<String>,
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    tracing::debug!("GET /api/pv/{}", name);
+    tracing::debug!("GET /api/widget/{}/value", widget_id);
     
-    let value = state.pv_monitor.get_value(&name).await;
+    // Look up widget in config to get PV name and data_type
+    let widget = state.config.widgets.iter()
+        .find(|w| w.id == widget_id)
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let pv_name = &widget.pv_name;
+    let data_type = &widget.data_type;
+    
+    tracing::debug!("Widget '{}' -> PV: {}, data_type: {}", widget_id, pv_name, data_type.as_deref().unwrap_or("unknown"));
+    
+    let value = state.pv_monitor.get_value(pv_name.clone(), data_type).await;
     
     Ok(axum::Json(value))
 }
@@ -316,11 +326,27 @@ struct PutForm {
 }
 
 async fn put_pv(
-    Path(name): Path<String>,
+    Path(widget_id): Path<String>,
     State(state): State<AppState>,
     Form(form): Form<PutForm>,
 ) -> Response {
-    tracing::info!("PUT /api/pv/{} = {}", name, form.value);
+    tracing::info!("PUT /api/widget/{}/set = {}", widget_id, form.value);
+    
+    // Look up widget in config to get PV name and data_type
+    let widget = match state.config.widgets.iter().find(|w| w.id == widget_id) {
+        Some(w) => w,
+        None => {
+            let error_html = maud::html! {
+                span class="error" { "Widget not found: " (widget_id) }
+            };
+            return (StatusCode::NOT_FOUND, Html(error_html.into_string())).into_response();
+        }
+    };
+    
+    let pv_name = widget.pv_name.clone();
+    let data_type = &widget.data_type;
+    
+    tracing::debug!("Widget '{}' -> PV: {}, data_type: {}", widget_id, pv_name, data_type.as_deref().unwrap_or("unknown"));
     
     // Parse the value
     let value: f64 = match form.value.parse() {
@@ -334,12 +360,12 @@ async fn put_pv(
     };
     
     // Perform the put operation
-    let name_clone = name.clone();
+    let pv_name_for_log = pv_name.clone();
     let client_arc = state.pvxs_client.clone();
     
     let result = tokio::task::spawn_blocking(move || {
         let mut client = client_arc.blocking_write();
-        client.put_double(&name_clone, value, 5.0)
+        client.put_double(&pv_name, value, 5.0)
             .map_err(|e| e.to_string())
     }).await;
     
@@ -347,21 +373,20 @@ async fn put_pv(
         Ok(Ok(_)) => {
             // Invalidate cache
             // Monitor will automatically update with new value
-            
             let success_html = maud::html! {
                 span class="success" { "✓" }
             };
             Html(success_html.into_string()).into_response()
         }
         Ok(Err(e)) => {
-            tracing::error!("Failed to put PV {}: {}", name, e);
+            tracing::error!("Failed to put PV {}: {}", pv_name_for_log, e);
             let error_html = maud::html! {
                 span class="error" { "Error: " (e) }
             };
             (StatusCode::BAD_REQUEST, Html(error_html.into_string())).into_response()
         }
         Err(e) => {
-            tracing::error!("Task error for PV {}: {}", name, e);
+            tracing::error!("Task error for PV {}: {}", pv_name_for_log, e);
             let error_html = maud::html! {
                 span class="error" { "Internal error" }
             };
@@ -432,15 +457,16 @@ async fn stream_widget(
         tracing::error!("No PV name for widget ID: {}", widget_id);
         String::new()
     });
+
+    let pv_data_type: Option<String> = widget_config.as_ref().and_then(|w| w.data_type.clone());
     
     tracing::info!("SSE stream for widget '{}' monitoring PV: {}", widget_id, pv_name);
     
     let monitor = state.pv_monitor.clone();
-    let pv_name_clone = pv_name;
     
     let stream = async_stream::stream! {
         // If no valid widget config, return empty stream
-        if widget_config.is_none() || pv_name_clone.is_empty() {
+        if widget_config.is_none() || pv_name.is_empty() {
             tracing::error!("Cannot start stream for widget '{}' - invalid configuration", widget_id);
             return;
         }
@@ -450,7 +476,7 @@ async fn stream_widget(
         let mut last_alarm: Option<i32> = None;
         
         // Send initial state immediately
-        let pv_value = monitor.get_value(&pv_name_clone).await;
+        let pv_value = monitor.get_value(pv_name.clone(), &pv_data_type).await;
         if let Some(widget) = &widget_config {
             let markup = widgets::render_widget_by_type_public(widget, Some(&pv_value));
             let html = markup.into_string();
@@ -467,7 +493,7 @@ async fn stream_widget(
             interval.tick().await;
             
             // Get current PV value from monitor cache
-            let pv_value = monitor.get_value(&pv_name_clone).await;
+            let pv_value = monitor.get_value(pv_name.clone(), &pv_data_type).await;
             
             // Check if anything significant changed
             let current_value = pv_value.value.clone();
@@ -489,7 +515,7 @@ async fn stream_widget(
             if value_changed || connection_changed || alarm_changed {
                 tracing::debug!(
                     "PV {} changed - value: {} ({}), conn: {} ({}), alarm: {} ({})",
-                    pv_name_clone,
+                    pv_name,
                     current_value.to_display_string(None), value_changed,
                     current_connection, connection_changed,
                     current_alarm, alarm_changed

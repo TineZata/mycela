@@ -33,7 +33,7 @@ pub use chart::render_chart;
 /// Render widget from config - dispatches to appropriate widget type
 pub async fn render_widget_from_config(widget: &WidgetConfig, state: &AppState) -> Markup {
     // Fetch current PV value
-    let pv_value = state.pv_monitor.get_value(&widget.pv_name).await;
+    let pv_value = state.pv_monitor.get_value(widget.pv_name.clone(), &widget.data_type).await;
     
     // Render widget with consistent pattern
     render_widget_by_type(widget, Some(&pv_value))
@@ -94,14 +94,14 @@ pub async fn render_widget_group(widgets: &[WidgetConfig], state: &AppState) -> 
 /// Render a single widget with current data (initial load)
 async fn render_widget_static(widget: &WidgetConfig, state: &AppState) -> Markup {
     // Fetch current PV value
-    let pv_value = state.pv_monitor.get_value(&widget.pv_name).await;
+    let pv_value = state.pv_monitor.get_value(widget.pv_name.clone(), &widget.data_type).await;
     
     render_widget_by_type(widget, Some(&pv_value))
 }
 
 /// Render a widget with SSE connection for real-time updates
 async fn render_widget_with_sse(widget: &WidgetConfig, state: &AppState) -> Markup {
-    let pv_value = state.pv_monitor.get_value(&widget.pv_name).await;
+    let pv_value = state.pv_monitor.get_value(widget.pv_name.clone(), &widget.data_type).await;
     
     html! {
         div hx-ext="sse" 

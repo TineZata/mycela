@@ -840,6 +840,8 @@ dependencies = [
 [[package]]
 name = "pvxs-sys"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88772c03d42cb7c20f31607f06cef26118d04d10dea83695d969b102f0868ea1"
 dependencies = [
  "chrono",
  "cxx",
