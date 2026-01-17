@@ -17,7 +17,12 @@ pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Mar
     
     let current_value = value
         .map(|v| {
-            let prec = v.precision.unwrap_or(2);
+            // Determine precision based on data_type or PV precision
+            let prec = if widget.data_type.as_deref() == Some("integer") || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32") {
+                0
+            } else {
+                v.precision.unwrap_or(2)
+            };
             v.value.to_display_string(Some(prec))
         })
         .unwrap_or_else(|| "--".to_string());

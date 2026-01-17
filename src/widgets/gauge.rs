@@ -72,24 +72,3 @@ pub fn render_gauge(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     }
 }
 
-pub async fn render_gauge_simple(pv_name: &str, label: &str, units: &str, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(pv_name).await;
-    let status_class = match value.connection_status {
-        ConnectionStatus::Connected => "status-connected",
-        _ => "status-disconnected",
-    };
-    
-    html! {
-        div class={"gauge-widget " (status_class)} {
-            label { (label) }
-            div class="gauge-display" {
-                @if matches!(value.connection_status, ConnectionStatus::Connected) {
-                    span class="gauge-value" { (value.value.to_display_string(Some(2))) }
-                    span class="gauge-units" { (units) }
-                } @else {
-                    span class="gauge-value disconnected" { "---" }
-                }
-            }
-        }
-    }
-}

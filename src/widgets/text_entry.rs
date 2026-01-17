@@ -14,10 +14,17 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
     } else {
         ("alarm-disconnected", Some(super::OFFLINE_SVG), "pv-input alarm-disconnected".to_string())
     };
+
+    let is_integer_type = widget.data_type.as_deref() == Some("integer")  || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32");
     
     let current_value = value
         .map(|v| {
-            let prec = v.precision.unwrap_or(2);
+            // Determine precision based on data_type or PV precision
+            let prec = if is_integer_type {
+                0
+            } else {
+                v.precision.unwrap_or(2)
+            };
             v.value.to_display_string(Some(prec))
         })
         .unwrap_or_else(|| "--".to_string());
@@ -53,7 +60,7 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
                             name="value"
                             value=(current_value)
                             disabled[disabled]
-                            hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                            hx-post={"/api/widget/" (widget.id) "/set"}
                             hx-trigger="keyup[key=='Enter']"
                             hx-target="next .status"
                             hx-swap="innerHTML";
@@ -65,7 +72,7 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
                             data-original-value=(current_value)
                             step=(format!("{}", step_value))
                             disabled[disabled]
-                            hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                            hx-post={"/api/widget/" (widget.id) "/set"}
                             hx-trigger="keyup[key=='Enter']"
                             hx-target="next .status"
                             hx-swap="innerHTML"
@@ -89,102 +96,4 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
     }
 }
 
-pub async fn render_text_entry_with_config(widget: &WidgetConfig, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(&widget.pv_name, &widget.data_type).await;
-    
-    let alarm_class = super::alarm_severity_class(value.alarm_severity);
-    let icon_html = super::get_status_icon(&value.connection_status, value.alarm_severity);
-    let input_class = format!("pv-input {}", alarm_class);
-    
-    let disabled = !matches!(value.connection_status, ConnectionStatus::Connected);
-    let units = value.units.as_deref().unwrap_or("");
-    let step_value = value.min_step.unwrap_or(0.01);
-    let is_string_type = widget.data_type.as_deref() == Some("string");
-    let input_type = if is_string_type { "text" } else if step_value == 0.0 { "text" } else { "number" };
-    let precision = value.precision.unwrap_or(2) as usize;
-    let formatted_value = value.value.to_display_string(Some(precision as i32));
-    
-    html! {
-        label class="widget-label" { (widget.label) }
-        
-        div class="text-entry-container" {
-            div class="input-with-icon" {
-                @if let Some(icon) = icon_html {
-                    img class="input-icon" src=(icon) alt="status";
-                }
-                @if is_string_type {
-                    input type="text"
-                        class=(input_class)
-                        name="value"
-                        value=(formatted_value)
-                        disabled[disabled]
-                        hx-post={"/api/pv/" (widget.pv_name) "/set"}
-                        hx-trigger="keyup[key=='Enter']"
-                        hx-vals={"js:{value: event.target.value}"};
-                } @else {
-                    input type=(input_type)
-                        class=(input_class)
-                        name="value"
-                        value=(formatted_value)
-                        data-original-value=(formatted_value)
-                        step=(format!("{}", step_value))
-                        disabled[disabled]
-                        hx-post={"/api/pv/" (widget.pv_name) "/set"}
-                        hx-trigger="keyup[key=='Enter']"
-                        hx-vals={"js:{value: event.target.value}"}
-                        hx-on--before-request="if(isNaN(parseFloat(this.value)) || !isFinite(this.value)) { this.value = this.dataset.originalValue; event.preventDefault(); this.parentElement.nextElementSibling.textContent = 'Invalid number'; return false; } else { this.dataset.originalValue = this.value; this.parentElement.nextElementSibling.textContent = ''; }";
-                }
-                
-                @if !units.is_empty() {
-                    span class="units-overlay" { (units) }
-                }
-            }
-            
-            span class="status" {}
-        }
-    }
-}
 
-pub async fn render_text_entry_simple(pv_name: &str, label: &str, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(pv_name).await;
-    
-    let alarm_class = super::alarm_severity_class(value.alarm_severity);
-    let icon_html = super::get_status_icon(&value.connection_status, value.alarm_severity);
-    let input_class = format!("pv-input {}", alarm_class);
-    
-    let disabled = !matches!(value.connection_status, ConnectionStatus::Connected);
-    let units = value.units.as_deref().unwrap_or("");
-    let step_value = value.min_step.unwrap_or(0.01);
-    let input_type = if step_value == 0.0 { "text" } else { "number" };
-    let precision = value.precision.unwrap_or(2) as usize;
-    let formatted_value = value.value.to_display_string(Some(precision as i32));
-    
-    html! {
-        label class="widget-label" { (label) }
-        
-        div class="text-entry-container" {
-            div class="input-with-icon" {
-                @if let Some(icon) = icon_html {
-                    img class="input-icon" src=(icon) alt="status";
-                }
-                input type=(input_type)
-                    class=(input_class)
-                    name="value"
-                    value=(formatted_value)
-                    data-original-value=(formatted_value)
-                    step=(format!("{}", step_value))
-                    disabled[disabled]
-                    hx-post={"/api/pv/" (pv_name) "/set"}
-                    hx-trigger="keyup[key=='Enter']"
-                    hx-vals={"js:{value: event.target.value}"}
-                    hx-on--before-request="if(isNaN(parseFloat(this.value)) || !isFinite(this.value)) { this.value = this.dataset.originalValue; event.preventDefault(); this.parentElement.nextElementSibling.textContent = 'Invalid number'; return false; } else { this.dataset.originalValue = this.value; this.parentElement.nextElementSibling.textContent = ''; }";
-                
-                @if !units.is_empty() {
-                    span class="units-overlay" { (units) }
-                }
-            }
-            
-            span class="status" {}
-        }
-    }
-}

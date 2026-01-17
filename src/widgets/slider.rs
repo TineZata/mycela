@@ -61,7 +61,7 @@ pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
                     step=(format!("{}", step))
                     value=(format!("{}", current_value))
                     disabled[disabled]
-                    hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                    hx-post={"/api/widget/" (widget.id) "/set"}
                     hx-trigger="change"
                     hx-target="next .slider-value";
                 
@@ -78,28 +78,6 @@ pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
                     p class="widget-description" { (desc) }
                 }
             }
-        }
-    }
-}
-
-pub async fn render_slider_simple(pv_name: &str, label: &str, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(pv_name, ).await;
-    let status_class = match value.connection_status {
-        ConnectionStatus::Connected => "status-connected",
-        _ => "status-disconnected",
-    };
-    
-    html! {
-        div class={"slider-widget " (status_class)} {
-            label { (label) }
-            input type="range" 
-                min="-100" max="100" step="1"
-                value=(value.value.as_f64().unwrap_or(0.0))
-                disabled[!matches!(value.connection_status, ConnectionStatus::Connected)]
-                hx-post={"/api/pv/" (pv_name) "/set"}
-                hx-trigger="change"
-                hx-vals={"js:{value: event.target.value}"};
-            span class="slider-value" { (value.value.to_display_string(Some(1))) }
         }
     }
 }

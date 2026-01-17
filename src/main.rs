@@ -108,11 +108,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(render_demo_screen))
         
         // Screen routes
-        .route("/screen/:screen_id", get(render_screen))
+        .route("/screen/{screen_id}", get(render_screen))
         
         // PV API routes (using widget ID)
-        .route("/api/widget/:widget_id/value", get(get_pv))
-        .route("/api/widget/:widget_id/set", post(put_pv))
+        .route("/api/widget/{widget_id}/value", get(get_pv))
+        .route("/api/widget/{widget_id}/set", post(put_pv))
         
         // Server control routes
         .route("/api/server/start", post(start_server))
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/server/status", get(server_status))
         
         // Server-Sent Events for real-time monitoring
-        .route("/stream/widget/:name", get(stream_widget))
+        .route("/stream/widget/{name}", get(stream_widget))
         
         // Static files (CSS, JS, images)
         .nest_service("/static", ServeDir::new("static"))
@@ -383,6 +383,59 @@ async fn put_pv(
             let error_html = maud::html! {
                 span class="error" { "Error: " (e) }
             };
+            Html(error_html.into_string()).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Task failed for PV {}: {}", pv_name_for_log, e);
+            let error_html = maud::html! {
+                span class="error" { "Internal error" }
+            };
+            Html(error_html.into_string()).into_response()
+        }
+    }
+}
+
+// Direct PV access (no widget lookup needed)
+async fn put_pv_direct(
+    Path(pv_name): Path<String>,
+    State(state): State<AppState>,
+    Form(form): Form<PutForm>,
+) -> Response {
+    tracing::info!("PUT /api/pv/{}/set = {}", pv_name, form.value);
+    
+    // Parse the value
+    let value: f64 = match form.value.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            let error_html = maud::html! {
+                span class="error" { "Invalid number: " (e.to_string()) }
+            };
+            return Html(error_html.into_string()).into_response();
+        }
+    };
+    
+    // Perform the put operation
+    let pv_name_for_log = pv_name.clone();
+    let client_arc = state.pvxs_client.clone();
+    
+    let result = tokio::task::spawn_blocking(move || {
+        let mut client = client_arc.blocking_write();
+        client.put_double(&pv_name, value, 5.0)
+            .map_err(|e| e.to_string())
+    }).await;
+    
+    match result {
+        Ok(Ok(_)) => {
+            let success_html = maud::html! {
+                span class="success" { "✓" }
+            };
+            Html(success_html.into_string()).into_response()
+        }
+        Ok(Err(e)) => {
+            tracing::error!("Failed to put PV {}: {}", pv_name_for_log, e);
+            let error_html = maud::html! {
+                span class="error" { "Error: " (e) }
+            };
             (StatusCode::BAD_REQUEST, Html(error_html.into_string())).into_response()
         }
         Err(e) => {
@@ -394,6 +447,8 @@ async fn put_pv(
         }
     }
 }
+
+/// Poll a single widget for updates (HTMX endpoint)
 
 /// Poll a single widget for updates (HTMX endpoint)
 async fn poll_widget(

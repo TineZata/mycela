@@ -38,32 +38,3 @@ pub fn render_led(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
         }
     }
 }
-
-pub async fn render_led_simple(pv_name: &str, label: &str, state: &AppState) -> Markup {
-    let value = state.pv_monitor.get_value(pv_name).await;
-    let is_connected = matches!(value.connection_status, ConnectionStatus::Connected);
-    let is_on = is_connected && value.value.as_f64().unwrap_or(0.0) > 0.5;
-    let led_class = if !is_connected {
-        "led-disconnected"
-    } else if is_on {
-        "led-on"
-    } else {
-        "led-off"
-    };
-    
-    html! {
-        div class="led-widget" {
-            label { (label) }
-            div class={"led-indicator " (led_class)} {}
-            span class="led-status" {
-                @if !is_connected {
-                    "Not Connected"
-                } @else if is_on {
-                    "ON"
-                } @else {
-                    "OFF"
-                }
-            }
-        }
-    }
-}

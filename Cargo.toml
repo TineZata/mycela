@@ -9,32 +9,32 @@ path = "src/main.rs"
 
 [dependencies]
 # Web framework
-axum = "0.7"
-tokio = { version = "1", features = ["full"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
+axum = "0.8.8"
+tokio = { version = "1.49.0", features = ["full"] }
+tower = "0.5.3"
+tower-http = { version = "0.6.8", features = ["fs", "trace", "cors"] }
 
 # HTML templating
-maud = { version = "0.25", features = ["axum"] }
+maud = { version = "0.27.0", features = ["axum"] }
 
 # Data handling
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = "1.0.149"
 
 # Logging
-tracing = "0.1"
+tracing = "0.1.44"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Concurrent caching
 dashmap = "6"
 
 # Async streams (for SSE)
-tokio-stream = "0.1"
+tokio-stream = "0.1.18"
 futures = "0.3"
 async-stream = "0.3"
 
 # Time handling
-chrono = "0.4"
+chrono = "0.4.43"
 
 # EPICS
 # pvxs-sys = { path = "../pvxs-sys" }

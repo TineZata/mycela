@@ -44,7 +44,10 @@ impl NTType {
                     format!("{:.6}", v)
                 }
             }
-            NTType::Int32(v) => v.to_string(),
+            NTType::Int32(v) =>
+            { 
+                format!("{}", v)
+            },
             NTType::String(s) => s.clone(),
             NTType::Enum { choices, .. } => choices.join(", "),
         }

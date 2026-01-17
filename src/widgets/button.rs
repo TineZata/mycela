@@ -22,7 +22,7 @@ pub fn render_button(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
             
             button class="pv-button"
                 disabled[disabled]
-                hx-post={"/api/pv/" (widget.pv_name) "/set"}
+                hx-post={"/api/widget/" (widget.id) "/set"}
                 hx-vals=r#"{"value": "1"}"#
                 hx-target="next .status"
                 hx-swap="innerHTML" {
