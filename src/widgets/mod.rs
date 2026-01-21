@@ -51,6 +51,7 @@ pub async fn render_screen(config: &ScreenConfig, state: &AppState) -> Markup {
                 
                 script src="/static/htmx.min.js" {}
                 script src="/static/htmx-sse.js" {}
+                script src="/static/tooltip.js" {}
                 link rel="stylesheet" href="/static/style.css";
             }
             body {

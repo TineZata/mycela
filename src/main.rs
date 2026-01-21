@@ -158,6 +158,7 @@ async fn index_page() -> Html<String> {
                 // Self-hosted HTMX (for airgapped production)
                 script src="/static/htmx.min.js" {}
                 script src="/static/htmx-sse.js" {}
+                script src="/static/tooltip.js" {}
                 
                 link rel="stylesheet" href="/static/style.css";
             }
@@ -222,6 +223,7 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
                 // Self-hosted HTMX
                 script src="/static/htmx.min.js" {}
                 script src="/static/htmx-sse.js" {}
+                script src="/static/tooltip.js" {}
                 
                 link rel="stylesheet" href="/static/style.css";
             }

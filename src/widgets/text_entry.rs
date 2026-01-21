@@ -10,9 +10,9 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
         tracing::debug!("Connection status: {:?}, Alarm severity: {}", v.connection_status, v.alarm_severity);
         let class_name = super::alarm_severity_class(v.alarm_severity);
         let icon = super::get_status_icon(&v.connection_status, v.alarm_severity);
-        (class_name, icon, format!("pv-input {}", class_name))
+        (class_name, icon, format!("text-entry {}", class_name))
     } else {
-        ("alarm-disconnected", Some(super::OFFLINE_SVG), "pv-input alarm-disconnected".to_string())
+        ("alarm-disconnected", Some(super::OFFLINE_SVG), "text-entry alarm-disconnected".to_string())
     };
 
     let is_integer_type = widget.data_type.as_deref() == Some("integer")  || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32");
@@ -50,9 +50,9 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
             label class="widget-label" { (widget.label) }
             
             div class="text-entry-container" {
-                div class="input-with-icon" {
+                div class="text-entry-with-icon-container" {
                     @if let Some(icon) = icon_html {
-                        img class="input-icon" src=(icon) alt="status";
+                        img class="text-entry-icon" src=(icon) alt="status";
                     }
                     @if is_string_type {
                         input type="text"
