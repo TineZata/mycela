@@ -126,7 +126,20 @@ pub fn render_widget_value(widget_id: &str, pv_name: &str, value: &PvValue) -> H
 
 /// Render widget HTML based on type
 pub fn render_widget_by_type_public(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    render_widget_by_type(widget, value)
+    render_widget_inner_only(widget, value)
+}
+
+/// Render only the inner content of a widget (for SSE updates)
+fn render_widget_inner_only(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
+    match widget.widget_type {
+        WidgetType::TextEntry => text_entry::render_text_entry_inner(widget, value),
+        WidgetType::TextUpdate => text_update::render_text_update_inner(widget, value),
+        WidgetType::Gauge => gauge::render_gauge_inner(widget, value),
+        WidgetType::Led => led::render_led_inner(widget, value),
+        WidgetType::Button => button::render_button_inner(widget, value),
+        WidgetType::Slider => slider::render_slider_inner(widget, value),
+        WidgetType::Chart => chart::render_chart_inner(widget, value),
+    }
 }
 
 /// Render widget HTML based on type (internal)

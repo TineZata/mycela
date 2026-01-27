@@ -230,30 +230,50 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     }
 }
 
-/* Widget base styles */
-.widget {
+/* Widget base styles - alarm classes only affect border */
+.alarm-none, .alarm-minor, .alarm-major, .alarm-invalid, .alarm-disconnected {
     font-family: var(--font-monospace);
     font-variant-numeric: slashed-zero;
-    font-size: 1.1rem;
+    font-size: 0.75rem;
     background: var(--bg-card);
     border-radius: var(--border-radius);
     padding: 1.5rem;
     border-left: 4px solid var(--alarm-none);
     transition: all 0.3s ease;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
 }
 
-.widget:hover {
+.alarm-none:hover, .alarm-minor:hover, .alarm-major:hover, .alarm-invalid:hover, .alarm-disconnected:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
+/* Widget inner container - horizontal layout */
+.widget-inner {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
 .widget-label {
-    display: block;
-    font-size: 0.85rem;
+    flex-shrink: 0;
+    max-width: 250px;
+    font-size: 0.80rem;
     color: var(--text-secondary);
-    margin-bottom: 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-family: var(--font-ui);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .widget-description {
@@ -263,20 +283,17 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     font-style: italic;
 }
 
-/* Alarm styling */
+/* Alarm border colors */
 .alarm-none {
     border-left-color: var(--alarm-none);
 }
 
 .alarm-minor {
     border-left-color: var(--alarm-minor);
-    background: rgba(255, 170, 0, 0.05);
 }
 
 .alarm-major {
     border-left-color: var(--alarm-major);
-    background: rgba(255, 51, 51, 0.08);
-    animation: pulse 4.0s ease-in-out infinite;
 }
 
 .alarm-invalid {
@@ -285,12 +302,71 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
 
 .alarm-disconnected {
     border-left-color: var(--alarm-disconnected);
-    opacity: 0.6;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+/* Shared widget utility classes */
+
+/* Common alarm border colors - apply to any widget */
+.widget-alarm-disconnected {
+    border-color: #fa00fa !important;
+    border-width: 2px !important;
+}
+
+.widget-alarm-major {
+    border-color: #ff0000 !important;
+    border-width: 2px !important;
+}
+
+.widget-alarm-minor {
+    border-color: #ffa500 !important;
+    border-width: 2px !important;
+}
+
+.widget-alarm-invalid {
+    border-color: #999999 !important;
+    border-width: 2px !important;
+}
+
+/* Common tabular numeric font for value displays */
+.widget-value {
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Common widget sizing */
+.widget-width-sm {
+    max-width: 150px;
+}
+
+.widget-width-md {
+    max-width: 250px;
+}
+
+.widget-width-lg {
+    max-width: 300px;
+}
+
+/* Common units display styling */
+.widget-units {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 0.5em;
+    font-weight: 500;
+}
+
+/* Absolute positioned units overlay for inputs */
+.widget-units-overlay {
+    position: absolute;
+    right: 10px;
+    color: #666;
+    font-size: 0.9rem;
+    pointer-events: none;
+    font-weight: 500;
+}
+
+/* Common alarm icon padding for inputs/displays */
+.widget-alarm-icon-padding {
+    padding-left: 2rem;
 }
 
 /* Text entry widget */
@@ -302,10 +378,10 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
 
 .text-entry-with-icon-container {
     position: relative;
-    flex: 1;
+    max-width: 250px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    min-width: 0;
 }
 
 .text-entry-icon {
@@ -318,25 +394,24 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
 }
 
 .text-entry {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
     background: #e6f2ff;
     border: 2px solid #b3d9ff;
     border-radius: 6px;
     color: #1a1a1a;
-    font-variant-numeric: slashed-zero;
-    font-size: 1.1rem;
-    padding: 0.6rem 0.75rem;
-    padding-right: 3.5rem;
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-size: 0.85rem;
+    padding: 0.5rem 2rem 0.5rem 0.5rem;
     transition: all 0.2s;
     font-weight: 500;
+    font-family: var(--font-monospace);
 }
 
 .text-entry.alarm-disconnected,
 .text-entry.alarm-major,
 .text-entry.alarm-minor,
 .text-entry.alarm-invalid {
-    padding-left: 2.2rem;
+    padding-left: 2rem;
 }
 
 .text-entry:focus {
@@ -363,29 +438,14 @@ input[type="number"] {
     -moz-appearance: textfield;
 }
 
-/* Alarm state styling for inputs */
-.text-entry.alarm-disconnected {
-    border-color: #fa00fa;
-    border-width: 2px;
-}
+/* Alarm state styling for inputs - uses shared utility classes */
+.text-entry.alarm-disconnected { border-color: #fa00fa; border-width: 2px; }
+.text-entry.alarm-major { border-color: #ff0000; border-width: 2px; }
+.text-entry.alarm-minor { border-color: #ffa500; border-width: 2px; }
+.text-entry.alarm-invalid { border-color: #999999; border-width: 2px; }
 
-.text-entry.alarm-major {
-    border-color: #ff0000;
-    border-width: 2px;
-}
-
-.text-entry.alarm-minor {
-    border-color: #ffa500;
-    border-width: 2px;
-}
-
-.text-entry.alarm-invalid {
-    border-color: #999999;
-    border-width: 2px;
-}
-
-/* Read-only display (when min_step = 0) */
-.pv-display {
+/* Text entry read-only display (when min_step = 0) - legacy, kept for backwards compatibility */
+.text-entry-display {
     flex: 1;
     background: #e6f2ff;
     border: 2px solid #b3d9ff;
@@ -393,56 +453,55 @@ input[type="number"] {
     color: #1a1a1a;
     font-family: var(--font-monospace);
     font-variant-numeric: slashed-zero;
-    font-size: 1.1rem;
-    padding: 0.6rem 0.75rem;
-    padding-right: 3.5rem;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.5rem;
+    padding-right: 0.5rem;
     font-weight: 500;
     cursor: default;
 }
 
-.pv-display.alarm-disconnected,
-.pv-display.alarm-major,
-.pv-display.alarm-minor,
-.pv-display.alarm-invalid {
-    padding-left: 2.2rem;
+.text-entry-display.alarm-disconnected,
+.text-entry-display.alarm-major,
+.text-entry-display.alarm-minor,
+.text-entry-display.alarm-invalid {
+    padding-left: 2rem;
 }
 
-.pv-display.alarm-disconnected {
-    border-color: #fa00fa;
-    border-width: 2px;
-}
-
-.pv-display.alarm-major {
-    border-color: #ff0000;
-    border-width: 2px;
-}
-
-.pv-display.alarm-minor {
-    border-color: #ffa500;
-    border-width: 2px;
-}
-
-.pv-display.alarm-invalid {
-    border-color: #999999;
-    border-width: 2px;
-}
+.text-entry-display.alarm-disconnected { border-color: #fa00fa; border-width: 2px; }
+.text-entry-display.alarm-major { border-color: #ff0000; border-width: 2px; }
+.text-entry-display.alarm-minor { border-color: #ffa500; border-width: 2px; }
+.text-entry-display.alarm-invalid { border-color: #999999; border-width: 2px; }
 
 /* Text update widget - read-only display with icon */
 .text-update-container {
+    position: relative;
+    max-width: 250px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
 }
 
 .text-update-display {
-    padding: 8px 12px;
+    width: 100%;
+    padding: 8px 3rem 8px 12px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
-    display: inline-flex;
-    align-items: center;
+    display: inline-block;
     color: white;
     font-weight: 500;
+    font-size: 0.85rem;
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums slashed-zero;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
+
+.text-update-display.alarm-disconnected { border-color: #fa00fa; border-width: 2px; }
+.text-update-display.alarm-major { border-color: #ff0000; border-width: 2px; }
+.text-update-display.alarm-minor { border-color: #ffa500; border-width: 2px; }
+.text-update-display.alarm-invalid { border-color: #999999; border-width: 2px; }
 
 .text-update-display .display-icon {
     width: 18px;
@@ -452,9 +511,12 @@ input[type="number"] {
 }
 
 .text-update-display .units {
-    opacity: 0.7;
-    font-size: 0.9em;
-    margin-left: 0.25em;
+    position: absolute;
+    right: 10px;
+    color: #666;
+    font-size: 0.9rem;
+    pointer-events: none;
+    font-weight: 500;
 }
 
 /* Widget status icons */
@@ -487,6 +549,7 @@ input[type="number"] {
     z-index: 1;
 }
 
+/* Legacy class names - keep for backwards compatibility */
 .units-overlay {
     position: absolute;
     right: 10px;
@@ -518,6 +581,7 @@ input[type="number"] {
 
 /* Gauge widget */
 .gauge-display {
+    max-width: 300px;
     text-align: center;
 }
 
@@ -526,6 +590,8 @@ input[type="number"] {
     font-weight: bold;
     color: var(--accent);
     margin-bottom: 1rem;
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums slashed-zero;
 }
 
 .gauge-bar {
@@ -551,6 +617,7 @@ input[type="number"] {
 
 /* LED widget */
 .led-container {
+    max-width: 150px;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -619,6 +686,7 @@ input[type="number"] {
 
 /* Slider widget */
 .slider-container {
+    max-width: 300px;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -662,8 +730,10 @@ input[type="number"] {
     font-size: 1.2rem;
     font-weight: bold;
     color: var(--accent);
-    min-width: 4rem;
+    max-width: 120px;
     text-align: right;
+    font-family: var(--font-monospace);
+    font-variant-numeric: tabular-nums slashed-zero;
 }
 
 /* Chart widget */

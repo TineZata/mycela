@@ -40,18 +40,95 @@ pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
     
     html! {
-        div class={"widget slider " (alarm_class)} 
-            data-widget-id=(widget.id)
+        div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            title=(tooltip_text) {
+            hx-ext="sse"
+            sse-connect={"/stream/widget/" (widget.id)}
+            sse-swap="message"
+            hx-swap="innerHTML" {
+
+            div class="widget-inner" title=(tooltip_text) {
+                label class="widget-label" { 
+                    (widget.label)
+                    @if let Some(icon) = icon_html {
+                        img class="widget-status-icon" src=(icon) alt="status";
+                    }
+                }
             
+                div class="slider-container" {
+                        input type="range"
+                            class="pv-slider"
+                            name="value"
+                            min=(format!("{}", min))
+                            max=(format!("{}", max))
+                            step=(format!("{}", step))
+                            value=(format!("{}", current_value))
+                            disabled[disabled]
+                            hx-post={"/api/widget/" (widget.id) "/set"}
+                            hx-trigger="change"
+                            hx-target="next .slider-value";
+                        
+                span class="slider-value" { 
+                    (display_value)
+                    @if !units.is_empty() {
+                        " " (units)
+                    }
+                }
+            }
+            
+            @if let Some(desc) = &widget.description {
+                @if !desc.is_empty() {
+                    p class="widget-description" { (desc) }
+                }
+            }
+            }
+        }
+    }
+}
+
+/// Render only the inner widget content without the outer SSE wrapper
+pub fn render_slider_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
+    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
+    
+    let (min, max) = value
+        .and_then(|v| {
+            if let (Some(low), Some(high)) = (v.control_low, v.control_high) {
+                Some((low, high))
+            } else if let (Some(low), Some(high)) = (v.limit_low, v.limit_high) {
+                Some((low, high))
+            } else {
+                None
+            }
+        })
+        .unwrap_or((0.0, 100.0));
+    
+    let step = value.and_then(|v| v.min_step).unwrap_or(0.1);
+    
+    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
+    
+    let units = value
+        .and_then(|v| v.units.as_deref())
+        .unwrap_or("");
+    
+    let alarm_class = value
+        .map(|v| super::alarm_severity_class(v.alarm_severity))
+        .unwrap_or("alarm-disconnected");
+    
+    let disabled = !matches!(value.map(|v| &v.connection_status), Some(&ConnectionStatus::Connected));
+    
+    let icon_html = value.and_then(|v| super::get_status_icon(&v.connection_status, v.alarm_severity));
+    
+    let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
+    
+    html! {
+        div class="widget-inner" title=(tooltip_text) {
             label class="widget-label" { 
                 (widget.label)
                 @if let Some(icon) = icon_html {
                     img class="widget-status-icon" src=(icon) alt="status";
                 }
             }
-            
+        
             div class="slider-container" {
                 input type="range"
                     class="pv-slider"
@@ -72,7 +149,7 @@ pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
                     }
                 }
             }
-            
+        
             @if let Some(desc) = &widget.description {
                 @if !desc.is_empty() {
                     p class="widget-description" { (desc) }

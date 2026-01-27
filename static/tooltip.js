@@ -5,6 +5,8 @@
     let tooltip = null;
     let isPinned = false;
     let autoHideTimer = null;
+    let currentTargetElement = null;
+    let showTimer = null;
     
     // Create tooltip element
     function createTooltip() {
@@ -89,30 +91,39 @@
         }
     }
     
+    // Clear show timer
+    function clearShowTimer() {
+        if (showTimer) {
+            clearTimeout(showTimer);
+            showTimer = null;
+        }
+    }
+    
     // Position tooltip
-    function positionTooltip(e) {
+    function positionTooltip(e, targetElement) {
         if (!tooltip) return;
         
-        const padding = 5; // Reduced from 10
-        const x = e.clientX + padding;
-        const y = e.clientY + padding;
+        const padding = 10;
+        
+        // Get the element's bounding rectangle
+        const elementRect = targetElement.getBoundingClientRect();
         
         // Get tooltip dimensions
-        const rect = tooltip.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
         
-        // Adjust position if tooltip goes off screen
-        let left = x;
-        let top = y;
+        // Position below the widget
+        let left = elementRect.left;
+        let top = elementRect.bottom + padding;
         
-        if (x + rect.width > viewportWidth) {
-            left = e.clientX - rect.width - padding;
+        // Horizontal positioning - keep within viewport
+        if (left + tooltipRect.width > viewportWidth) {
+            // Align to right edge of element if tooltip is too wide
+            left = Math.max(padding, elementRect.right - tooltipRect.width);
         }
         
-        if (y + rect.height > viewportHeight) {
-            top = e.clientY - rect.height - padding;
-        }
+        // Ensure we don't go off the left edge
+        left = Math.max(padding, left);
         
         tooltip.style.left = left + window.scrollX + 'px';
         tooltip.style.top = top + window.scrollY + 'px';
@@ -120,23 +131,26 @@
     
     // Show tooltip
     function showTooltip(e) {
-        // Search up the DOM tree for an element with title or data-tooltip
+        // Search up the DOM tree for an element with title, data-tooltip, or data-original-title
         let element = e.target;
         let title = null;
         
         while (element && !title) {
-            title = element.getAttribute('title') || element.getAttribute('data-tooltip');
+            title = element.getAttribute('title') || 
+                    element.getAttribute('data-tooltip') || 
+                    element.getAttribute('data-original-title');
             if (title) break;
             element = element.parentElement;
         }
         
         if (!title || !element) return;
         e.target = element; // Use the element with the title
+        currentTargetElement = element; // Store for repositioning
         
-        // Store original title and remove it to prevent native tooltip
-        if (e.target.hasAttribute('title')) {
-            e.target.setAttribute('data-original-title', title);
-            e.target.removeAttribute('title');
+        // Store original title if not already stored
+        if (element.hasAttribute('title')) {
+            element.setAttribute('data-original-title', title);
+            element.removeAttribute('title');
         }
         
         if (!tooltip) createTooltip();
@@ -186,7 +200,7 @@
         
         // Position after display to get correct dimensions
         requestAnimationFrame(() => {
-            positionTooltip(e);
+            positionTooltip(e, element);
             tooltip.style.opacity = '1';
             startAutoHideTimer();
         });
@@ -220,11 +234,9 @@
         }
     }
     
-    // Update tooltip position on mouse move
+    // Update tooltip position on mouse move (not needed for fixed positioning, but keep for compatibility)
     function updateTooltip(e) {
-        if (tooltip && tooltip.style.opacity === '1') {
-            positionTooltip(e);
-        }
+        // Tooltip is now fixed to widget position, no need to update on mouse move
     }
     
     // Initialize tooltips for all elements with title or data-tooltip attributes
@@ -235,8 +247,31 @@
             const target = e.target.closest('[title], [data-tooltip], [data-original-title]');
             if (target && target !== currentTooltipElement) {
                 currentTooltipElement = target;
-                clearAutoHideTimer(); // Clear any pending timer
-                showTooltip({ target, clientX: e.clientX, clientY: e.clientY });
+                clearAutoHideTimer();
+                clearShowTimer();
+                
+                // Immediately store and remove title to prevent native tooltip
+                const title = target.getAttribute('title');
+                if (title) {
+                    target.setAttribute('data-original-title', title);
+                    target.removeAttribute('title');
+                }
+                
+                // Delay showing tooltip by 1.5 seconds
+                showTimer = setTimeout(() => {
+                    showTooltip({ target, clientX: e.clientX, clientY: e.clientY });
+                }, 1500);
+            }
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            const target = e.target.closest('[title], [data-tooltip], [data-original-title]');
+            // If mouse moves while waiting to show tooltip, reset the timer
+            if (target === currentTooltipElement && showTimer) {
+                clearShowTimer();
+                showTimer = setTimeout(() => {
+                    showTooltip({ target, clientX: e.clientX, clientY: e.clientY });
+                }, 1500);
             }
         });
         
@@ -248,6 +283,8 @@
                 e.relatedTarget !== tooltip && 
                 !tooltip.contains(e.relatedTarget) &&
                 !isPinned) {
+                
+                clearShowTimer(); // Cancel pending show
                 
                 // Restore title attributes when leaving widget
                 const originalTitle = target.getAttribute('data-original-title');

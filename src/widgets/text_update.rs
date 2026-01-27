@@ -6,13 +6,13 @@ use crate::pv_monitor::PvValue;
 pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     tracing::debug!("render_text_update called for widget: {} with value: {:?}", widget.id, value.is_some());
     
-    let (alarm_class, icon_html, display_class) = if let Some(v) = value {
+    let (alarm_class, icon_html) = if let Some(v) = value {
         tracing::debug!("Connection status: {:?}, Alarm severity: {}", v.connection_status, v.alarm_severity);
         let class_name = super::alarm_severity_class(v.alarm_severity);
         let icon = super::get_status_icon(&v.connection_status, v.alarm_severity);
-        (class_name, icon, format!("pv-display {}", class_name))
+        (class_name, icon)
     } else {
-        ("alarm-disconnected", Some(super::OFFLINE_SVG), "pv-display alarm-disconnected".to_string())
+        ("alarm-disconnected", Some(super::OFFLINE_SVG))
     };
     
     let current_value = value
@@ -34,27 +34,81 @@ pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Mar
     let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
     
     html! {
-        div class={"widget text-update " (alarm_class)} 
-            data-widget-id=(widget.id) 
+        div data-widget-id=(widget.id) 
             data-pv=(widget.pv_name)
-            title=(tooltip_text) {
+            hx-ext="sse"
+            sse-connect={"/stream/widget/" (widget.id)}
+            sse-swap="message"
+            hx-swap="innerHTML" {
+
+            div class="widget-inner" title=(tooltip_text) {
+                label class="widget-label" { (widget.label) }
             
-            label class="widget-label" { (widget.label) }
-            
-            div class="text-update-container" {
-                span class="text-update-display" {
-                    @if let Some(icon) = icon_html {
-                        img class="display-icon" src=(icon) alt="status";
-                    }
-                    span {
-                        (current_value)
-                        @if !units.is_empty() {
-                            " " span class="units" { (units) }
-                        }
+                span class={"text-update-display " (alarm_class)} {
+                            @if let Some(icon) = icon_html {
+                                img class="display-icon" src=(icon) alt="status";
+                            }
+                span {
+                                (current_value)
+                    @if !units.is_empty() {
+                        " " span class="units" { (units) }
                     }
                 }
             }
             
+            @if let Some(desc) = &widget.description {
+                @if !desc.is_empty() {
+                    p class="widget-description" { (desc) }
+                }
+            }
+            }
+        }
+    }
+}
+
+/// Render only the inner widget content without the outer SSE wrapper
+pub fn render_text_update_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
+    let (alarm_class, icon_html) = if let Some(v) = value {
+        let class_name = super::alarm_severity_class(v.alarm_severity);
+        let icon = super::get_status_icon(&v.connection_status, v.alarm_severity);
+        (class_name, icon)
+    } else {
+        ("alarm-disconnected", Some(super::OFFLINE_SVG))
+    };
+    
+    let current_value = value
+        .map(|v| {
+            let prec = if widget.data_type.as_deref() == Some("integer") || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32") {
+                0
+            } else {
+                v.precision.unwrap_or(2)
+            };
+            v.value.to_display_string(Some(prec))
+        })
+        .unwrap_or_else(|| "--".to_string());
+    
+    let units = value
+        .and_then(|v| v.units.as_deref())
+        .unwrap_or("");
+    
+    let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
+    
+    html! {
+        div class="widget-inner" title=(tooltip_text) {
+            label class="widget-label" { (widget.label) }
+        
+            span class={"text-update-display " (alarm_class)} {
+                @if let Some(icon) = icon_html {
+                    img class="display-icon" src=(icon) alt="status";
+                }
+                span {
+                    (current_value)
+                    @if !units.is_empty() {
+                        " " span class="units" { (units) }
+                    }
+                }
+            }
+        
             @if let Some(desc) = &widget.description {
                 @if !desc.is_empty() {
                     p class="widget-description" { (desc) }

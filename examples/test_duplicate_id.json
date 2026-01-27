@@ -1,0 +1,21 @@
+{
+  "id": "test",
+  "title": "Test Config",
+  "description": "Test config with duplicate IDs",
+  "widgets": [
+    {
+      "id": "widget1",
+      "pv_name": "demo:test:pv1",
+      "type": "text_update",
+      "label": "Test Widget 1",
+      "data_type": "double"
+    },
+    {
+      "id": "widget1",
+      "pv_name": "demo:test:pv2",
+      "type": "text_entry",
+      "label": "Test Widget 2",
+      "data_type": "double"
+    }
+  ]
+}

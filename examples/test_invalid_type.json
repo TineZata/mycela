@@ -1,0 +1,14 @@
+{
+  "id": "test",
+  "title": "Test Config",
+  "description": "Test config with invalid widget type",
+  "widgets": [
+    {
+      "id": "widget1",
+      "pv_name": "demo:test:pv",
+      "type": "invalid_type",
+      "label": "Test Widget",
+      "data_type": "double"
+    }
+  ]
+}

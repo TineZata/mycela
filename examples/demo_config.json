@@ -17,7 +17,7 @@
             "limit_low": 0.0,
             "limit_high": 100.0,
             "description": "Horizontal stage position",
-            "precision": 2,
+            "precision": 6,
             "units": "mm"
           },
           "control": {
@@ -43,14 +43,14 @@
       "id": "motor_x_pos_readback",
       "pv_name": "demo:motor:x",
       "type": "text_update",
-      "label": "Motor X Position Readback",
+      "label": "Motor X Position",
       "data_type": "double"
     },
     {
       "id": "motor_x_pos_readback_2",
       "pv_name": "demo:motor:x",
       "type": "text_update",
-      "label": "Motor X Position Readback 2",
+      "label": "Motor X Position",
       "data_type": "integer"
     }
   ]

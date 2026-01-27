@@ -145,69 +145,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Main index page
-async fn index_page() -> Html<String> {
-    let markup = maud::html! {
-        (maud::DOCTYPE)
-        html lang="en" {
-            head {
-                meta charset="utf-8";
-                meta name="viewport" content="width=device-width, initial-scale=1.0";
-                title { "EPICS Motor Control" }
-                
-                // Self-hosted HTMX (for airgapped production)
-                script src="/static/htmx.min.js" {}
-                script src="/static/htmx-sse.js" {}
-                script src="/static/tooltip.js" {}
-                
-                link rel="stylesheet" href="/static/style.css";
-            }
-            body {
-                header class="main-header" {
-                    h1 { "🎛️ EPICS Motor Control" }
-                    nav {
-                        a href="/" { "Home" }
-                        a href="/screen/demo" { "Control Interface" }
-                    }
-                }
-                
-                main class="container" {
-                    div class="welcome-card" {
-                        h2 { "Motor Control Demo" }
-                        p class="description" { 
-                            "EPICS PV monitoring and control interface" 
-                        }
-                        
-                        div style="margin-top: 2rem; text-align: center;" {
-                            a href="/screen/demo" 
-                              class="pv-button" 
-                              style="display: inline-block; padding: 1.5rem 3rem; text-decoration: none;" {
-                                "Open Control Interface"
-                            }
-                        }
-                        
-                        div style="margin-top: 2rem; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 8px;" {
-                            h3 style="font-size: 1rem; color: #888; margin-bottom: 0.5rem;" { 
-                                "Configuration" 
-                            }
-                            p style="font-size: 0.9rem; color: #aaa;" {
-                                "Widgets defined in: "
-                                code { "examples/demo_config.json" }
-                            }
-                        }
-                    }
-                }
-                
-                footer {
-                    p { "EPICS Web UI • Powered by Rust + HTMX" }
-                }
-            }
-        }
-    };
-    
-    Html(markup.into_string())
-}
-
 /// Render demo screen directly on home page
 async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
     tracing::info!("Rendering demo motor control screen");
@@ -263,12 +200,7 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
                     
                     div class="widget-grid" {
                         @for widget in &state.config.widgets {
-                            div hx-ext="sse" 
-                                sse-connect={"/stream/widget/" (widget.id)} 
-                                sse-swap="message" 
-                                hx-swap="innerHTML" {
-                                (widgets::render_widget_from_config(widget, &state).await)
-                            }
+                            (widgets::render_widget_from_config(widget, &state).await)
                         }
                     }
                 }
@@ -395,103 +327,6 @@ async fn put_pv(
             Html(error_html.into_string()).into_response()
         }
     }
-}
-
-// Direct PV access (no widget lookup needed)
-async fn put_pv_direct(
-    Path(pv_name): Path<String>,
-    State(state): State<AppState>,
-    Form(form): Form<PutForm>,
-) -> Response {
-    tracing::info!("PUT /api/pv/{}/set = {}", pv_name, form.value);
-    
-    // Parse the value
-    let value: f64 = match form.value.parse() {
-        Ok(v) => v,
-        Err(e) => {
-            let error_html = maud::html! {
-                span class="error" { "Invalid number: " (e.to_string()) }
-            };
-            return Html(error_html.into_string()).into_response();
-        }
-    };
-    
-    // Perform the put operation
-    let pv_name_for_log = pv_name.clone();
-    let client_arc = state.pvxs_client.clone();
-    
-    let result = tokio::task::spawn_blocking(move || {
-        let mut client = client_arc.blocking_write();
-        client.put_double(&pv_name, value, 5.0)
-            .map_err(|e| e.to_string())
-    }).await;
-    
-    match result {
-        Ok(Ok(_)) => {
-            let success_html = maud::html! {
-                span class="success" { "✓" }
-            };
-            Html(success_html.into_string()).into_response()
-        }
-        Ok(Err(e)) => {
-            tracing::error!("Failed to put PV {}: {}", pv_name_for_log, e);
-            let error_html = maud::html! {
-                span class="error" { "Error: " (e) }
-            };
-            (StatusCode::BAD_REQUEST, Html(error_html.into_string())).into_response()
-        }
-        Err(e) => {
-            tracing::error!("Task error for PV {}: {}", pv_name_for_log, e);
-            let error_html = maud::html! {
-                span class="error" { "Internal error" }
-            };
-            (StatusCode::INTERNAL_SERVER_ERROR, Html(error_html.into_string())).into_response()
-        }
-    }
-}
-
-/// Poll a single widget for updates (HTMX endpoint)
-
-/// Poll a single widget for updates (HTMX endpoint)
-async fn poll_widget(
-    Path(widget_id): Path<String>,
-    State(state): State<AppState>,
-) -> Html<String> {
-    // Look up widget from config
-    let widget = state.config.widgets.iter()
-        .find(|w| w.id == widget_id);
-    
-    if let Some(widget) = widget {
-        let markup = widgets::render_widget_from_config(widget, &state).await;
-        Html(markup.into_string())
-    } else {
-        let error = maud::html! {
-            div class="widget-error" { "Unknown widget: " (widget_id) }
-        };
-        Html(error.into_string())
-    }
-}
-
-/// Poll a group of widgets (more efficient)
-async fn poll_widget_group(
-    Path(group_id): Path<String>,
-    State(state): State<AppState>,
-) -> Html<String> {
-    tracing::debug!("Polling widget group: {}", group_id);
-    
-    // Load group configuration
-    let config_path = format!("examples/{}_config.json", group_id);
-    let config = match ScreenConfig::load(&config_path) {
-        Ok(c) => c,
-        Err(e) => {
-            let error = maud::html! {
-                div class="error" { "Failed to load config: " (e) }
-            };
-            return Html(error.into_string());
-        }
-    };
-    
-    widgets::render_widget_group(&config.widgets, &state).await
 }
 
 /// Server-Sent Events stream for widget updates driven by PVXS monitors
