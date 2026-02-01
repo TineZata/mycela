@@ -198,7 +198,9 @@ async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
                 main class="container" {
                     h2 { (state.config.description) }
                     
-                    div class="widget-grid" {
+                    @let num_widgets = state.config.widgets.len();
+                    @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
+                    div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
                         @for widget in &state.config.widgets {
                             (widgets::render_widget_from_config(widget, &state).await)
                         }

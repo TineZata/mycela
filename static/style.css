@@ -63,18 +63,23 @@
     --alarm-minor: #ffaa00;
     --alarm-major: #ff3333;
     --alarm-invalid: #888888;
-    --alarm-disconnected: #555555;
+    --alarm-disconnected: #fa00fa;
     
     /* Connection status colors */
-    --status-connected: #00cc66;
-    --status-disconnected: #ff6b6b;
-    --status-timeout: #ffa726;
-    --status-error: #ff3333;
+    --status-connected: var(--alarm-none);
+    --status-disconnected: var(--alarm-disconnected);
+    --status-timeout: var(--alarm-minor);
+    --status-error: var(--alarm-major);
     
     --border-radius: 8px;
     --spacing: 1rem;
     --font-ui: 'Inter';
     --font-monospace: 'IBM Plex Mono';
+
+    /* Common widget styles */
+    --widget-border-radius: 6px;
+    --widget-font-weight: 500;
+    --widget-font-size: 0.85rem;
 }
 
 * {
@@ -308,22 +313,22 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
 
 /* Common alarm border colors - apply to any widget */
 .widget-alarm-disconnected {
-    border-color: #fa00fa !important;
+    border-color: var(--alarm-disconnected) !important;
     border-width: 2px !important;
 }
 
 .widget-alarm-major {
-    border-color: #ff0000 !important;
+    border-color: var(--alarm-major) !important;
     border-width: 2px !important;
 }
 
 .widget-alarm-minor {
-    border-color: #ffa500 !important;
+    border-color: var(--alarm-minor) !important;
     border-width: 2px !important;
 }
 
 .widget-alarm-invalid {
-    border-color: #999999 !important;
+    border-color: var(--alarm-invalid) !important;
     border-width: 2px !important;
 }
 
@@ -397,7 +402,7 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     width: 100%;
     background: #e6f2ff;
     border: 2px solid #b3d9ff;
-    border-radius: 6px;
+    border-radius: var(--widget-border-radius);
     color: #1a1a1a;
     font-variant-numeric: tabular-nums slashed-zero;
     font-size: 0.85rem;
@@ -439,24 +444,30 @@ input[type="number"] {
 }
 
 /* Alarm state styling for inputs - uses shared utility classes */
-.text-entry.alarm-disconnected { border-color: #fa00fa; border-width: 2px; }
-.text-entry.alarm-major { border-color: #ff0000; border-width: 2px; }
-.text-entry.alarm-minor { border-color: #ffa500; border-width: 2px; }
-.text-entry.alarm-invalid { border-color: #999999; border-width: 2px; }
+.text-entry.alarm-disconnected { border-color: var(--alarm-disconnected); border-width: 2px; }
+.text-entry.alarm-major { border-color: var(--alarm-major); border-width: 2px; }
+.text-entry.alarm-minor { border-color: var(--alarm-minor); border-width: 2px; }
+.text-entry.alarm-invalid { border-color: var(--alarm-invalid); border-width: 2px; }
+
+/* Alarm state styling for text-update inputs */
+.text-update.alarm-disconnected { border-color: var(--alarm-disconnected); border-width: 2px; }
+.text-update.alarm-major { border-color: var(--alarm-major); border-width: 2px; }
+.text-update.alarm-minor { border-color: var(--alarm-minor); border-width: 2px; }
+.text-update.alarm-invalid { border-color: var(--alarm-invalid); border-width: 2px; }
 
 /* Text entry read-only display (when min_step = 0) - legacy, kept for backwards compatibility */
 .text-entry-display {
     flex: 1;
     background: #e6f2ff;
     border: 2px solid #b3d9ff;
-    border-radius: 6px;
+    border-radius: var(--widget-border-radius);
     color: #1a1a1a;
     font-family: var(--font-monospace);
     font-variant-numeric: slashed-zero;
     font-size: 0.75rem;
     padding: 0.5rem 0.5rem;
     padding-right: 0.5rem;
-    font-weight: 500;
+    font-weight: var(--widget-font-weight);
     cursor: default;
 }
 
@@ -467,13 +478,13 @@ input[type="number"] {
     padding-left: 2rem;
 }
 
-.text-entry-display.alarm-disconnected { border-color: #fa00fa; border-width: 2px; }
-.text-entry-display.alarm-major { border-color: #ff0000; border-width: 2px; }
-.text-entry-display.alarm-minor { border-color: #ffa500; border-width: 2px; }
-.text-entry-display.alarm-invalid { border-color: #999999; border-width: 2px; }
+.text-entry-display.alarm-disconnected { border-color: var(--alarm-disconnected); border-width: 2px; }
+.text-entry-display.alarm-major { border-color: var(--alarm-major); border-width: 2px; }
+.text-entry-display.alarm-minor { border-color: var(--alarm-minor); border-width: 2px; }
+.text-entry-display.alarm-invalid { border-color: var(--alarm-invalid); border-width: 2px; }
 
 /* Text update widget - read-only display with icon */
-.text-update-container {
+.text-update-with-icon-container {
     position: relative;
     max-width: 250px;
     flex-shrink: 0;
@@ -481,42 +492,45 @@ input[type="number"] {
     align-items: center;
 }
 
-.text-update-display {
+.text-update-icon {
+    position: absolute;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.text-update {
     width: 100%;
-    padding: 8px 3rem 8px 12px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    display: inline-block;
+    border-radius: var(--widget-border-radius);
     color: white;
-    font-weight: 500;
-    font-size: 0.85rem;
-    font-family: var(--font-monospace);
     font-variant-numeric: tabular-nums slashed-zero;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.85rem;
+    padding: 0.5rem 2rem 0.5rem 0.5rem;
+    transition: all 0.2s;
+    font-weight: 500;
+    font-family: var(--font-monospace);
 }
 
-.text-update-display.alarm-disconnected { border-color: #fa00fa; border-width: 2px; }
-.text-update-display.alarm-major { border-color: #ff0000; border-width: 2px; }
-.text-update-display.alarm-minor { border-color: #ffa500; border-width: 2px; }
-.text-update-display.alarm-invalid { border-color: #999999; border-width: 2px; }
-
-.text-update-display .display-icon {
-    width: 18px;
-    height: 18px;
-    margin-right: 8px;
-    flex-shrink: 0;
+.text-update.alarm-disconnected,
+.text-update.alarm-major,
+.text-update.alarm-minor,
+.text-update.alarm-invalid {
+    padding-left: 2rem;
 }
 
-.text-update-display .units {
+/* Units overlay for text-update - positioned inside the input container */
+.text-update-with-icon-container .units-overlay {
     position: absolute;
-    right: 10px;
-    color: #666;
-    font-size: 0.9rem;
+    right: 8px;
+    color: #999;
+    font-size: 0.85rem;
     pointer-events: none;
     font-weight: 500;
+    z-index: 2;
 }
 
 /* Widget status icons */
@@ -532,21 +546,6 @@ input[type="number"] {
     height: 16px;
     margin-right: 6px;
     vertical-align: middle;
-}
-
-.display-icon {
-    width: 18px;
-    height: 18px;
-    margin-right: 8px;
-}
-
-.input-icon {
-    position: absolute;
-    left: 8px;
-    width: 20px;
-    height: 20px;
-    pointer-events: none;
-    z-index: 1;
 }
 
 /* Legacy class names - keep for backwards compatibility */

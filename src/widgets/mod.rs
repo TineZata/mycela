@@ -63,7 +63,10 @@ pub async fn render_screen(config: &ScreenConfig, state: &AppState) -> Markup {
                 
                 main class="screen-container" {
                     // Render the widget grid with SSE (Server-Sent Events) updates
-                    div class="widget-grid" {
+                    // Calculate grid columns based on widget count
+                    @let num_widgets = config.widgets.len();
+                    @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
+                    div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
                         // Initial render of all widgets with SSE connections
                         @for widget in &config.widgets {
                             (render_widget_with_sse(widget, state).await)

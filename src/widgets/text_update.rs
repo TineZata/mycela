@@ -6,19 +6,21 @@ use crate::pv_monitor::PvValue;
 pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     tracing::debug!("render_text_update called for widget: {} with value: {:?}", widget.id, value.is_some());
     
-    let (alarm_class, icon_html) = if let Some(v) = value {
+    let (icon_html, alarm_class) = if let Some(v) = value {
         tracing::debug!("Connection status: {:?}, Alarm severity: {}", v.connection_status, v.alarm_severity);
         let class_name = super::alarm_severity_class(v.alarm_severity);
         let icon = super::get_status_icon(&v.connection_status, v.alarm_severity);
-        (class_name, icon)
+        (icon, format!("text-update {}", class_name))
     } else {
-        ("alarm-disconnected", Some(super::OFFLINE_SVG))
+        (Some(super::OFFLINE_SVG), "text-update alarm-disconnected".to_string())
     };
+    
+    let is_integer_type = widget.data_type.as_deref() == Some("integer") || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32");
     
     let current_value = value
         .map(|v| {
             // Determine precision based on data_type or PV precision
-            let prec = if widget.data_type.as_deref() == Some("integer") || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32") {
+            let prec = if is_integer_type {
                 0
             } else {
                 v.precision.unwrap_or(2)
@@ -30,6 +32,11 @@ pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Mar
     let units = value
         .and_then(|v| v.units.as_deref())
         .unwrap_or("");
+    
+    let step_value = value.and_then(|v| v.min_step).unwrap_or(0.01);
+    
+    let is_string_type = widget.data_type.as_deref() == Some("string");
+    let input_type = if is_string_type { "text" } else { "number" };
     
     let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
     
@@ -40,27 +47,40 @@ pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Mar
             sse-connect={"/stream/widget/" (widget.id)}
             sse-swap="message"
             hx-swap="innerHTML" {
-
-            div class="widget-inner" title=(tooltip_text) {
+            
+            div class={"widget-inner"} title=(tooltip_text) {
                 label class="widget-label" { (widget.label) }
             
-                span class={"text-update-display " (alarm_class)} {
-                            @if let Some(icon) = icon_html {
-                                img class="display-icon" src=(icon) alt="status";
-                            }
-                span {
-                                (current_value)
-                    @if !units.is_empty() {
-                        " " span class="units" { (units) }
+                div class="text-update-with-icon-container" {
+                    @if let Some(icon) = icon_html {
+                        img class="text-update-icon" src=(icon) alt="status";
+                    }
+                    @if is_string_type {
+                        input type="text"
+                            class=(alarm_class)
+                            name="value"
+                            value=(current_value)
+                            disabled[true];
+                    } @else {
+                        input type=(input_type)
+                            class=(alarm_class)
+                            name="value"
+                            value=(current_value)
+                            step=(step_value)
+                            data-original-value=(current_value)
+                            disabled[true];
+                    }
+                    
+                @if !units.is_empty() {
+                    span class="units-overlay" { (units) }
+                }
+                }
+                
+                @if let Some(desc) = &widget.description {
+                    @if !desc.is_empty() {
+                        p class="widget-description" { (desc) }
                     }
                 }
-            }
-            
-            @if let Some(desc) = &widget.description {
-                @if !desc.is_empty() {
-                    p class="widget-description" { (desc) }
-                }
-            }
             }
         }
     }
@@ -68,17 +88,20 @@ pub fn render_text_update(widget: &WidgetConfig, value: Option<&PvValue>) -> Mar
 
 /// Render only the inner widget content without the outer SSE wrapper
 pub fn render_text_update_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let (alarm_class, icon_html) = if let Some(v) = value {
+    
+    let (icon_html, alarm_class) = if let Some(v) = value {
         let class_name = super::alarm_severity_class(v.alarm_severity);
         let icon = super::get_status_icon(&v.connection_status, v.alarm_severity);
-        (class_name, icon)
+        (icon, format!("text-update {}", class_name))
     } else {
-        ("alarm-disconnected", Some(super::OFFLINE_SVG))
+        (Some(super::OFFLINE_SVG), "text-update alarm-disconnected".to_string())
     };
+    
+    let is_integer_type = widget.data_type.as_deref() == Some("integer") || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32");
     
     let current_value = value
         .map(|v| {
-            let prec = if widget.data_type.as_deref() == Some("integer") || widget.data_type.as_deref() == Some("int") || widget.data_type.as_deref() == Some("i32") {
+            let prec = if is_integer_type {
                 0
             } else {
                 v.precision.unwrap_or(2)
@@ -91,27 +114,37 @@ pub fn render_text_update_inner(widget: &WidgetConfig, value: Option<&PvValue>) 
         .and_then(|v| v.units.as_deref())
         .unwrap_or("");
     
+    let step_value = value.and_then(|v| v.min_step).unwrap_or(0.01);
     let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
-    
+    let is_string_type = widget.data_type.as_deref() == Some("string");
+    let input_type = if is_string_type { "text" } else { "number" };
+
     html! {
         div class="widget-inner" title=(tooltip_text) {
             label class="widget-label" { (widget.label) }
         
-            span class={"text-update-display " (alarm_class)} {
+            div class="text-update-with-icon-container" {
                 @if let Some(icon) = icon_html {
-                    img class="display-icon" src=(icon) alt="status";
+                    img class="text-update-icon" src=(icon) alt="status";
                 }
-                span {
-                    (current_value)
-                    @if !units.is_empty() {
-                        " " span class="units" { (units) }
-                    }
+                @if is_string_type {
+                        input type="text"
+                            class=(alarm_class)
+                            name="value"
+                            value=(current_value)
+                            disabled[true];
+                } @else {
+                    input type=(input_type)
+                        class=(alarm_class)
+                        name="value"
+                        value=(current_value)
+                        step=(step_value)
+                        data-original-value=(current_value)
+                        disabled[true];
                 }
-            }
-        
-            @if let Some(desc) = &widget.description {
-                @if !desc.is_empty() {
-                    p class="widget-description" { (desc) }
+                
+                @if !units.is_empty() {
+                    span class="units-overlay" { (units) }
                 }
             }
         }

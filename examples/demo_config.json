@@ -11,7 +11,7 @@
       "data_type": "double",
       "server": {
         "alarm_serverity": "MAJOR",
-        "alarm_status": "DEVICE",
+        "alarm_status": "NO_ALARM",
         "metadata": {
           "display": {
             "limit_low": 0.0,

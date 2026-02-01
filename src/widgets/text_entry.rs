@@ -6,7 +6,7 @@ use crate::pv_monitor::{PvValue, ConnectionStatus};
 pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
     tracing::debug!("render_text_entry called for widget: {} with value: {:?}", widget.id, value.is_some());
     
-    let (icon_html, input_class) = if let Some(v) = value {
+    let (icon_html, alarm_class) = if let Some(v) = value {
         tracing::debug!("Connection status: {:?}, Alarm severity: {}", v.connection_status, v.alarm_severity);
         let class_name = super::alarm_severity_class(v.alarm_severity);
         let icon = super::get_status_icon(&v.connection_status, v.alarm_severity);
@@ -36,8 +36,9 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
     let disabled = !matches!(value.map(|v| &v.connection_status), Some(&ConnectionStatus::Connected));
     
     let step_value = value.and_then(|v| v.min_step).unwrap_or(0.01);
-    let input_type = if step_value == 0.0 { "text" } else { "number" };
+    
     let is_string_type = widget.data_type.as_deref() == Some("string");
+    let input_type = if is_string_type { "text" } else { "number" };
     
     let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
     
@@ -58,7 +59,7 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
                     }
                     @if is_string_type {
                         input type="text"
-                            class=(input_class)
+                            class=(alarm_class)
                             name="value"
                             value=(current_value)
                             disabled[disabled]
@@ -68,7 +69,7 @@ pub fn render_text_entry(widget: &WidgetConfig, value: Option<&PvValue>) -> Mark
                             hx-swap="innerHTML";
                     } @else {
                         input type=(input_type)
-                            class=(input_class)
+                            class=(alarm_class)
                             name="value"
                             value=(current_value)
                             data-original-value=(current_value)
