@@ -261,8 +261,3 @@ pub fn render_text_entry(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-/// Inner disconnected placeholder — TextEntry's monitor manages its own live updates via SSE.
-pub fn render_text_entry_inner(widget: &WidgetConfig) -> Markup {
-    render_inner_disconnected(widget, "Connecting...")
-}

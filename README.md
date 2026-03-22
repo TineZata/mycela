@@ -2,7 +2,7 @@
 
 **Rust + Axum + HTMX + pvxs-sys** - A modern, lightweight web interface for EPICS control systems.
 
-## 🎯 Architecture
+## Architecture
 
 ```
 Browser (HTMX 14KB)
@@ -23,7 +23,7 @@ EPICS IOCs
 - ✅ **Single Binary** - Easy deployment, all assets self-hosted (airgapped ready)
 - ✅ **~80% less code** - Compared to previous gRPC+WASM approach (~850 LOC vs ~3000 LOC)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -38,7 +38,7 @@ EPICS IOCs
 cargo build --release
 
 # Run the server
-./target/release/server.exe
+./target/release/ctrl-demo-server.exe
 
 # Or for development with hot reload
 cargo install cargo-watch
@@ -47,7 +47,7 @@ cargo watch -x run
 
 Server starts at: **http://127.0.0.1:3000**
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ctrl-sys-widgets/
@@ -66,7 +66,7 @@ ctrl-sys-widgets/
 └── Cargo.toml
 ```
 
-## 🎨 Features
+## Features
 
 ### Widget Types
 
@@ -88,13 +88,13 @@ The server creates persistent PVXS monitors for each PV, providing:
 ### Connection Status UI
 
 Widgets display connection state:
-- 🟢 **Green border** - Connected and updating
-- 🟠 **Orange border** - Timeout (PV not found)
-- 🔴 **Red border** - Disconnected or error
-- **Disabled inputs** when not connected
+- **Cyan boarder** Disabled inputs when not connected
+- **Green border** - Connected and updating
+- **Orange border** - Warning alarm for Hi and Lo limits reached
+- **Red border** - Alarm for HiHi or LoLo limits reached
 - **Status messages** showing specific errors
 
-## 📝 Configuration
+## Configuration
 
 Widget configuration in `examples/demo_config.json`:
 
@@ -172,13 +172,13 @@ Server returns fresh HTML fragments with current values and connection status.
 cargo build --release
 ```
 
-Binary location: `target/release/server.exe` (~1.9MB)
+Binary location: `target/release/ctrl-demo-server.exe`
 
 ### Required Files
 
 ```
 deployment/
-├── server.exe              # Binary
+├── ctrl-demo-server.exe    # Binary
 └── static/                 # Static assets
     ├── htmx.min.js
     ├── htmx-sse.js

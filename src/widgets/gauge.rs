@@ -1,39 +1,168 @@
 use maud::{html, Markup};
-use crate::{AppState, config::WidgetConfig};
-use crate::pv_monitor::{PvValue, ConnectionStatus};
+use crate::config::WidgetConfig;
+use pvxs_sys::{Context, Value, MonitorEvent};
 
-/// Gauge widget - read-only numeric display with range
-pub fn render_gauge(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let alarm_class = value
-        .map(|v| super::alarm_severity_class(v.alarm_severity))
-        .unwrap_or("alarm-disconnected");
-    
-    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
-    
-    // Extract display range from PV metadata or use defaults
-    let (min, max) = value
-        .and_then(|v| {
-            if let (Some(low), Some(high)) = (v.limit_low, v.limit_high) {
-                Some((low, high))
-            } else {
-                None
+pub struct Gauge {
+    config: WidgetConfig,
+}
+
+impl Gauge {
+    pub fn new(config: WidgetConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn into_sse_stream(
+        self,
+    ) -> impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>
+           + Send
+           + 'static {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        let config = std::sync::Arc::new(self.config);
+        let config_thread = config.clone();
+
+        tokio::task::spawn_blocking(move || Self::run_monitor(config_thread, tx));
+
+        async_stream::stream! {
+            yield Ok(axum::response::sse::Event::default().data(
+                render_inner_disconnected(&config).into_string()
+            ));
+            let mut rx = rx;
+            while let Some(html) = rx.recv().await {
+                yield Ok(axum::response::sse::Event::default().data(html));
             }
-        })
-        .unwrap_or((0.0, 100.0));
-    
-    // Use NTType display method for formatting
-    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
-    
+        }
+    }
+
+    fn run_monitor(
+        config: std::sync::Arc<WidgetConfig>,
+        tx: tokio::sync::mpsc::UnboundedSender<String>,
+    ) {
+        tracing::info!("Gauge monitor starting for: {}", config.pv_name);
+
+        let mut ctx = match Context::from_env() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
+                let _ = tx.send(render_inner_disconnected(&config).into_string());
+                return;
+            }
+        };
+
+        let mut monitor = match ctx
+            .monitor_builder(&config.pv_name)
+            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
+        {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
+                let _ = tx.send(render_inner_disconnected(&config).into_string());
+                return;
+            }
+        };
+
+        if let Err(e) = monitor.start() {
+            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
+            return;
+        }
+
+        loop {
+            match monitor.pop() {
+                Ok(Some(raw)) => {
+                    let html = render_inner_connected(&config, &raw).into_string();
+                    if tx.send(html).is_err() { break; }
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+                Err(MonitorEvent::Connected(msg)) => {
+                    tracing::info!("Gauge {}: connected - {}", config.pv_name, msg);
+                }
+                Err(MonitorEvent::Disconnected(msg)) => {
+                    tracing::warn!("Gauge {}: disconnected - {}", config.pv_name, msg);
+                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
+                }
+                Err(MonitorEvent::Finished(msg)) => {
+                    tracing::info!("Gauge {}: finished - {}", config.pv_name, msg);
+                    break;
+                }
+                Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
+                    tracing::error!("Gauge {}: error - {}", config.pv_name, msg);
+                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
+                }
+            }
+        }
+
+        tracing::info!("Gauge monitor stopped for: {}", config.pv_name);
+    }
+}
+
+fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
+    let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
+    let alarm_class = super::alarm_severity_class(alarm_severity);
+    let icon: Option<&str> = match alarm_severity {
+        1 => Some(super::MINOR_ALARM_SVG),
+        2 => Some(super::MAJOR_ALARM_SVG),
+        3 => Some(super::INVALID_SVG),
+        _ => None,
+    };
+
+    let current_value = raw.get_field_double("value").unwrap_or(0.0);
+    let prec = raw.get_field_int32("display.precision").unwrap_or(2);
+    let display_value = format!("{:.prec$}", current_value, prec = prec as usize);
+    let units = raw.get_field_string("display.units").unwrap_or_default();
+
+    let min = raw.get_field_double("display.limitLow").unwrap_or(0.0);
+    let max = raw.get_field_double("display.limitHigh").unwrap_or(100.0);
+    let max = if (max - min).abs() < f64::EPSILON { min + 100.0 } else { max };
     let percentage = ((current_value - min) / (max - min) * 100.0).clamp(0.0, 100.0);
-    
-    let units = value
-        .and_then(|v| v.units.as_deref())
-        .unwrap_or("");
-    
-    let icon_html = value.and_then(|v| super::get_status_icon(&v.connection_status, v.alarm_severity));
-    
-    let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
-    
+
+    render_gauge_html(config, &display_value, &units, min, max, percentage,
+                      &format!("gauge {}", alarm_class), icon)
+}
+
+fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+    render_gauge_html(config, "--", "", 0.0, 100.0, 0.0, "gauge alarm-disconnected", Some(super::OFFLINE_SVG))
+}
+
+fn render_gauge_html(
+    config: &WidgetConfig,
+    display_value: &str,
+    units: &str,
+    min: f64,
+    max: f64,
+    percentage: f64,
+    _alarm_class: &str,
+    icon: Option<&str>,
+) -> Markup {
+    html! {
+        div class="widget-inner" {
+            label class="widget-label" {
+                (config.label)
+                @if let Some(src) = icon {
+                    img class="widget-status-icon" src=(src) alt="status";
+                }
+            }
+            div class="gauge-display" {
+                div class="gauge-value" {
+                    (display_value)
+                    @if !units.is_empty() { " " (units) }
+                }
+                div class="gauge-bar" {
+                    div class="gauge-fill" style=(format!("width: {:.1}%", percentage)) {}
+                }
+                div class="gauge-range" {
+                    span class="min" { (format!("{:.1}", min)) }
+                    span class="max" { (format!("{:.1}", max)) }
+                }
+            }
+            @if let Some(desc) = &config.description {
+                @if !desc.is_empty() {
+                    p class="widget-description" { (desc) }
+                }
+            }
+        }
+    }
+}
+
+pub fn render_gauge(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
@@ -41,102 +170,9 @@ pub fn render_gauge(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
             sse-connect={"/stream/widget/" (widget.id)}
             sse-swap="message"
             hx-swap="innerHTML" {
-
-            div class="widget-inner" title=(tooltip_text) {
-                label class="widget-label" { 
-                    (widget.label)
-                    @if let Some(icon) = icon_html {
-                        img class="widget-status-icon" src=(icon) alt="status";
-                    }
-                }
-            
-                div class="gauge-display" {
-                        div class="gauge-value" { 
-                            (display_value) 
-                            @if !units.is_empty() {
-                                " " (units)
-                            }
-                        }
-                        div class="gauge-bar" {
-                            div class="gauge-fill" style={"width: " (percentage) "%"} {}
-                        }
-                div class="gauge-range" {
-                    span class="min" { (format!("{:.1}", min)) }
-                    span class="max" { (format!("{:.1}", max)) }
-                }
-            }
-            
-            @if let Some(desc) = &widget.description {
-                @if !desc.is_empty() {
-                    p class="widget-description" { (desc) }
-                }
-            }
-            }
+            (render_inner_disconnected(widget))
         }
     }
 }
 
-/// Render only the inner widget content without the outer SSE wrapper
-pub fn render_gauge_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let alarm_class = value
-        .map(|v| super::alarm_severity_class(v.alarm_severity))
-        .unwrap_or("alarm-disconnected");
-    
-    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
-    
-    let (min, max) = value
-        .and_then(|v| {
-            if let (Some(low), Some(high)) = (v.limit_low, v.limit_high) {
-                Some((low, high))
-            } else {
-                None
-            }
-        })
-        .unwrap_or((0.0, 100.0));
-    
-    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
-    
-    let percentage = ((current_value - min) / (max - min) * 100.0).clamp(0.0, 100.0);
-    
-    let units = value
-        .and_then(|v| v.units.as_deref())
-        .unwrap_or("");
-    
-    let icon_html = value.and_then(|v| super::get_status_icon(&v.connection_status, v.alarm_severity));
-    
-    let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
-    
-    html! {
-        div class="widget-inner" title=(tooltip_text) {
-            label class="widget-label" { 
-                (widget.label)
-                @if let Some(icon) = icon_html {
-                    img class="widget-status-icon" src=(icon) alt="status";
-                }
-            }
-        
-            div class="gauge-display" {
-                div class="gauge-value" { 
-                    (display_value) 
-                    @if !units.is_empty() {
-                        " " (units)
-                    }
-                }
-                div class="gauge-bar" {
-                    div class="gauge-fill" style={"width: " (percentage) "%"} {}
-                }
-                div class="gauge-range" {
-                    span class="min" { (format!("{:.1}", min)) }
-                    span class="max" { (format!("{:.1}", max)) }
-                }
-            }
-        
-            @if let Some(desc) = &widget.description {
-                @if !desc.is_empty() {
-                    p class="widget-description" { (desc) }
-                }
-            }
-        }
-    }
-}
 

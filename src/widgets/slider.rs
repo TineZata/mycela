@@ -1,134 +1,151 @@
 use maud::{html, Markup};
-use crate::{AppState, config::WidgetConfig};
-use crate::pv_monitor::{PvValue, ConnectionStatus};
+use crate::config::WidgetConfig;
+use pvxs_sys::{Context, Value, MonitorEvent};
 
-/// Slider widget - adjustable value
-pub fn render_slider(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
-    
-    // Extract control range from PV metadata or use defaults
-    let (min, max) = value
-        .and_then(|v| {
-            if let (Some(low), Some(high)) = (v.control_low, v.control_high) {
-                Some((low, high))
-            } else if let (Some(low), Some(high)) = (v.limit_low, v.limit_high) {
-                Some((low, high))
-            } else {
-                None
-            }
-        })
-        .unwrap_or((0.0, 100.0));
-    
-    // Use min_step from metadata if available
-    let step = value.and_then(|v| v.min_step).unwrap_or(0.1);
-    
-    // Use NTType display method for formatting
-    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
-    
-    let units = value
-        .and_then(|v| v.units.as_deref())
-        .unwrap_or("");
-    
-    let alarm_class = value
-        .map(|v| super::alarm_severity_class(v.alarm_severity))
-        .unwrap_or("alarm-disconnected");
-    
-    let disabled = !matches!(value.map(|v| &v.connection_status), Some(&ConnectionStatus::Connected));
-    
-    let icon_html = value.and_then(|v| super::get_status_icon(&v.connection_status, v.alarm_severity));
-    
-    let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
-    
-    html! {
-        div data-widget-id=(widget.id)
-            data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
-            hx-swap="innerHTML" {
+pub struct Slider {
+    config: WidgetConfig,
+}
 
-            div class="widget-inner" title=(tooltip_text) {
-                label class="widget-label" { 
-                    (widget.label)
-                    @if let Some(icon) = icon_html {
-                        img class="widget-status-icon" src=(icon) alt="status";
-                    }
-                }
-            
-                div class="slider-container" {
-                        input type="range"
-                            class="pv-slider"
-                            name="value"
-                            min=(format!("{}", min))
-                            max=(format!("{}", max))
-                            step=(format!("{}", step))
-                            value=(format!("{}", current_value))
-                            disabled[disabled]
-                            hx-post={"/api/widget/" (widget.id) "/set"}
-                            hx-trigger="change"
-                            hx-target="next .slider-value";
-                        
-                span class="slider-value" { 
-                    (display_value)
-                    @if !units.is_empty() {
-                        " " (units)
-                    }
-                }
-            }
-            
-            @if let Some(desc) = &widget.description {
-                @if !desc.is_empty() {
-                    p class="widget-description" { (desc) }
-                }
-            }
+impl Slider {
+    pub fn new(config: WidgetConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn into_sse_stream(
+        self,
+    ) -> impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>
+           + Send
+           + 'static {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        let config = std::sync::Arc::new(self.config);
+        let config_thread = config.clone();
+
+        tokio::task::spawn_blocking(move || Self::run_monitor(config_thread, tx));
+
+        async_stream::stream! {
+            yield Ok(axum::response::sse::Event::default().data(
+                render_inner_disconnected(&config).into_string()
+            ));
+            let mut rx = rx;
+            while let Some(html) = rx.recv().await {
+                yield Ok(axum::response::sse::Event::default().data(html));
             }
         }
     }
-}
 
-/// Render only the inner widget content without the outer SSE wrapper
-pub fn render_slider_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-    let current_value = value.and_then(|v| v.value.as_f64()).unwrap_or(0.0);
-    
-    let (min, max) = value
-        .and_then(|v| {
-            if let (Some(low), Some(high)) = (v.control_low, v.control_high) {
-                Some((low, high))
-            } else if let (Some(low), Some(high)) = (v.limit_low, v.limit_high) {
-                Some((low, high))
-            } else {
-                None
+    fn run_monitor(
+        config: std::sync::Arc<WidgetConfig>,
+        tx: tokio::sync::mpsc::UnboundedSender<String>,
+    ) {
+        tracing::info!("Slider monitor starting for: {}", config.pv_name);
+
+        let mut ctx = match Context::from_env() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
+                let _ = tx.send(render_inner_disconnected(&config).into_string());
+                return;
             }
-        })
-        .unwrap_or((0.0, 100.0));
-    
-    let step = value.and_then(|v| v.min_step).unwrap_or(0.1);
-    
-    let display_value = value.map(|v| v.value.to_display_string(v.precision)).unwrap_or_else(|| "--".to_string());
-    
-    let units = value
-        .and_then(|v| v.units.as_deref())
-        .unwrap_or("");
-    
-    let alarm_class = value
-        .map(|v| super::alarm_severity_class(v.alarm_severity))
-        .unwrap_or("alarm-disconnected");
-    
-    let disabled = !matches!(value.map(|v| &v.connection_status), Some(&ConnectionStatus::Connected));
-    
-    let icon_html = value.and_then(|v| super::get_status_icon(&v.connection_status, v.alarm_severity));
-    
-    let tooltip_text = value.map(|v| super::generate_tooltip(v)).unwrap_or_default();
-    
-    html! {
-        div class="widget-inner" title=(tooltip_text) {
-            label class="widget-label" { 
-                (widget.label)
-                @if let Some(icon) = icon_html {
-                    img class="widget-status-icon" src=(icon) alt="status";
+        };
+
+        let mut monitor = match ctx
+            .monitor_builder(&config.pv_name)
+            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
+        {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
+                let _ = tx.send(render_inner_disconnected(&config).into_string());
+                return;
+            }
+        };
+
+        if let Err(e) = monitor.start() {
+            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
+            return;
+        }
+
+        loop {
+            match monitor.pop() {
+                Ok(Some(raw)) => {
+                    let html = render_inner_connected(&config, &raw).into_string();
+                    if tx.send(html).is_err() { break; }
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
+                Err(MonitorEvent::Connected(msg)) => {
+                    tracing::info!("Slider {}: connected - {}", config.pv_name, msg);
+                }
+                Err(MonitorEvent::Disconnected(msg)) => {
+                    tracing::warn!("Slider {}: disconnected - {}", config.pv_name, msg);
+                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
+                }
+                Err(MonitorEvent::Finished(msg)) => {
+                    tracing::info!("Slider {}: finished - {}", config.pv_name, msg);
+                    break;
+                }
+                Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
+                    tracing::error!("Slider {}: error - {}", config.pv_name, msg);
+                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
                 }
             }
-        
+        }
+
+        tracing::info!("Slider monitor stopped for: {}", config.pv_name);
+    }
+}
+
+fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
+    let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
+    let alarm_class = super::alarm_severity_class(alarm_severity);
+    let icon: Option<&str> = match alarm_severity {
+        1 => Some(super::MINOR_ALARM_SVG),
+        2 => Some(super::MAJOR_ALARM_SVG),
+        3 => Some(super::INVALID_SVG),
+        _ => None,
+    };
+
+    let current_value = raw.get_field_double("value").unwrap_or(0.0);
+    let prec = raw.get_field_int32("display.precision").unwrap_or(2);
+    let display_value = format!("{:.prec$}", current_value, prec = prec as usize);
+    let units = raw.get_field_string("display.units").unwrap_or_default();
+
+    let min = raw.get_field_double("control.limitLow")
+        .or_else(|_| raw.get_field_double("display.limitLow"))
+        .unwrap_or(0.0);
+    let max = raw.get_field_double("control.limitHigh")
+        .or_else(|_| raw.get_field_double("display.limitHigh"))
+        .unwrap_or(100.0);
+    let step = raw.get_field_double("control.minStep").unwrap_or(0.1);
+
+    render_slider_html(config, current_value, &display_value, &units, min, max, step,
+                        &format!("slider {}", alarm_class), icon, false)
+}
+
+fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+    render_slider_html(config, 0.0, "--", "", 0.0, 100.0, 0.1,
+                        "slider alarm-disconnected", Some(super::OFFLINE_SVG), true)
+}
+
+fn render_slider_html(
+    config: &WidgetConfig,
+    current_value: f64,
+    display_value: &str,
+    units: &str,
+    min: f64,
+    max: f64,
+    step: f64,
+    _alarm_class: &str,
+    icon: Option<&str>,
+    disabled: bool,
+) -> Markup {
+    html! {
+        div class="widget-inner" {
+            label class="widget-label" {
+                (config.label)
+                @if let Some(src) = icon {
+                    img class="widget-status-icon" src=(src) alt="status";
+                }
+            }
             div class="slider-container" {
                 input type="range"
                     class="pv-slider"
@@ -138,19 +155,15 @@ pub fn render_slider_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Ma
                     step=(format!("{}", step))
                     value=(format!("{}", current_value))
                     disabled[disabled]
-                    hx-post={"/api/widget/" (widget.id) "/set"}
+                    hx-post={"/api/widget/" (config.id) "/set"}
                     hx-trigger="change"
                     hx-target="next .slider-value";
-                
-                span class="slider-value" { 
+                span class="slider-value" {
                     (display_value)
-                    @if !units.is_empty() {
-                        " " (units)
-                    }
+                    @if !units.is_empty() { " " (units) }
                 }
             }
-        
-            @if let Some(desc) = &widget.description {
+            @if let Some(desc) = &config.description {
                 @if !desc.is_empty() {
                     p class="widget-description" { (desc) }
                 }
@@ -158,3 +171,17 @@ pub fn render_slider_inner(widget: &WidgetConfig, value: Option<&PvValue>) -> Ma
         }
     }
 }
+
+pub fn render_slider(widget: &WidgetConfig) -> Markup {
+    html! {
+        div data-widget-id=(widget.id)
+            data-pv=(widget.pv_name)
+            hx-ext="sse"
+            sse-connect={"/stream/widget/" (widget.id)}
+            sse-swap="message"
+            hx-swap="innerHTML" {
+            (render_inner_disconnected(widget))
+        }
+    }
+}
+

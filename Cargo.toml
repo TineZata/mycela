@@ -1,7 +1,8 @@
 [package]
 name = "ctrl-sys-widgets"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
+default-run = "ctrl-demo-server"
 
 [[bin]]
 name = "ctrl-demo-server"
@@ -14,7 +15,7 @@ path = "test_config_load.rs"
 [dependencies]
 # Web framework
 axum = "0.8.8"
-tokio = { version = "1.49.0", features = ["full"] }
+tokio = { version = "1.50.0", features = ["full"] }
 tower = "0.5.3"
 tower-http = { version = "0.6.8", features = ["fs", "trace", "cors"] }
 
@@ -27,22 +28,22 @@ serde_json = "1.0.149"
 
 # Logging
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 # Concurrent caching
 dashmap = "6"
 
 # Async streams (for SSE)
 tokio-stream = "0.1.18"
-futures = "0.3"
+futures = "0.3.32"
 async-stream = "0.3"
 
 # Time handling
-chrono = "0.4.43"
+chrono = "0.4.44"
 
 # EPICS
 # pvxs-sys = { path = "../pvxs-sys" }
-pvxs-sys = "0.1"
+pvxs-sys = "0.1.1"
 
 [profile.release]
 opt-level = "z"

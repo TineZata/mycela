@@ -63,6 +63,8 @@ pub struct ServerConfig {
     #[serde(default)]
     pub alarm_status: Option<String>,
     #[serde(default)]
+    pub alarm_message: Option<String>,
+    #[serde(default)]
     pub metadata: Option<PvMetadata>,
 }
 
@@ -92,6 +94,8 @@ pub struct DisplayMetadata {
 pub struct ControlMetadata {
     pub limit_low: f64,
     pub limit_high: f64,
+    #[serde(default)]
+    pub min_step: f64,
 }
 
 /// Alarm metadata
