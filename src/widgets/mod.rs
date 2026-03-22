@@ -1,6 +1,30 @@
 use maud::{html, Markup};
-use axum::response::Html;
+use axum::{
+    extract::{Path, State, Form},
+    response::{Html, IntoResponse, Response},
+    http::StatusCode,
+};
 use crate::config::{ScreenConfig, WidgetConfig, WidgetType};
+use crate::AppState;
+
+#[derive(serde::Deserialize)]
+pub struct PutForm {
+    pub value: String,
+}
+
+/// Widget write endpoint — form post → PVXS put → HTML feedback span.
+/// Lives here so widget I/O (reads via SSE, writes via put) is fully owned by the widget layer.
+pub async fn write_widget(
+    Path(widget_id): Path<String>,
+    State(state): State<AppState>,
+    Form(form): Form<PutForm>,
+) -> Response {
+    let widget = state.config.widgets.iter().find(|w| w.id == widget_id).cloned();
+    match widget {
+        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
+        Some(w) => Html(put_pv(w, form.value).await.into_string()).into_response(),
+    }
+}
 
 // Base64 encoded SVG icons for different alarm states (shared across all widgets)
 pub const OFFLINE_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9IiNmYTAwZmEiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbWl0ZXJsaW1pdD0iNCIgc3Ryb2tlLXdpZHRoPSIxLjUiIGQ9Ik0yLjc1NyA2LjA5N2MwLTEuODQ1IDEuNDk2LTMuMzQgMy4zNC0zLjM0aDExLjgxOWMxLjg0NSAwIDMuMzQgMS40OTUgMy4zNCAzLjM0djExLjgxOWMwIDEuODQ1LTEuNDk1IDMuMzQtMy4zNCAzLjM0aC0xMS44MTljLTEuODQ1IDAtMy4zNC0xLjQ5NS0zLjM0LTMuMzR2LTExLjgxOXoiPjwvcGF0aD48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLW1pdGVybGltaXQ9IjQiIHN0cm9rZS13aWR0aD0iMS41IiBkPSJNMTcuODIgMTQuNDAyYzAuMTE2LTAuMjkzIDAuMTgtMC42MTEgMC4xOC0wLjk0NCAwLTEuMzY3LTEuMDc1LTIuNDktMi40NDgtMi42MTQtMC4yODEtMS42NjEtMS43NjQtMi45MjgtMy41NTItMi45MjgtMC4yNjggMC0wLjUyOSAwLjAyOC0wLjc4IDAuMDgyTTkuMTcyIDkuMjVjLTAuMzY5IDAuNDU0LTAuNjI0IDAuOTk5LTAuNzI1IDEuNTk1LTEuMzczIDAuMTI0LTIuNDQ4IDEuMjQ3LTIuNDQ4IDIuNjE0IDAgMS40NSAxLjIwOSAyLjYyNSAyLjcgMi42MjVoNi42YzAuMjc0IDAgMC41MzgtMC4wMzkgMC43ODctMC4xMTNNNi42IDYuNzVsMTAuOCAxMC41Ij48L3BhdGg+PC9zdmc+";
@@ -19,6 +43,7 @@ pub mod led;
 pub mod slider;
 pub mod button;
 pub mod chart;
+pub mod select;
 
 // Re-export widget render functions
 pub use text_entry::render_text_entry;
@@ -28,6 +53,7 @@ pub use led::render_led;
 pub use slider::render_slider;
 pub use button::render_button;
 pub use chart::render_chart;
+pub use select::render_select;
 
 /// Render widget from config — each widget's outer div contains its own SSE connection.
 pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
@@ -39,6 +65,7 @@ pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
         WidgetType::Slider     => render_slider(widget),
         WidgetType::Button     => render_button(widget),
         WidgetType::Chart      => render_chart(widget),
+        WidgetType::Select     => render_select(widget),
     }
 }
 
@@ -105,14 +132,14 @@ pub async fn put_pv(config: WidgetConfig, value_str: String) -> Markup {
                     .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
                 ctx.put_enum(&pv_name, v, 5.0)
             }
-            Some("string") => {
-                ctx.put_string(&pv_name, value_str.trim(), 5.0)
-            }
-            _ => {
-                // default: double
+            Some("double") | Some("Double") => {
                 let v: f64 = value_str.trim().parse()
                     .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
                 ctx.put_double(&pv_name, v, 5.0)
+            }
+            _ => {
+                // Default to string
+                ctx.put_string(&pv_name, value_str.trim(), 5.0)
             }
         }
     })

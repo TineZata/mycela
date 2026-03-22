@@ -4,7 +4,7 @@ mod config;
 use axum::{
     Router,
     routing::{get, post},
-    extract::{Path, State, Form},
+    extract::{Path, State},
     response::{Html, IntoResponse, Response, sse::{Event, Sse}},
     http::StatusCode,
 };
@@ -21,9 +21,9 @@ use crate::config::{ScreenConfig, WidgetConfig};
 // ─── Application state ───────────────────────────────────────────────────────
 
 #[derive(Clone)]
-struct AppState {
-    pv_server: Arc<Mutex<Option<pvxs_sys::Server>>>,
-    config: Arc<ScreenConfig>,
+pub struct AppState {
+    pub pv_server: Arc<Mutex<Option<pvxs_sys::Server>>>,
+    pub config: Arc<ScreenConfig>,
 }
 
 impl AppState {
@@ -216,7 +216,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/server/status", get(server_status))
         
         // Widget write endpoint (form post → PVXS put → HTML feedback)
-        .route("/api/widget/{widget_id}/set", post(write_widget))
+        .route("/api/widget/{widget_id}/set", post(widgets::write_widget))
 
         // Server-Sent Events for real-time monitoring
         .route("/stream/widget/{name}", get(stream_widget))
@@ -331,35 +331,6 @@ async fn render_screen(
     Ok(Html(markup.into_string()))
 }
 
-// Type alias used so stream_widget can return different concrete stream types
-// from a single function (TextEntry stream vs. shared-monitor fallback stream).
-#[derive(serde::Deserialize)]
-struct PutForm {
-    value: String,
-}
-
-/// Widget write endpoint — form post → PVXS put → HTML feedback span.
-async fn write_widget(
-    Path(widget_id): Path<String>,
-    State(state): State<AppState>,
-    Form(form): Form<PutForm>,
-) -> Response {
-    let widget = state
-        .config
-        .widgets
-        .iter()
-        .find(|w| w.id == widget_id)
-        .cloned();
-
-    match widget {
-        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
-        Some(w) => {
-            let markup = widgets::put_pv(w, form.value).await;
-            Html(markup.into_string()).into_response()
-        }
-    }
-}
-
 type SseStream = std::pin::Pin<Box<dyn tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send>>;
 
 /// SSE endpoint — one connection per widget instance.
@@ -387,6 +358,7 @@ async fn stream_widget(
         WidgetType::Slider     => Box::pin(widgets::slider::Slider::new(config).into_sse_stream()),
         WidgetType::Button     => Box::pin(widgets::button::Button::new(config).into_sse_stream()),
         WidgetType::Chart      => Box::pin(widgets::chart::Chart::new(config).into_sse_stream()),
+        WidgetType::Select     => Box::pin(widgets::select::Select::new(config).into_sse_stream()),
     };
 
     Sse::new(stream)

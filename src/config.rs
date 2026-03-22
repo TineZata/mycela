@@ -123,6 +123,7 @@ pub enum WidgetType {
     Button,
     Slider,
     Chart,
+    Select,
 }
 
 /// Optional widget styling
