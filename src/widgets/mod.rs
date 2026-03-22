@@ -22,7 +22,10 @@ pub async fn write_widget(
     let widget = state.config.widgets.iter().find(|w| w.id == widget_id).cloned();
     match widget {
         None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
-        Some(w) => Html(put_pv(w, form.value).await.into_string()).into_response(),
+        Some(w) => {
+            let server_handle = state.pv_server.lock().unwrap().as_ref().map(|s| s.handle());
+            Html(put_pv(w, form.value, server_handle).await.into_string()).into_response()
+        }
     }
 }
 
@@ -114,32 +117,57 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 
 /// Render a group of widgets
 /// Write a value to a PV using PVXS. Returns HTML feedback (success or error).
-/// Dispatches to put_double / put_int32 / put_string / put_enum based on config.data_type.
-pub async fn put_pv(config: WidgetConfig, value_str: String) -> Markup {
+/// Routes through ServerHandle::post_* for server-hosted PVs (triggers alarm computation),
+/// falls back to network client put for external PVs.
+pub async fn put_pv(config: WidgetConfig, value_str: String, server_handle: Option<pvxs_sys::ServerHandle>) -> Markup {
     let pv_name = config.pv_name.clone();
     let data_type = config.data_type.clone();
+    let use_server = server_handle.is_some() && config.server.is_some();
 
     let result = tokio::task::spawn_blocking(move || -> pvxs_sys::Result<()> {
-        let mut ctx = pvxs_sys::Context::from_env()?;
-        match data_type.as_deref() {
-            Some("int32") | Some("int") | Some("integer") => {
-                let v: i32 = value_str.trim().parse()
-                    .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
-                ctx.put_int32(&pv_name, v, 5.0)
+        if use_server {
+            let handle = server_handle.unwrap();
+            match data_type.as_deref() {
+                Some("int32") | Some("int") | Some("integer") => {
+                    let v: i32 = value_str.trim().parse()
+                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
+                    handle.post_int32(&pv_name, v)
+                }
+                Some("enum") => {
+                    let v: i16 = value_str.trim().parse()
+                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
+                    handle.post_enum(&pv_name, v)
+                }
+                Some("double") | Some("float") | Some("f64") | Some("f32") => {
+                    let v: f64 = value_str.trim().parse()
+                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
+                    handle.post_double(&pv_name, v)
+                }
+                _ => {
+                    handle.post_string(&pv_name, value_str.trim())
+                }
             }
-            Some("enum") => {
-                let v: i16 = value_str.trim().parse()
-                    .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
-                ctx.put_enum(&pv_name, v, 5.0)
-            }
-            Some("double") | Some("Double") => {
-                let v: f64 = value_str.trim().parse()
-                    .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
-                ctx.put_double(&pv_name, v, 5.0)
-            }
-            _ => {
-                // Default to string
-                ctx.put_string(&pv_name, value_str.trim(), 5.0)
+        } else {
+            let mut ctx = pvxs_sys::Context::from_env()?;
+            match data_type.as_deref() {
+                Some("int32") | Some("int") | Some("integer") => {
+                    let v: i32 = value_str.trim().parse()
+                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
+                    ctx.put_int32(&pv_name, v, 5.0)
+                }
+                Some("enum") => {
+                    let v: i16 = value_str.trim().parse()
+                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
+                    ctx.put_enum(&pv_name, v, 5.0)
+                }
+                Some("double") | Some("float") | Some("f64") | Some("f32") => {
+                    let v: f64 = value_str.trim().parse()
+                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
+                    ctx.put_double(&pv_name, v, 5.0)
+                }
+                _ => {
+                    ctx.put_string(&pv_name, value_str.trim(), 5.0)
+                }
             }
         }
     })

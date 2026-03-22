@@ -89,7 +89,7 @@ fn parse_alarm_severity(severity: &str) -> pvxs_sys::AlarmSeverity {
 
 fn parse_alarm_status(status: &str) -> pvxs_sys::AlarmStatus {
     match status.to_uppercase().as_str() {
-        "NOALARM" | "NONE" => pvxs_sys::AlarmStatus::NoAlarm,
+        "NOALARM" | "NO_ALARM" | "NONE" => pvxs_sys::AlarmStatus::NoAlarm,
         "DEVICE" => pvxs_sys::AlarmStatus::DeviceStatus,
         "DRIVER" => pvxs_sys::AlarmStatus::DriverStatus,
         "RECORD" => pvxs_sys::AlarmStatus::RecordStatus,

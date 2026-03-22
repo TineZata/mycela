@@ -830,6 +830,61 @@ footer {
     cursor: help;
 }
 
+/* Info icon button inside widget label */
+.widget-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0 2px;
+    margin-left: 2px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    opacity: 0.45;
+    cursor: pointer;
+    transition: opacity 0.15s, color 0.15s;
+    line-height: 1;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.widget-info-btn:hover {
+    opacity: 1;
+    color: var(--accent);
+}
+
+/* Context menu for click-triggered tooltips */
+.tooltip-context-menu {
+    display: none;
+    position: absolute;
+    z-index: 10001;
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    padding: 3px 0;
+    min-width: 140px;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+}
+
+.tooltip-context-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    transition: background 0.12s;
+}
+
+.tooltip-context-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
 /* Custom Tooltip Styling */
 .custom-tooltip {
     font-family: var(--font-monospace);

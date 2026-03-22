@@ -1,4 +1,4 @@
-// Custom Tooltip System - Replaces native browser tooltips with styled ones
+// Custom Tooltip System
 (function() {
     'use strict';
     
@@ -129,9 +129,11 @@
         tooltip.style.top = top + window.scrollY + 'px';
     }
     
+    // ── Tooltip panel ──────────────────────────────────────────────────────
+
     // Show tooltip
     function showTooltip(e) {
-        // Search up the DOM tree for an element with title, data-tooltip, or data-original-title
+        // Search up the DOM tree for title / data-tooltip / data-original-title
         let element = e.target;
         let title = null;
         
@@ -206,67 +208,33 @@
         });
     }
     
-    // Hide tooltip
-    function hideTooltip(e) {
-        if (!tooltip || isPinned) return;
-        
-        // Don't hide if tooltip is being hovered
-        if (tooltip.matches(':hover')) return;
-        
-        clearAutoHideTimer();
-        tooltip.style.opacity = '0';
-        setTimeout(() => {
-            if (tooltip && !isPinned && !tooltip.matches(':hover')) {
-                tooltip.style.display = 'none';
-            }
-        }, 200);
-        
-        // Search up for element with data-original-title
-        let element = e.target;
-        while (element) {
-            const originalTitle = element.getAttribute('data-original-title');
-            if (originalTitle) {
-                element.setAttribute('title', originalTitle);
-                element.removeAttribute('data-original-title');
-                break;
-            }
-            element = element.parentElement;
-        }
-    }
-    
-    // Update tooltip position on mouse move (not needed for fixed positioning, but keep for compatibility)
-    function updateTooltip(e) {
-        // Tooltip is now fixed to widget position, no need to update on mouse move
-    }
-    
-    // Initialize tooltips for all elements with title or data-tooltip attributes
     function initTooltips() {
         let currentTooltipElement = null;
-        
+
+        // ── Hover tooltips for normal [title] elements ──────────────────────
         document.addEventListener('mouseover', function(e) {
             const target = e.target.closest('[title], [data-tooltip], [data-original-title]');
-            if (target && target !== currentTooltipElement) {
-                currentTooltipElement = target;
-                clearAutoHideTimer();
-                clearShowTimer();
-                
-                // Immediately store and remove title to prevent native tooltip
-                const title = target.getAttribute('title');
-                if (title) {
-                    target.setAttribute('data-original-title', title);
-                    target.removeAttribute('title');
-                }
-                
-                // Delay showing tooltip by 1.5 seconds
-                showTimer = setTimeout(() => {
-                    showTooltip({ target, clientX: e.clientX, clientY: e.clientY });
-                }, 1500);
+            if (!target || target === currentTooltipElement) return;
+            // Skip elements that use click-only tooltips
+            if (target.hasAttribute('data-tooltip-on-click')) return;
+
+            currentTooltipElement = target;
+            clearAutoHideTimer();
+            clearShowTimer();
+
+            const title = target.getAttribute('title');
+            if (title) {
+                target.setAttribute('data-original-title', title);
+                target.removeAttribute('title');
             }
+
+            showTimer = setTimeout(() => {
+                showTooltip({ target, clientX: e.clientX, clientY: e.clientY });
+            }, 1500);
         });
-        
+
         document.addEventListener('mousemove', function(e) {
             const target = e.target.closest('[title], [data-tooltip], [data-original-title]');
-            // If mouse moves while waiting to show tooltip, reset the timer
             if (target === currentTooltipElement && showTimer) {
                 clearShowTimer();
                 showTimer = setTimeout(() => {
@@ -274,65 +242,49 @@
                 }, 1500);
             }
         });
-        
+
         document.addEventListener('mouseout', function(e) {
             const target = e.target.closest('[title], [data-tooltip], [data-original-title]');
-            // Don't hide if mouse is moving to the tooltip itself
-            if (target === currentTooltipElement && 
-                !target.contains(e.relatedTarget) && 
-                e.relatedTarget !== tooltip && 
-                !tooltip.contains(e.relatedTarget) &&
-                !isPinned) {
-                
-                clearShowTimer(); // Cancel pending show
-                
-                // Restore title attributes when leaving widget
-                const originalTitle = target.getAttribute('data-original-title');
-                if (originalTitle) {
-                    target.setAttribute('title', originalTitle);
-                    target.removeAttribute('data-original-title');
-                }
-                currentTooltipElement = null;
-                
-                // Give time to move to tooltip, then check if it's being hovered
-                setTimeout(() => {
-                    if (tooltip && !tooltip.matches(':hover') && !isPinned) {
-                        // Start auto-hide instead of hiding immediately
-                        startAutoHideTimer();
-                    }
-                }, 300);
+            if (target !== currentTooltipElement) return;
+            if (target.contains(e.relatedTarget)) return;
+            if (tooltip && (e.relatedTarget === tooltip || tooltip.contains(e.relatedTarget))) return;
+            if (isPinned) return;
+
+            clearShowTimer();
+            const originalTitle = target.getAttribute('data-original-title');
+            if (originalTitle) {
+                target.setAttribute('title', originalTitle);
+                target.removeAttribute('data-original-title');
             }
+            currentTooltipElement = null;
+
+            setTimeout(() => {
+                if (tooltip && !tooltip.matches(':hover') && !isPinned) startAutoHideTimer();
+            }, 300);
         });
-        
-        // Don't update position on mouse move - tooltip stays where it was initially positioned
-        // document.addEventListener('mousemove', function(e) {
-        //     if (tooltip && tooltip.style.opacity === '1' && !isPinned) {
-        //         updateTooltip(e);
-        //     }
-        // });
-        
-        // Close pinned tooltip when clicking outside
+
+        // ── Click handler ─────────────────────────────────────────────────
         document.addEventListener('click', function(e) {
+            // Info button: open tooltip panel directly
+            const infoBtn = e.target.closest('.widget-info-btn');
+            if (infoBtn) {
+                e.stopPropagation();
+                showTooltip({ target: infoBtn });
+                return;
+            }
+
+            // Dismiss pinned tooltip when clicking outside it
             if (tooltip && isPinned && !tooltip.contains(e.target)) {
                 isPinned = false;
                 tooltip.style.borderColor = 'rgba(255, 255, 255, 0.2)';
                 tooltip.style.borderWidth = '1px';
                 tooltip.style.opacity = '0';
-                
-                // Restore title attribute to all elements with data-original-title
                 document.querySelectorAll('[data-original-title]').forEach(el => {
-                    const originalTitle = el.getAttribute('data-original-title');
-                    if (originalTitle) {
-                        el.setAttribute('title', originalTitle);
-                        el.removeAttribute('data-original-title');
-                    }
+                    const t = el.getAttribute('data-original-title');
+                    if (t) { el.setAttribute('title', t); el.removeAttribute('data-original-title'); }
                 });
-                
                 currentTooltipElement = null;
-                
-                setTimeout(() => {
-                    if (tooltip && !isPinned) tooltip.style.display = 'none';
-                }, 200);
+                setTimeout(() => { if (tooltip && !isPinned) tooltip.style.display = 'none'; }, 200);
             }
         });
     }

@@ -143,7 +143,7 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
 
     let units    = raw.get_field_string("display.units").unwrap_or_default();
     let min_step = raw.get_field_double("control.minStep").unwrap_or(0.01);
-    let tooltip  = build_tooltip(raw);
+    let tooltip  = build_tooltip(&config, raw);
 
     render_input_html(config, &current_value, &units, min_step, is_string,
                       &format!("text-entry {}", alarm_class), icon, false, &tooltip)
@@ -168,8 +168,15 @@ fn render_input_html(
 ) -> Markup {
     let input_type = if is_string { "text" } else { "number" };
     html! {
-        div class="widget-inner" title=(tooltip) {
-            label class="widget-label" { (config.label) }
+        div class="widget-inner" {
+            label class="widget-label" {
+                (config.label)
+                @if !tooltip.is_empty() {
+                    button class="widget-info-btn" data-tooltip=(tooltip) type="button" {
+                        "ℹ"
+                    }
+                }
+            }
             div class="text-entry-with-icon-container" {
                 @if let Some(src) = icon {
                     img class="text-entry-icon" src=(src) alt="status";
@@ -212,8 +219,24 @@ fn render_input_html(
     }
 }
 
-fn build_tooltip(raw: &Value) -> String {
+fn alarm_status_str(status: i32) -> &'static str {
+    match status {
+        0 => "No Alarm",
+        1 => "Device",
+        2 => "Driver",
+        3 => "Record",
+        4 => "DB",
+        5 => "Config",
+        6 => "Client",
+        _ => "Unknown",
+    }
+}
+
+fn build_tooltip(config: &crate::config::WidgetConfig, raw: &Value) -> String {
     let mut t = String::new();
+
+    // PV name
+    t.push_str(&format!("PV: {}\n", config.pv_name));
 
     // Description
     if let Ok(v) = raw.get_field_string("display.description") { if !v.is_empty() { t.push_str(&v); t.push('\n'); } }
@@ -235,15 +258,20 @@ fn build_tooltip(raw: &Value) -> String {
     if let Ok(v) = raw.get_field_double("valueAlarm.highWarningLimit") { t.push_str(&format!("High Warning Limit: {}\n", v)); }
     if let Ok(v) = raw.get_field_double("valueAlarm.highAlarmLimit")   { t.push_str(&format!("High Alarm Limit: {}\n", v)); }
 
-    // Alarm status
-    if let Ok(severity) = raw.get_field_int32("alarm.severity") {
-        if severity != 0 {
-            let sev = match severity { 1 => "Minor", 2 => "Major", 3 => "Invalid", _ => "Unknown" };
-            t.push_str(&format!("Alarm Severity: {}\n", sev));
-        }
+    // Alarm state — always shown
+    let severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
+    let sev_str = match pvxs_sys::AlarmSeverity::from(severity) {
+        pvxs_sys::AlarmSeverity::NoAlarm => "No Alarm",
+        pvxs_sys::AlarmSeverity::Minor   => "Minor",
+        pvxs_sys::AlarmSeverity::Major   => "Major",
+        pvxs_sys::AlarmSeverity::Invalid => "Invalid",
+        _                                => "Unknown",
+    };
+    t.push_str(&format!("Alarm Severity: {}\n", sev_str));
+    if let Ok(v) = raw.get_field_int32("alarm.status") {
+        t.push_str(&format!("Alarm Status: {}\n", alarm_status_str(v)));
     }
-    if let Ok(v) = raw.get_field_int32("alarm.status") { if v != 0 { t.push_str(&format!("Alarm Status: {}\n", v)); } }
-    if let Ok(v) = raw.get_field_string("alarm.message")       { if !v.is_empty() { t.push_str(&format!("Alarm Message: {}\n", v)); } }
+    if let Ok(v) = raw.get_field_string("alarm.message") { if !v.is_empty() { t.push_str(&format!("Alarm Message: {}\n", v)); } }
 
     t.trim_end().to_string()
 }
