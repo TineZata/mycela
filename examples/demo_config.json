@@ -26,8 +26,8 @@
             "min_step": 0.0
           },
           "alarm": {
-            "low_alarm_limit": -90.0,
-            "low_warning_limit": -80.0,
+            "low_alarm_limit": 10.0,
+            "low_warning_limit": 15.0,
             "high_alarm_limit": 90.0,
             "high_warning_limit": 80.0,
             "low_alarm_severity": "MAJOR",

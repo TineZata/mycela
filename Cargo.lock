@@ -777,8 +777,6 @@ dependencies = [
 [[package]]
 name = "pvxs-sys"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df22effbfc335106be5e2155dbd208ad07d12fd6f36db203981d16a8cd6164e8"
 dependencies = [
  "chrono",
  "crossbeam-channel",

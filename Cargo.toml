@@ -42,8 +42,8 @@ async-stream = "0.3"
 chrono = "0.4.44"
 
 # EPICS
-# pvxs-sys = { path = "../pvxs-sys" }
-pvxs-sys = "0.1.1"
+pvxs-sys = { path = "../pvxs-sys" }
+# pvxs-sys = "0.1.1"
 
 [profile.release]
 opt-level = "z"

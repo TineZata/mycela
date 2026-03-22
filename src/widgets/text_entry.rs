@@ -111,11 +111,12 @@ impl TextEntry {
 fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
     let alarm_class    = super::alarm_severity_class(alarm_severity);
-    let icon: Option<&str> = match alarm_severity {
-        1 => Some(super::MINOR_ALARM_SVG),
-        2 => Some(super::MAJOR_ALARM_SVG),
-        3 => Some(super::INVALID_SVG),
-        _ => None,
+    let icon: Option<&str> = match pvxs_sys::AlarmSeverity::from(alarm_severity) {
+        pvxs_sys::AlarmSeverity::NoAlarm => None,
+        pvxs_sys::AlarmSeverity::Minor => Some(super::MINOR_ALARM_SVG),
+        pvxs_sys::AlarmSeverity::Major => Some(super::MAJOR_ALARM_SVG),
+        pvxs_sys::AlarmSeverity::Invalid => Some(super::INVALID_SVG),
+        _ => Some(super::INVALID_SVG),
     };
 
     let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32"));

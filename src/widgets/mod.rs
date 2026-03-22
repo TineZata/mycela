@@ -152,69 +152,6 @@ pub async fn put_pv(config: WidgetConfig, value_str: String) -> Markup {
     }
 }
 
-pub fn render_widget_group(widgets: &[WidgetConfig]) -> Html<String> {
-    let markup = html! {
-        @for widget in widgets {
-            (render_widget_from_config(widget))
-        }
-    };
-    Html(markup.into_string())
-}
-
-// /// Render widget value update (for HTMX polling)
-// pub fn render_widget_value(widget_id: &str, pv_name: &str, value: &PvValue) -> Html<String> {
-//     let markup = html! {
-//         div class="widget text-entry" data-widget-id=(widget_id) {
-//             (render_pv_value_inline(pv_name, value))
-//         }
-//     };
-//     Html(markup.into_string())
-// }
-
-// /// Render widget HTML based on type
-// pub fn render_widget_by_type_public(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-//     render_widget_inner_only(widget, value)
-// }
-
-// /// Render only the inner content of a widget (for SSE updates)
-// fn render_widget_inner_only(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-//     match widget.widget_type {
-//         WidgetType::TextEntry => text_entry::render_text_entry_inner(widget),
-//         WidgetType::TextUpdate => text_update::render_text_update_inner(widget, value),
-//         WidgetType::Gauge => gauge::render_gauge_inner(widget, value),
-//         WidgetType::Led => led::render_led_inner(widget, value),
-//         WidgetType::Button => button::render_button_inner(widget, value),
-//         WidgetType::Slider => slider::render_slider_inner(widget, value),
-//         WidgetType::Chart => chart::render_chart_inner(widget, value),
-//     }
-// }
-
-// /// Render widget HTML based on type (internal)
-// fn render_widget_by_type(widget: &WidgetConfig, value: Option<&PvValue>) -> Markup {
-//     match widget.widget_type {
-//         WidgetType::TextEntry => render_text_entry(widget),
-//         WidgetType::TextUpdate => render_text_update(widget, value),
-//         WidgetType::Gauge => render_gauge(widget, value),
-//         WidgetType::Led => render_led(widget, value),
-//         WidgetType::Button => render_button(widget, value),
-//         WidgetType::Slider => render_slider(widget, value),
-//         WidgetType::Chart => render_chart(widget, value),
-//     }
-// }
-
-// /// Helper: render PV value inline (for updates)
-// fn render_pv_value_inline(_pv_name: &str, value: &PvValue) -> Markup {
-//     let alarm_class = alarm_severity_class(value.alarm_severity);
-//     html! {
-//         span class={"pv-value " (alarm_class)} {
-//             (value.value.to_display_string(value.precision))
-//             @if let Some(units) = &value.units {
-//                 " " (units)
-//             }
-//         }
-//     }
-// }
-
 /// Map alarm severity to CSS class
 pub fn alarm_severity_class(severity: i32) -> &'static str {
     match severity {
@@ -224,54 +161,6 @@ pub fn alarm_severity_class(severity: i32) -> &'static str {
         _ => "alarm-invalid",
     }
 }
-
-// /// Get the appropriate icon SVG based on connection status and alarm severity
-// pub fn get_status_icon(connection_status: &ConnectionStatus, alarm_severity: i32) -> Option<&'static str> {
-//     match (connection_status, alarm_severity) {
-//         (ConnectionStatus::Disconnected, _) | (ConnectionStatus::Timeout, _) | (ConnectionStatus::Error(_), _) =>
-//             Some(OFFLINE_SVG),
-//         (ConnectionStatus::Connected, 2) =>
-//             Some(MAJOR_ALARM_SVG),
-//         (ConnectionStatus::Connected, 1) =>
-//             Some(MINOR_ALARM_SVG),
-//         (ConnectionStatus::Connected, 3) =>
-//             Some(INVALID_SVG),
-//         _ => None,
-//     }
-// }
-
-// /// Generate tooltip text with PV metadata
-// pub fn generate_tooltip(value: &PvValue) -> String {
-//     let mut tooltip = String::new();
-//     tooltip.push_str(&format!("PV: {}\n", value.name));
-//     if let Some(desc) = &value.description {
-//         tooltip.push_str(&format!("Description: {}\n", desc));
-//     }
-//     tooltip.push_str(&format!("Value: {}\n", value.value.to_display_string(value.precision)));
-//     match value.value {
-//         NTType::String(_) => { tooltip.push_str(&format!("Type: String\n")); }
-//         NTType::Double(_) => { tooltip.push_str(&format!("Type: Double\n")); }
-//         NTType::Int32(_)  => { tooltip.push_str(&format!("Type: Int32\n")); }
-//         NTType::Enum { .. } => { tooltip.push_str(&format!("Type: Enum\n")); }
-//     }
-//     tooltip.push_str(&format!("Status: {:?}\n", value.connection_status));
-//     tooltip.push_str(&format!("Alarm Severity: {}\n", value.alarm_severity));
-//     tooltip.push_str(&format!("Alarm Status: {}\n", value.alarm_status));
-//     if let Some(msg) = &value.alarm_message { tooltip.push_str(&format!("Alarm Message: {}\n", msg)); }
-//     if let Some(units) = &value.units { tooltip.push_str(&format!("Units: {}\n", units)); }
-//     if let Some(prec) = value.precision { tooltip.push_str(&format!("Precision: {}\n", prec)); }
-//     if let Some(low) = value.limit_low { tooltip.push_str(&format!("Display Low: {}\n", low)); }
-//     if let Some(high) = value.limit_high { tooltip.push_str(&format!("Display High: {}\n", high)); }
-//     if let Some(low) = value.control_low { tooltip.push_str(&format!("Control Low: {}\n", low)); }
-//     if let Some(high) = value.control_high { tooltip.push_str(&format!("Control High: {}\n", high)); }
-//     if let Some(step) = value.min_step { tooltip.push_str(&format!("Min Step: {}\n", step)); }
-//     if let Some(lal) = value.low_alarm_limit { tooltip.push_str(&format!("Low Alarm Limit: {}\n", lal)); }
-//     if let Some(lwl) = value.low_warning_limit { tooltip.push_str(&format!("Low Warning Limit: {}\n", lwl)); }
-//     if let Some(hwl) = value.high_warning_limit { tooltip.push_str(&format!("High Warning Limit: {}\n", hwl)); }
-//     if let Some(hal) = value.high_alarm_limit { tooltip.push_str(&format!("High Alarm Limit: {}\n", hal)); }
-//     tooltip.push_str(&format!("Timestamp: {}\n", to_human_time_string(value.timestamp)));
-//     tooltip.trim_end().to_string()
-// }
 
 // /// Convert timestamp to human-readable string
 // pub fn to_human_time_string(timestamp: i64) -> String {
