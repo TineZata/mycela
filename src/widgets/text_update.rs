@@ -33,7 +33,7 @@ impl TextUpdate {
         }
     }
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -104,7 +104,7 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
         _ => None,
     };
 
-    let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32"));
+    let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32") | Some("bool"));
     let is_string = matches!(config.data_type.as_deref(), Some("string") | None);
 
     let current_value = if is_integer {
@@ -119,11 +119,11 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
 
     let units = raw.get_field_string("display.units").unwrap_or_default();
 
-    render_display_html(config, &current_value, &units, &format!("text-update {}", alarm_class), icon)
+    render_display_html(config, &current_value, &units, &format!("text-update {}", alarm_class), icon, &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
-    render_display_html(config, "--", "", "text-update alarm-disconnected", Some(super::OFFLINE_SVG))
+    render_display_html(config, "--", "", "text-update alarm-disconnected", Some(super::OFFLINE_SVG), "")
 }
 
 fn render_display_html(
@@ -132,11 +132,17 @@ fn render_display_html(
     units: &str,
     input_class: &str,
     icon: Option<&str>,
+    tooltip: &str,
 ) -> Markup {
     let input_type = if matches!(config.data_type.as_deref(), Some("string") | None) { "text" } else { "number" };
     html! {
         div class="widget-inner" {
-            label class="widget-label" { (config.label) }
+            label class="widget-label" {
+                (config.label)
+                @if !tooltip.is_empty() {
+                    (super::render_info_btn(tooltip))
+                }
+            }
             div class="text-update-with-icon-container" {
                 @if let Some(src) = icon {
                     img class="text-update-icon" src=(src) alt="status";
@@ -163,9 +169,7 @@ pub fn render_text_update(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget, "Connecting..."))
         }

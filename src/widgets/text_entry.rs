@@ -47,7 +47,7 @@ impl TextEntry {
 
     // PVXS monitor - renders HTML directly from pvxs_sys::Value
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -119,7 +119,7 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
         _ => Some(super::INVALID_SVG),
     };
 
-    let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32"));
+    let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32") | Some("bool"));
     let is_enum = matches!(config.data_type.as_deref(), Some("enum"));
     let is_double = matches!(config.data_type.as_deref(), Some("double") | Some("float") | Some("f64") | Some("f32"));
     let mut is_string = false;
@@ -143,7 +143,7 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
 
     let units    = raw.get_field_string("display.units").unwrap_or_default();
     let min_step = raw.get_field_double("control.minStep").unwrap_or(0.01);
-    let tooltip  = build_tooltip(&config, raw);
+    let tooltip  = super::build_tooltip(&config, raw);
 
     render_input_html(config, &current_value, &units, min_step, is_string,
                       &format!("text-entry {}", alarm_class), icon, false, &tooltip)
@@ -173,9 +173,9 @@ fn render_input_html(
                 (config.label)
                 @if !tooltip.is_empty() {
                     button class="widget-info-btn" data-tooltip=(tooltip) type="button" {
-                        "ℹ"
-                    }
-                }
+                        img class="info-icon info-icon--dark"  src=(super::INFO_SVG_DARK)  alt="info";
+                        img class="info-icon info-icon--light" src=(super::INFO_SVG_LIGHT) alt="info";
+                    }                }
             }
             div class="text-entry-with-icon-container" {
                 @if let Some(src) = icon {
@@ -219,72 +219,13 @@ fn render_input_html(
     }
 }
 
-fn alarm_status_str(status: i32) -> &'static str {
-    match status {
-        0 => "No Alarm",
-        1 => "Device",
-        2 => "Driver",
-        3 => "Record",
-        4 => "DB",
-        5 => "Config",
-        6 => "Client",
-        _ => "Unknown",
-    }
-}
-
-fn build_tooltip(config: &crate::config::WidgetConfig, raw: &Value) -> String {
-    let mut t = String::new();
-
-    // PV name
-    t.push_str(&format!("PV: {}\n", config.pv_name));
-
-    // Description
-    if let Ok(v) = raw.get_field_string("display.description") { if !v.is_empty() { t.push_str(&v); t.push('\n'); } }
-
-    // Display metadata
-    if let Ok(v) = raw.get_field_string("display.units")       { if !v.is_empty() { t.push_str(&format!("Units: {}\n", v)); } }
-    if let Ok(v) = raw.get_field_int32("display.precision")    { t.push_str(&format!("Precision: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("display.limitLow")    { t.push_str(&format!("Display Low: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("display.limitHigh")   { t.push_str(&format!("Display High: {}\n", v)); }
-
-    // Control limits
-    if let Ok(v) = raw.get_field_double("control.limitLow")    { t.push_str(&format!("Control Low: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("control.limitHigh")   { t.push_str(&format!("Control High: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("control.minStep")     { if v != 0.0 { t.push_str(&format!("Min Step: {}\n", v)); } }
-
-    // Alarm limits
-    if let Ok(v) = raw.get_field_double("valueAlarm.lowAlarmLimit")    { t.push_str(&format!("Low Alarm Limit: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("valueAlarm.lowWarningLimit")  { t.push_str(&format!("Low Warning Limit: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("valueAlarm.highWarningLimit") { t.push_str(&format!("High Warning Limit: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("valueAlarm.highAlarmLimit")   { t.push_str(&format!("High Alarm Limit: {}\n", v)); }
-
-    // Alarm state — always shown
-    let severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let sev_str = match pvxs_sys::AlarmSeverity::from(severity) {
-        pvxs_sys::AlarmSeverity::NoAlarm => "No Alarm",
-        pvxs_sys::AlarmSeverity::Minor   => "Minor",
-        pvxs_sys::AlarmSeverity::Major   => "Major",
-        pvxs_sys::AlarmSeverity::Invalid => "Invalid",
-        _                                => "Unknown",
-    };
-    t.push_str(&format!("Alarm Severity: {}\n", sev_str));
-    if let Ok(v) = raw.get_field_int32("alarm.status") {
-        t.push_str(&format!("Alarm Status: {}\n", alarm_status_str(v)));
-    }
-    if let Ok(v) = raw.get_field_string("alarm.message") { if !v.is_empty() { t.push_str(&format!("Alarm Message: {}\n", v)); } }
-
-    t.trim_end().to_string()
-}
-
 /// Render the outer SSE shell for a text entry widget.
 /// The monitor immediately pushes the first update via SSE — no initial value needed.
 pub fn render_text_entry(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget, "Connecting..."))
         }

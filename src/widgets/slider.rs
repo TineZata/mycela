@@ -33,7 +33,7 @@ impl Slider {
         }
     }
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -118,12 +118,12 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     let step = raw.get_field_double("control.minStep").unwrap_or(0.1);
 
     render_slider_html(config, current_value, &display_value, &units, min, max, step,
-                        &format!("slider {}", alarm_class), icon, false)
+                        &format!("slider {}", alarm_class), icon, false, &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_slider_html(config, 0.0, "--", "", 0.0, 100.0, 0.1,
-                        "slider alarm-disconnected", Some(super::OFFLINE_SVG), true)
+                        "slider alarm-disconnected", Some(super::OFFLINE_SVG), true, "")
 }
 
 fn render_slider_html(
@@ -137,6 +137,7 @@ fn render_slider_html(
     _alarm_class: &str,
     icon: Option<&str>,
     disabled: bool,
+    tooltip: &str,
 ) -> Markup {
     html! {
         div class="widget-inner" {
@@ -144,6 +145,9 @@ fn render_slider_html(
                 (config.label)
                 @if let Some(src) = icon {
                     img class="widget-status-icon" src=(src) alt="status";
+                }
+                @if !tooltip.is_empty() {
+                    (super::render_info_btn(tooltip))
                 }
             }
             div class="slider-container" {
@@ -176,9 +180,7 @@ pub fn render_slider(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget))
         }

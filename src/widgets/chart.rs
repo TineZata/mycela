@@ -33,7 +33,7 @@ impl Chart {
         }
     }
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -109,11 +109,11 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     let display_value = format!("{:.prec$}", current_value, prec = prec as usize);
     let units = raw.get_field_string("display.units").unwrap_or_default();
 
-    render_chart_html(config, &display_value, &units, &format!("chart {}", alarm_class), icon)
+    render_chart_html(config, &display_value, &units, &format!("chart {}", alarm_class), icon, &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
-    render_chart_html(config, "--", "", "chart alarm-disconnected", Some(super::OFFLINE_SVG))
+    render_chart_html(config, "--", "", "chart alarm-disconnected", Some(super::OFFLINE_SVG), "")
 }
 
 fn render_chart_html(
@@ -122,6 +122,7 @@ fn render_chart_html(
     units: &str,
     _alarm_class: &str,
     icon: Option<&str>,
+    tooltip: &str,
 ) -> Markup {
     html! {
         div class="widget-inner" {
@@ -129,6 +130,9 @@ fn render_chart_html(
                 (config.label)
                 @if let Some(src) = icon {
                     img class="widget-status-icon" src=(src) alt="status";
+                }
+                @if !tooltip.is_empty() {
+                    (super::render_info_btn(tooltip))
                 }
             }
             div class="chart-container" {
@@ -150,9 +154,7 @@ pub fn render_chart(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget))
         }

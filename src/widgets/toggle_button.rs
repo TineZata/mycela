@@ -2,11 +2,11 @@ use maud::{html, Markup};
 use crate::config::WidgetConfig;
 use pvxs_sys::{Context, Value, MonitorEvent};
 
-pub struct Select {
+pub struct ToggleButton {
     config: WidgetConfig,
 }
 
-impl Select {
+impl ToggleButton {
     pub fn new(config: WidgetConfig) -> Self {
         Self { config }
     }
@@ -37,7 +37,7 @@ impl Select {
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
-        tracing::info!("Select monitor starting for: {}", config.pv_name);
+        tracing::info!("ToggleButton monitor starting for: {}", config.pv_name);
 
         let mut ctx = match Context::from_env() {
             Ok(c) => c,
@@ -73,30 +73,33 @@ impl Select {
                 }
                 Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
                 Err(MonitorEvent::Connected(msg)) => {
-                    tracing::info!("Select {}: connected - {}", config.pv_name, msg);
+                    tracing::info!("ToggleButton {}: connected - {}", config.pv_name, msg);
                 }
                 Err(MonitorEvent::Disconnected(msg)) => {
-                    tracing::warn!("Select {}: disconnected - {}", config.pv_name, msg);
+                    tracing::warn!("ToggleButton {}: disconnected - {}", config.pv_name, msg);
                     if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
                 }
                 Err(MonitorEvent::Finished(msg)) => {
-                    tracing::info!("Select {}: finished - {}", config.pv_name, msg);
+                    tracing::info!("ToggleButton {}: finished - {}", config.pv_name, msg);
                     break;
                 }
                 Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                    tracing::error!("Select {}: error - {}", config.pv_name, msg);
+                    tracing::error!("ToggleButton {}: error - {}", config.pv_name, msg);
                     if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
                 }
             }
         }
 
-        tracing::info!("Select monitor stopped for: {}", config.pv_name);
+        tracing::info!("ToggleButton monitor stopped for: {}", config.pv_name);
     }
 }
 
 fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
+    let current = raw.get_field_int32("value").unwrap_or(0);
+    let is_on = current != 0;
+    let next_val = if is_on { "0" } else { "1" };
+
     let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let alarm_class    = super::alarm_severity_class(alarm_severity);
     let icon: Option<&str> = match alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
         2 => Some(super::MAJOR_ALARM_SVG),
@@ -104,58 +107,46 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
         _ => None,
     };
 
-    // Enum index currently selected
-    let current_index = raw.get_field_enum("value").unwrap_or(0) as usize;
-
-    // Choices from value.choices as array of strings
-    let choices = raw.get_field_string_array("value.choices").unwrap_or_default();
-    let tooltip = super::build_tooltip(&config, raw);
-
-    html! {
-        div class="widget-inner" {
-            label class="widget-label" {
-                (config.label)
-                @if !tooltip.is_empty() {
-                    (super::render_info_btn(&tooltip))
-                }
-            }
-            div class="select-with-icon-container" {
-                @if let Some(src) = icon {
-                    img class="select-icon" src=(src) alt="status";
-                }
-                select class=(format!("pv-select {}", alarm_class))
-                    name="value"
-                    hx-post={"/api/widget/" (config.id) "/set"}
-                    hx-trigger="change"
-                    hx-target="next .status"
-                    hx-swap="innerHTML" {
-                    @for (idx, choice) in choices.iter().enumerate() {
-                        option value=(idx) selected[idx == current_index] { (choice.trim()) }
-                    }
-                    @if choices.is_empty() {
-                        option value=(current_index) selected { (current_index) }
-                    }
-                }
-            }
-            span class="status" {}
-            @if let Some(desc) = &config.description {
-                @if !desc.is_empty() {
-                    p class="widget-description" { (desc) }
-                }
-            }
-        }
-    }
+    render_toggle_html(config, is_on, next_val, icon, false, &super::build_tooltip(config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+    render_toggle_html(config, false, "0", Some(super::OFFLINE_SVG), true, "")
+}
+
+fn render_toggle_html(
+    config: &WidgetConfig,
+    is_on: bool,
+    next_val: &str,
+    icon: Option<&str>,
+    disabled: bool,
+    tooltip: &str,
+) -> Markup {
+    let btn_class = if is_on {
+        "pv-button pv-toggle-btn pv-toggle-btn--on"
+    } else {
+        "pv-button pv-toggle-btn pv-toggle-btn--off"
+    };
+    let state_label = if is_on { "ON" } else { "OFF" };
+
     html! {
         div class="widget-inner" {
-            label class="widget-label" { (config.label) }
-            div class="select-with-icon-container" {
-                img class="select-icon" src=(super::OFFLINE_SVG) alt="offline";
-                select class="pv-select alarm-disconnected" disabled {
-                    option { "--" }
+            @if !tooltip.is_empty() {
+                div class="button-label-row" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;" {
+                    span class="widget-label" { (config.label) }
+                    (super::render_info_btn(tooltip))
                 }
+            }
+            button class=(btn_class)
+                disabled[disabled]
+                hx-post={"/api/widget/" (config.id) "/set"}
+                hx-vals=(format!(r#"{{"value": "{}"}}"#, next_val))
+                hx-target="next .status"
+                hx-swap="innerHTML" {
+                @if let Some(src) = icon {
+                    img class="button-icon" src=(src) alt="status";
+                }
+                (config.label) " — " (state_label)
             }
             span class="status" {}
             @if let Some(desc) = &config.description {
@@ -167,8 +158,7 @@ fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     }
 }
 
-/// Render the outer SSE shell for a select widget.
-pub fn render_select(widget: &WidgetConfig) -> Markup {
+pub fn render_toggle_button(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)

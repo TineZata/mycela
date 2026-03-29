@@ -57,6 +57,17 @@
     --text-secondary: #b0b0b0;
     --accent: #1e90ff;
     --accent-hover: #4fa8ff;
+
+    /* Input field backgrounds (widget-specific, theme-aware) */
+    --input-bg: #1c2e3d;
+    --input-border: #2a5f8f;
+    --input-readonly-bg: rgba(255, 255, 255, 0.08);
+    --input-readonly-border: rgba(255, 255, 255, 0.2);
+    --input-text: #e8f4ff;
+    --input-readonly-text: #ffffff;
+    --mockup-titlebar-bg: #1e1e1e;
+    --mockup-titlebar-text: #888;
+    --mockup-border: rgba(255,255,255,0.08);
     
     /* Alarm colors */
     --alarm-none: #00cc66;
@@ -73,8 +84,9 @@
     
     --border-radius: 8px;
     --spacing: 1rem;
-    --font-ui: 'Inter';
-    --font-monospace: 'IBM Plex Mono';
+    --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-monospace: 'IBM Plex Mono', 'Cascadia Code', 'Consolas', monospace;
 
     /* Common widget styles */
     --widget-border-radius: 6px;
@@ -93,7 +105,7 @@ body {
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.6;
-    font-family: var(--font-ui);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 textarea, input, button, select { font-family: inherit; font-size: inherit; }
@@ -400,10 +412,10 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
 
 .text-entry {
     width: 100%;
-    background: #e6f2ff;
-    border: 2px solid #b3d9ff;
+    background: var(--input-bg);
+    border: 2px solid var(--input-border);
     border-radius: var(--widget-border-radius);
-    color: #1a1a1a;
+    color: var(--input-text);
     font-variant-numeric: tabular-nums slashed-zero;
     font-size: 0.85rem;
     padding: 0.5rem 2rem 0.5rem 0.5rem;
@@ -424,6 +436,7 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.15);
     background: #fffacd !important;
+    color: #1a1a1a !important;
 }
 
 .text-entry:disabled {
@@ -458,10 +471,10 @@ input[type="number"] {
 /* Text entry read-only display (when min_step = 0) - legacy, kept for backwards compatibility */
 .text-entry-display {
     flex: 1;
-    background: #e6f2ff;
-    border: 2px solid #b3d9ff;
+    background: var(--input-bg);
+    border: 2px solid var(--input-border);
     border-radius: var(--widget-border-radius);
-    color: #1a1a1a;
+    color: var(--input-text);
     font-family: var(--font-monospace);
     font-variant-numeric: slashed-zero;
     font-size: 0.75rem;
@@ -503,10 +516,10 @@ input[type="number"] {
 
 .text-update {
     width: 100%;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--input-readonly-bg);
+    border: 1px solid var(--input-readonly-border);
     border-radius: var(--widget-border-radius);
-    color: white;
+    color: var(--input-readonly-text);
     font-variant-numeric: tabular-nums slashed-zero;
     font-size: 0.85rem;
     padding: 0.5rem 2rem 0.5rem 0.5rem;
@@ -580,39 +593,80 @@ input[type="number"] {
 
 /* Gauge widget */
 .gauge-display {
-    max-width: 300px;
+    max-width: 480px;
+    width: 100%;
     text-align: center;
 }
 
 .gauge-value {
-    font-size: 2.5rem;
-    font-weight: bold;
+    font-size: 1.5rem;
+    font-weight: 600;
     color: var(--accent);
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     font-family: var(--font-monospace);
     font-variant-numeric: tabular-nums slashed-zero;
 }
 
 .gauge-bar {
+    position: relative;
     background: var(--bg-secondary);
-    height: 12px;
-    border-radius: 6px;
+    height: 28px;
+    border-radius: 14px;
     overflow: hidden;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
 }
 
 .gauge-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--alarm-none), var(--accent));
     transition: width 0.5s ease;
+    border-radius: 14px;
 }
+
+/* Alarm/warning limit markers — thin vertical lines on the bar */
+.gauge-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    transform: translateX(-50%);
+    opacity: 0.9;
+    pointer-events: none;
+}
+
+.gauge-marker--alarm { background: var(--alarm-major); }
+.gauge-marker--warn  { background: var(--alarm-minor); }
 
 .gauge-range {
     display: flex;
     justify-content: space-between;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--text-secondary);
 }
+
+/* Alarm limit value labels — positioned below each marker */
+.gauge-labels {
+    position: relative;
+    height: 3.2em;
+    font-size: 0.7rem;
+    margin-top: 0.15rem;
+}
+
+.gauge-limit {
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.gauge-limit--alarm { color: var(--alarm-major); }
+.gauge-limit--warn  { color: var(--alarm-minor); }
+
+/* Four named limit levels — low_low and high_high are offset to avoid overlap */
+.gauge-limit--low-low   { color: var(--alarm-major); transform: translateX(-50%) translateY(1.3em); }
+.gauge-limit--low       { color: var(--alarm-minor); }
+.gauge-limit--high      { color: var(--alarm-minor); }
+.gauge-limit--high-high { color: var(--alarm-major); transform: translateX(-50%) translateY(1.3em); }
 
 /* LED widget */
 .led-container {
@@ -681,6 +735,27 @@ input[type="number"] {
 
 .pv-button:active {
     transform: translateY(0);
+}
+
+/* Toggle button ON/OFF states */
+.pv-toggle-btn--on {
+    background: var(--alarm-none);
+    box-shadow: 0 0 10px rgba(0, 200, 100, 0.45);
+}
+.pv-toggle-btn--on:hover {
+    background: var(--alarm-none);
+    filter: brightness(1.1);
+    box-shadow: 0 4px 14px rgba(0, 200, 100, 0.55);
+}
+.pv-toggle-btn--off {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+.pv-toggle-btn--off:hover {
+    background: var(--bg-tertiary, var(--bg-secondary));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 /* Slider widget */
@@ -806,6 +881,284 @@ footer {
     opacity: 0.7;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME  —  applied when ancestor has [data-theme="light"]
+   ═══════════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+    --bg-primary: #f0f2f5;
+    --bg-secondary: #dde1e7;
+    --bg-card: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555555;
+    --accent: #0066cc;
+    --accent-hover: #0080ff;
+    --input-bg: #e8f4ff;
+    --input-border: #b3d9ff;
+    --input-readonly-bg: rgba(0, 0, 0, 0.05);
+    --input-readonly-border: rgba(0, 0, 0, 0.15);
+    --input-text: #1a1a1a;
+    --input-readonly-text: #1a1a1a;
+    --mockup-titlebar-bg: #e2e6ea;
+    --mockup-titlebar-text: #555;
+    --mockup-border: rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] body,
+[data-theme="light"] {
+    color: var(--text-primary);
+}
+
+/* Alarm cards inside a light-theme mockup */
+[data-theme="light"] .alarm-none,
+[data-theme="light"] .alarm-minor,
+[data-theme="light"] .alarm-major,
+[data-theme="light"] .alarm-invalid,
+[data-theme="light"] .alarm-disconnected {
+    background: var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .widget-label {
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .gauge-bar {
+    background: var(--bg-secondary);
+}
+
+[data-theme="light"] .gauge-value {
+    color: var(--accent);
+}
+
+[data-theme="light"] .gauge-range {
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .slider-container .slider-value {
+    color: var(--accent);
+}
+
+[data-theme="light"] .pv-slider {
+    background: var(--bg-secondary);
+}
+
+[data-theme="light"] .pv-slider::-webkit-slider-thumb {
+    background: var(--accent);
+}
+
+[data-theme="light"] .pv-slider::-moz-range-thumb {
+    background: var(--accent);
+}
+
+[data-theme="light"] .pv-button {
+    background: var(--accent);
+}
+
+[data-theme="light"] .pv-button:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.35);
+}
+
+[data-theme="light"] .chart-container {
+    background: var(--bg-secondary);
+}
+
+[data-theme="light"] .led-off .led-light {
+    background: #ccc;
+}
+
+[data-theme="light"] .text-entry:focus {
+    background: #fff9e6 !important;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME  (explicit, mirrors :root defaults)
+   ═══════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-card: #252525;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --accent: #1e90ff;
+    --accent-hover: #4fa8ff;
+    --input-bg: #1c2e3d;
+    --input-border: #2a5f8f;
+    --input-readonly-bg: rgba(255, 255, 255, 0.08);
+    --input-readonly-border: rgba(255, 255, 255, 0.2);
+    --input-text: #e8f4ff;
+    --input-readonly-text: #ffffff;
+    --mockup-titlebar-bg: #1e1e1e;
+    --mockup-titlebar-text: #888;
+    --mockup-border: rgba(255,255,255,0.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHOWCASE PAGE LAYOUT
+   ═══════════════════════════════════════════════════════════════ */
+.showcase-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem;
+}
+
+.showcase-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Section card ─────────────────────────────────────────────── */
+.widget-section {
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 16px;
+    padding: 0;
+    margin-bottom: 2rem;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+}
+
+.widget-section:last-of-type {
+    margin-bottom: 0;
+}
+
+/* ── Section header bar ───────────────────────────────────────── */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    flex-wrap: wrap;
+}
+
+.widget-type-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-monospace);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.3rem 0.85rem;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.section-description {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    margin: 0;
+}
+
+/* ── Theme pair grid ──────────────────────────────────────────── */
+.theme-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+@media (max-width: 700px) {
+    .theme-pair {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Mockup card ──────────────────────────────────────────────── */
+.mockup-card {
+    overflow: hidden;
+    border: none;
+    transition: box-shadow 0.25s ease;
+}
+
+/* divider between the two cards */
+.mockup-card--dark {
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+@media (max-width: 700px) {
+    .mockup-card--dark {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+}
+
+.mockup-card--active {
+    box-shadow: inset 0 0 0 3px var(--accent);
+}
+
+/* OS-style window chrome bar */
+.mockup-card__titlebar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--mockup-titlebar-bg);
+    color: var(--mockup-titlebar-text);
+    font-size: 0.72rem;
+    font-family: var(--font-ui);
+    letter-spacing: 0.3px;
+    border-bottom: 1px solid var(--mockup-border);
+    user-select: none;
+    text-transform: uppercase;
+}
+
+.mockup-card__titlebar .theme-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.mockup-card--dark  .mockup-card__titlebar .theme-dot { background: #4fa8ff; }
+.mockup-card--light .mockup-card__titlebar .theme-dot { background: #f0a500; }
+
+.mockup-card__screen {
+    padding: 1.5rem;
+    min-height: 120px;
+    background: var(--bg-primary);
+}
+
+/* ── Theme toggle bar ─────────────────────────────────────────── */
+.theme-toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0;
+    margin-bottom: 1.75rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    padding-bottom: 0.75rem;
+}
+
+.theme-toggle-bar button {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 0.3rem 0.9rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.theme-toggle-bar button.active,
+.theme-toggle-bar button:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+/* put-ok / put-err feedback */
+.put-ok  { color: var(--alarm-none);  font-size: 1.1rem; }
+.put-err { color: var(--alarm-major); font-size: 0.8rem; }
+
 .connection-status {
     background: rgba(255, 107, 107, 0.2);
     color: var(--status-disconnected);
@@ -853,6 +1206,13 @@ footer {
     opacity: 1;
     color: var(--accent);
 }
+
+/* Show the correct info icon variant based on ancestor theme */
+.info-icon--light { display: none; }
+.info-icon--dark  { display: inline; }
+
+[data-theme="light"] .info-icon--dark  { display: none; }
+[data-theme="light"] .info-icon--light { display: inline; }
 
 /* Context menu for click-triggered tooltips */
 .tooltip-context-menu {

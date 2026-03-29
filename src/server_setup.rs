@@ -3,23 +3,37 @@ use crate::config::{ServerConfig, WidgetConfig};
 pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> pvxs_sys::Result<()> {
     for widget in widgets {
         if let Some(server_config) = &widget.server {
-            let metadata = build_pv_metadata(server_config);
             match widget.data_type.as_deref() {
-                Some("double") | Some("float") => {
-                    tracing::info!("Creating DOUBLE PV: {}", widget.pv_name);
-                    server.create_pv_double(&widget.pv_name, 1.0, metadata)?;
+                Some("enum") => {
+                    tracing::info!("Creating ENUM PV: {}", widget.pv_name);
+                    let choices: Vec<&str> = widget.options.as_deref()
+                        .unwrap_or(&[])
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect();
+                    let metadata = pvxs_sys::NTEnumMetadataBuilder::new();
+                    server.create_pv_enum(&widget.pv_name, choices, 0, metadata)?;
                 }
-                Some("int32") | Some("int") | Some("integer") => {
-                    tracing::info!("Creating INT32 PV: {}", widget.pv_name);
-                    server.create_pv_int32(&widget.pv_name, 0, metadata)?;
-                }
-                Some("string") | None => {
-                    tracing::info!("Creating STRING PV: {}", widget.pv_name);
-                    server.create_pv_string(&widget.pv_name, "", metadata)?;
-                }
-                Some(other) => {
-                    tracing::warn!("Unknown data_type '{}' for {}, defaulting to STRING", other, widget.pv_name);
-                    server.create_pv_string(&widget.pv_name, "", metadata)?;
+                _ => {
+                    let metadata = build_pv_metadata(server_config);
+                    match widget.data_type.as_deref() {
+                        Some("double") | Some("float") => {
+                            tracing::info!("Creating DOUBLE PV: {}", widget.pv_name);
+                            server.create_pv_double(&widget.pv_name, 1.0, metadata)?;
+                        }
+                        Some("int32") | Some("int") | Some("integer") | Some("bool") => {
+                            tracing::info!("Creating INT32 PV: {}", widget.pv_name);
+                            server.create_pv_int32(&widget.pv_name, 0, metadata)?
+                        }
+                        Some("string") | None => {
+                            tracing::info!("Creating STRING PV: {}", widget.pv_name);
+                            server.create_pv_string(&widget.pv_name, "", metadata)?;
+                        }
+                        Some(other) => {
+                            tracing::warn!("Unknown data_type '{}' for {}, defaulting to STRING", other, widget.pv_name);
+                            server.create_pv_string(&widget.pv_name, "", metadata)?;
+                        }
+                    }
                 }
             }
             tracing::info!("✓ Added PV: {}", widget.pv_name);

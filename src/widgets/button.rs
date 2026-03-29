@@ -33,7 +33,7 @@ impl Button {
         }
     }
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -100,22 +100,29 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
         1 => Some(super::MINOR_ALARM_SVG),
         2 => Some(super::MAJOR_ALARM_SVG),
         3 => Some(super::INVALID_SVG),
-        _ => None,
+        _ => Some(super::BOLT_SVG),
     };
-    render_button_html(config, icon, false)
+    render_button_html(config, icon, false, &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
-    render_button_html(config, Some(super::OFFLINE_SVG), true)
+    render_button_html(config, Some(super::OFFLINE_SVG), true, "")
 }
 
 fn render_button_html(
     config: &WidgetConfig,
     icon: Option<&str>,
     disabled: bool,
+    tooltip: &str,
 ) -> Markup {
     html! {
         div class="widget-inner" {
+            @if !tooltip.is_empty() {
+                div class="button-label-row" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;" {
+                    span class="widget-label" { (config.label) }
+                    (super::render_info_btn(tooltip))
+                }
+            }
             button class="pv-button"
                 disabled[disabled]
                 hx-post={"/api/widget/" (config.id) "/set"}
@@ -141,9 +148,7 @@ pub fn render_button(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget))
         }

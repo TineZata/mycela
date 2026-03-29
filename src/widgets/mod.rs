@@ -23,8 +23,7 @@ pub async fn write_widget(
     match widget {
         None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
         Some(w) => {
-            let server_handle = state.pv_server.lock().unwrap().as_ref().map(|s| s.handle());
-            Html(put_pv(w, form.value, server_handle).await.into_string()).into_response()
+            Html(put_pv(w, form.value).await.into_string()).into_response()
         }
     }
 }
@@ -38,6 +37,20 @@ pub const MINOR_ALARM_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjA
 
 pub const INVALID_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI4IiBmaWxsPSIjOTk5OTk5Ii8+PHRleHQgeD0iMTAiIHk9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIxMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtZmFtaWx5PSJBcmlhbCI+PzwvdGV4dD48L3N2Zz4=";
 
+pub const INFO_SVG_LIGHT: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CiAgPHJlY3QgeD0iMTEiIHk9IjEwIiB3aWR0aD0iMiIgaGVpZ2h0PSI3IiBmaWxsPSJibGFjayIvPgogIDxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iMSIgZmlsbD0iYmxhY2siLz4KPC9zdmc+";
+
+pub const INFO_SVG_DARK: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PHJlY3QgeD0iMTEiIHk9IjEwIiB3aWR0aD0iMiIgaGVpZ2h0PSI3IiBmaWxsPSJ3aGl0ZSIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iMSIgZmlsbD0id2hpdGUiLz48L3N2Zz4=";
+
+// Material Design status icons (new — do not replace the alarm icons above)
+/// MD check_circle — green, 20 px — server running / PV connected OK
+pub const CHECK_CIRCLE_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsPSIjMDBjYzY2IiBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTIgMTVsLTUtNSAxLjQxLTEuNDFMMTAgMTQuMTdsNy41OS03LjU5TDE5IDhsLTkgOXoiLz48L3N2Zz4=";
+
+/// MD cancel — red, 20 px — server stopped / error
+pub const CANCEL_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsPSIjZmYzMzMzIiBkPSJNMTIgMkM2LjQ3IDIgMiA2LjQ3IDIgMTJzNC40NyAxMCAxMCAxMCAxMC00LjQ3IDEwLTEwUzE3LjUzIDIgMTIgMnptNSAxMy41OUwxNS41OSAxNyAxMiAxMy40MSA4LjQxIDE3IDcgMTUuNTkgMTAuNTkgMTIgNyA4LjQxIDguNDEgNyAxMiAxMC41OSAxNS41OSA3IDE3IDguNDEgMTMuNDEgMTIgMTcgMTUuNTl6Ii8+PC9zdmc+";
+
+/// MD bolt — white fill, 16 px — button widget action indicator
+pub const BOLT_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2Ij48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTcgMnYxMWgzdjlsNy0xMmgtNGw0LTh6Ii8+PC9zdmc+";
+
 // Widget type modules
 pub mod text_entry;
 pub mod text_update;
@@ -45,6 +58,7 @@ pub mod gauge;
 pub mod led;
 pub mod slider;
 pub mod button;
+pub mod toggle_button;
 pub mod chart;
 pub mod select;
 
@@ -55,8 +69,43 @@ pub use gauge::render_gauge;
 pub use led::render_led;
 pub use slider::render_slider;
 pub use button::render_button;
+pub use toggle_button::render_toggle_button;
 pub use chart::render_chart;
 pub use select::render_select;
+
+/// Dispatch a widget monitor, tagging each HTML fragment with the widget ID.
+/// Used by the multiplexed `/stream/all` SSE endpoint.
+pub fn run_widget_monitor(
+    config: WidgetConfig,
+    widget_id: String,
+    tx: tokio::sync::mpsc::UnboundedSender<(String, String)>,
+) {
+    // Inner channel: the widget monitor sends plain HTML here
+    let (inner_tx, mut inner_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+
+    // Forward thread: tags each HTML string with the widget_id
+    let wid = widget_id;
+    std::thread::spawn(move || {
+        while let Some(html) = inner_rx.blocking_recv() {
+            if tx.send((wid.clone(), html)).is_err() {
+                break;
+            }
+        }
+    });
+
+    let config = std::sync::Arc::new(config);
+    match config.widget_type {
+        WidgetType::TextEntry    => text_entry::TextEntry::run_monitor(config, inner_tx),
+        WidgetType::TextUpdate   => text_update::TextUpdate::run_monitor(config, inner_tx),
+        WidgetType::Gauge        => gauge::Gauge::run_monitor(config, inner_tx),
+        WidgetType::Led          => led::Led::run_monitor(config, inner_tx),
+        WidgetType::Slider       => slider::Slider::run_monitor(config, inner_tx),
+        WidgetType::Button       => button::Button::run_monitor(config, inner_tx),
+        WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor(config, inner_tx),
+        WidgetType::Chart        => chart::Chart::run_monitor(config, inner_tx),
+        WidgetType::Select       => select::Select::run_monitor(config, inner_tx),
+    }
+}
 
 /// Render widget from config — each widget's outer div contains its own SSE connection.
 pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
@@ -67,6 +116,7 @@ pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
         WidgetType::Led        => render_led(widget),
         WidgetType::Slider     => render_slider(widget),
         WidgetType::Button     => render_button(widget),
+        WidgetType::ToggleButton => render_toggle_button(widget),
         WidgetType::Chart      => render_chart(widget),
         WidgetType::Select     => render_select(widget),
     }
@@ -94,7 +144,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                     a href="/" class="back-link" { "← Back to Home" }
                 }
 
-                main class="screen-container" {
+                main class="screen-container" hx-ext="sse" sse-connect="/stream/all" {
                     @let num_widgets = config.widgets.len();
                     @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
                     div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
@@ -116,58 +166,30 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 }
 
 /// Render a group of widgets
-/// Write a value to a PV using PVXS. Returns HTML feedback (success or error).
-/// Routes through ServerHandle::post_* for server-hosted PVs (triggers alarm computation),
-/// falls back to network client put for external PVs.
-pub async fn put_pv(config: WidgetConfig, value_str: String, server_handle: Option<pvxs_sys::ServerHandle>) -> Markup {
+pub async fn put_pv(config: WidgetConfig, value_str: String) -> Markup {
     let pv_name = config.pv_name.clone();
     let data_type = config.data_type.clone();
-    let use_server = server_handle.is_some() && config.server.is_some();
 
     let result = tokio::task::spawn_blocking(move || -> pvxs_sys::Result<()> {
-        if use_server {
-            let handle = server_handle.unwrap();
-            match data_type.as_deref() {
-                Some("int32") | Some("int") | Some("integer") => {
-                    let v: i32 = value_str.trim().parse()
-                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
-                    handle.post_int32(&pv_name, v)
-                }
-                Some("enum") => {
-                    let v: i16 = value_str.trim().parse()
-                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
-                    handle.post_enum(&pv_name, v)
-                }
-                Some("double") | Some("float") | Some("f64") | Some("f32") => {
-                    let v: f64 = value_str.trim().parse()
-                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
-                    handle.post_double(&pv_name, v)
-                }
-                _ => {
-                    handle.post_string(&pv_name, value_str.trim())
-                }
+        let mut ctx = pvxs_sys::Context::from_env()?;
+        match data_type.as_deref() {
+            Some("int32") | Some("int") | Some("integer") | Some("bool") => {
+                let v: i32 = value_str.trim().parse()
+                    .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
+                ctx.put_int32(&pv_name, v, 5.0)
             }
-        } else {
-            let mut ctx = pvxs_sys::Context::from_env()?;
-            match data_type.as_deref() {
-                Some("int32") | Some("int") | Some("integer") => {
-                    let v: i32 = value_str.trim().parse()
-                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
-                    ctx.put_int32(&pv_name, v, 5.0)
-                }
-                Some("enum") => {
-                    let v: i16 = value_str.trim().parse()
-                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
-                    ctx.put_enum(&pv_name, v, 5.0)
-                }
-                Some("double") | Some("float") | Some("f64") | Some("f32") => {
-                    let v: f64 = value_str.trim().parse()
-                        .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
-                    ctx.put_double(&pv_name, v, 5.0)
-                }
-                _ => {
-                    ctx.put_string(&pv_name, value_str.trim(), 5.0)
-                }
+            Some("enum") => {
+                let v: i16 = value_str.trim().parse()
+                    .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
+                ctx.put_enum(&pv_name, v, 5.0)
+            }
+            Some("double") | Some("float") | Some("f64") | Some("f32") => {
+                let v: f64 = value_str.trim().parse()
+                    .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
+                ctx.put_double(&pv_name, v, 5.0)
+            }
+            _ => {
+                ctx.put_string(&pv_name, value_str.trim(), 5.0)
             }
         }
     })
@@ -189,6 +211,65 @@ pub fn alarm_severity_class(severity: i32) -> &'static str {
         _ => "alarm-invalid",
     }
 }
+
+/// Map alarm status integer to human-readable string (shared across all widgets)
+pub(super) fn alarm_status_str(status: i32) -> &'static str {
+    match status {
+        0 => "No Alarm",
+        1 => "Device",
+        2 => "Driver",
+        3 => "Record",
+        4 => "DB",
+        5 => "Config",
+        6 => "Client",
+        _ => "Unknown",
+    }
+}
+
+/// Build a tooltip string from live PV metadata — shared by all widgets.
+pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, raw: &pvxs_sys::Value) -> String {
+    let mut t = String::new();
+
+    t.push_str(&format!("PV: {}\n", config.pv_name));
+
+    if let Ok(v) = raw.get_field_string("display.description") { if !v.is_empty() { t.push_str(&v); t.push('\n'); } }
+    if let Ok(v) = raw.get_field_string("display.units")       { if !v.is_empty() { t.push_str(&format!("Units: {}\n", v)); } }
+    if let Ok(v) = raw.get_field_int32("display.precision")    { t.push_str(&format!("Precision: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("display.limitLow")    { t.push_str(&format!("Display Low: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("display.limitHigh")   { t.push_str(&format!("Display High: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("control.limitLow")    { t.push_str(&format!("Control Low: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("control.limitHigh")   { t.push_str(&format!("Control High: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("control.minStep")     { if v != 0.0 { t.push_str(&format!("Min Step: {}\n", v)); } }
+    if let Ok(v) = raw.get_field_double("valueAlarm.lowAlarmLimit")    { t.push_str(&format!("Low Alarm Limit: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("valueAlarm.lowWarningLimit")  { t.push_str(&format!("Low Warning Limit: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("valueAlarm.highWarningLimit") { t.push_str(&format!("High Warning Limit: {}\n", v)); }
+    if let Ok(v) = raw.get_field_double("valueAlarm.highAlarmLimit")   { t.push_str(&format!("High Alarm Limit: {}\n", v)); }
+
+    let severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
+    let sev_str = match pvxs_sys::AlarmSeverity::from(severity) {
+        pvxs_sys::AlarmSeverity::NoAlarm => "No Alarm",
+        pvxs_sys::AlarmSeverity::Minor   => "Minor",
+        pvxs_sys::AlarmSeverity::Major   => "Major",
+        pvxs_sys::AlarmSeverity::Invalid => "Invalid",
+        _                                => "Unknown",
+    };
+    t.push_str(&format!("Alarm Severity: {}\n", sev_str));
+    if let Ok(v) = raw.get_field_int32("alarm.status") { t.push_str(&format!("Alarm Status: {}\n", alarm_status_str(v))); }
+    if let Ok(v) = raw.get_field_string("alarm.message") { if !v.is_empty() { t.push_str(&format!("Alarm Message: {}\n", v)); } }
+
+    t.trim_end().to_string()
+}
+
+/// Render an info button — two icon variants let CSS pick the right one per theme.
+pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
+    html! {
+        button class="widget-info-btn" data-tooltip=(tooltip) type="button" {
+            img class="info-icon info-icon--dark"  src=(INFO_SVG_DARK)  alt="info";
+            img class="info-icon info-icon--light" src=(INFO_SVG_LIGHT) alt="info";
+        }
+    }
+}
+
 
 // /// Convert timestamp to human-readable string
 // pub fn to_human_time_string(timestamp: i64) -> String {

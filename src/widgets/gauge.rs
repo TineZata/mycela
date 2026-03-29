@@ -33,7 +33,7 @@ impl Gauge {
         }
     }
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -114,12 +114,23 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     let max = if (max - min).abs() < f64::EPSILON { min + 100.0 } else { max };
     let percentage = ((current_value - min) / (max - min) * 100.0).clamp(0.0, 100.0);
 
+    // Alarm limit markers: (actual_value, bar_percentage)
+    let range = max - min;
+    let to_pct = |v: f64| ((v - min) / range * 100.0).clamp(0.0, 100.0);
+    let low_alarm  = raw.get_field_double("valueAlarm.lowAlarmLimit").ok().map(|v| (v, to_pct(v)));
+    let low_warn   = raw.get_field_double("valueAlarm.lowWarningLimit").ok().map(|v| (v, to_pct(v)));
+    let high_warn  = raw.get_field_double("valueAlarm.highWarningLimit").ok().map(|v| (v, to_pct(v)));
+    let high_alarm = raw.get_field_double("valueAlarm.highAlarmLimit").ok().map(|v| (v, to_pct(v)));
+
     render_gauge_html(config, &display_value, &units, min, max, percentage,
-                      &format!("gauge {}", alarm_class), icon)
+                      &format!("gauge {}", alarm_class), icon,
+                      low_alarm, low_warn, high_warn, high_alarm,
+                      &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
-    render_gauge_html(config, "--", "", 0.0, 100.0, 0.0, "gauge alarm-disconnected", Some(super::OFFLINE_SVG))
+    render_gauge_html(config, "--", "", 0.0, 100.0, 0.0, "gauge alarm-disconnected", Some(super::OFFLINE_SVG),
+                      None, None, None, None, "")
 }
 
 fn render_gauge_html(
@@ -131,7 +142,14 @@ fn render_gauge_html(
     percentage: f64,
     _alarm_class: &str,
     icon: Option<&str>,
+    low_alarm:  Option<(f64, f64)>,
+    low_warn:   Option<(f64, f64)>,
+    high_warn:  Option<(f64, f64)>,
+    high_alarm: Option<(f64, f64)>,
+    tooltip: &str,
 ) -> Markup {
+    let has_alarm_labels = low_alarm.is_some() || low_warn.is_some()
+        || high_warn.is_some() || high_alarm.is_some();
     html! {
         div class="widget-inner" {
             label class="widget-label" {
@@ -139,18 +157,51 @@ fn render_gauge_html(
                 @if let Some(src) = icon {
                     img class="widget-status-icon" src=(src) alt="status";
                 }
+                @if !tooltip.is_empty() {
+                    (super::render_info_btn(tooltip))
+                }
             }
             div class="gauge-display" {
                 div class="gauge-value" {
                     (display_value)
                     @if !units.is_empty() { " " (units) }
                 }
+                // bar + alarm marker overlay
                 div class="gauge-bar" {
                     div class="gauge-fill" style=(format!("width: {:.1}%", percentage)) {}
+                    @if let Some((_, p)) = low_alarm {
+                        div class="gauge-marker gauge-marker--alarm" style=(format!("left:{:.2}%", p)) {}
+                    }
+                    @if let Some((_, p)) = low_warn {
+                        div class="gauge-marker gauge-marker--warn" style=(format!("left:{:.2}%", p)) {}
+                    }
+                    @if let Some((_, p)) = high_warn {
+                        div class="gauge-marker gauge-marker--warn" style=(format!("left:{:.2}%", p)) {}
+                    }
+                    @if let Some((_, p)) = high_alarm {
+                        div class="gauge-marker gauge-marker--alarm" style=(format!("left:{:.2}%", p)) {}
+                    }
                 }
-                div class="gauge-range" {
-                    span class="min" { (format!("{:.1}", min)) }
-                    span class="max" { (format!("{:.1}", max)) }
+                @if has_alarm_labels {
+                    div class="gauge-labels" {
+                        @if let Some((v, p)) = low_alarm {
+                            span class="gauge-limit gauge-limit--low-low" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
+                        }
+                        @if let Some((v, p)) = low_warn {
+                            span class="gauge-limit gauge-limit--low" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
+                        }
+                        @if let Some((v, p)) = high_warn {
+                            span class="gauge-limit gauge-limit--high" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
+                        }
+                        @if let Some((v, p)) = high_alarm {
+                            span class="gauge-limit gauge-limit--high-high" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
+                        }
+                    }
+                } @else {
+                    div class="gauge-range" {
+                        span class="min" { (format!("{:.1}", min)) }
+                        span class="max" { (format!("{:.1}", max)) }
+                    }
                 }
             }
             @if let Some(desc) = &config.description {
@@ -166,9 +217,7 @@ pub fn render_gauge(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget))
         }

@@ -131,7 +131,7 @@ RUST_LOG=debug cargo run
 
 The UI gracefully handles missing PVs by showing timeout status. No IOC required to test the interface.
 
-## 🏗️ Technical Details
+## Technical Details
 
 ### Stack
 
@@ -164,7 +164,7 @@ Widgets poll for updates every second using HTMX:
 
 Server returns fresh HTML fragments with current values and connection status.
 
-## 📦 Deployment
+## Deployment
 
 ### Build Release Binary
 
@@ -193,7 +193,7 @@ EPICS_PVA_ADDR_LIST=192.168.1.100
 EPICS_PVA_AUTO_ADDR_LIST=YES
 ```
 
-## 🗂️ Archived Code
+## Archived Code
 
 The previous gRPC-Web + WASM implementation is archived in `archive/old_grpc/` for reference. Key differences:
 
@@ -205,11 +205,11 @@ The previous gRPC-Web + WASM implementation is archived in `archive/old_grpc/` f
 | Dependencies | 80+ crates | 20 crates |
 | Complexity | High | Low |
 
-## 📄 License
+## License
 
 See [LICENSE](LICENSE) file.
 
-## 🤝 Contributing
+## Contributing
 
 This is a demonstration project showing Rust+HTMX for EPICS control systems. For production use, consider adding:
 
@@ -221,7 +221,7 @@ This is a demonstration project showing Rust+HTMX for EPICS control systems. For
 - Multi-screen navigation
 - WebSocket/SSE for sub-second updates
 
-## 🔗 Related Projects
+## Related Projects
 
 - [pvxs-sys](https://github.com/your-org/pvxs-sys) - Rust FFI bindings to PVXS
 - [EPICS](https://epics-controls.org/) - Experimental Physics and Industrial Control System

@@ -53,6 +53,9 @@ pub struct WidgetConfig {
     pub style: Option<WidgetStyle>,
     #[serde(default)]
     pub server: Option<ServerConfig>,
+    /// Enum choice labels for Select widgets backed by enum PVs
+    #[serde(default)]
+    pub options: Option<Vec<String>>,
 }
 
 /// Server configuration for providing a PV
@@ -121,6 +124,7 @@ pub enum WidgetType {
     Gauge,
     Led,
     Button,
+    ToggleButton,
     Slider,
     Chart,
     Select,

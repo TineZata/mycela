@@ -17,7 +17,8 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::ScreenConfig;
+use maud::{html, Markup};
+use crate::config::{ScreenConfig, WidgetConfig, WidgetType};
 use server_setup::setup_server_pvs;
 
 // ─── Application state ───────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Server-Sent Events for real-time monitoring
         .route("/stream/widget/{name}", get(stream_widget))
+        .route("/stream/all", get(stream_all_widgets))
         
         // Static files (CSS, JS, images)
         .nest_service("/static", ServeDir::new("static"))
@@ -139,69 +141,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Render demo screen directly on home page
 async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
-    tracing::info!("Rendering demo motor control screen");
-    
-    let markup = maud::html! {
-        (maud::DOCTYPE)
-        html lang="en" {
-            head {
-                meta charset="utf-8";
-                meta name="viewport" content="width=device-width, initial-scale=1.0";
-                title { (state.config.title) }
-                
-                // Self-hosted HTMX
-                script src="/static/htmx.min.js" {}
-                script src="/static/htmx-sse.js" {}
-                script src="/static/tooltip.js" {}
-                
-                link rel="stylesheet" href="/static/style.css";
-            }
-            body {
-                header class="main-header" {
-                    h1 { "🎛️ " (state.config.title) }
-                    div class="server-controls" style="display: flex; align-items: center; gap: 1rem;" {
-                    div id="server-status" 
-                            hx-get="/api/server/status" 
-                            hx-trigger="load, every 2s" 
-                            class=(if state.is_server_running() { "success" } else { "warning" }) {
-                            span { 
-                                @if state.is_server_running() {
-                                    "🟢 Server Running"
-                                } @else {
-                                    "🔴 Server Stopped"
-                                }
-                            }
-                        }
-                        button class="pv-button" 
-                                hx-post="/api/server/start" 
-                                hx-target="#server-status"
-                                style="padding: 0.5rem 1rem;" {
-                            "▶️ Start Server"
-                        }
-                        button class="pv-button" 
-                                hx-post="/api/server/stop" 
-                                hx-target="#server-status"
-                                style="padding: 0.5rem 1rem; background: #dc3545;" {
-                            "⏹️ Stop Server"
-                        }
-                    }
-                }
-                
-                main class="container" {
-                    h2 { (state.config.description) }
-                    
-                    @let num_widgets = state.config.widgets.len();
-                    @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
-                    div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
-                        @for widget in &state.config.widgets {
-                            (widgets::render_widget_from_config(widget))
-                        }
-                    }
-                }
-            }
-        }
-    };
-    
+    tracing::info!("Rendering widget showcase");
+    let markup = render_showcase(&state.config, state.is_server_running());
     Html(markup.into_string())
 }
 
@@ -250,9 +191,42 @@ async fn stream_widget(
         WidgetType::Led        => Box::pin(widgets::led::Led::new(config).into_sse_stream()),
         WidgetType::Slider     => Box::pin(widgets::slider::Slider::new(config).into_sse_stream()),
         WidgetType::Button     => Box::pin(widgets::button::Button::new(config).into_sse_stream()),
+        WidgetType::ToggleButton => Box::pin(widgets::toggle_button::ToggleButton::new(config).into_sse_stream()),
         WidgetType::Chart      => Box::pin(widgets::chart::Chart::new(config).into_sse_stream()),
         WidgetType::Select     => Box::pin(widgets::select::Select::new(config).into_sse_stream()),
     };
+
+    Sse::new(stream)
+}
+
+/// Multiplexed SSE endpoint — a single connection serves ALL widget updates.
+///
+/// This avoids the HTTP/1.1 per-domain connection limit (typically 6)
+/// which would starve widgets beyond the first 6 from receiving SSE events.
+/// Each widget update is sent as a named SSE event (event: {widget_id}).
+async fn stream_all_widgets(
+    State(state): State<AppState>,
+) -> Sse<SseStream> {
+    tracing::info!("Multiplexed SSE stream requested for all widgets");
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
+
+    for config in state.config.widgets.iter().cloned() {
+        let tx = tx.clone();
+        let widget_id = config.id.clone();
+
+        tokio::task::spawn_blocking(move || {
+            widgets::run_widget_monitor(config, widget_id, tx);
+        });
+    }
+    // Drop our copy so the channel closes when all monitors stop
+    drop(tx);
+
+    let stream: SseStream = Box::pin(async_stream::stream! {
+        while let Some((widget_id, html)) = rx.recv().await {
+            yield Ok(Event::default().event(widget_id).data(html));
+        }
+    });
 
     Sse::new(stream)
 }
@@ -327,6 +301,148 @@ async fn stop_server(State(state): State<AppState>) -> Response {
                     tracing::error!("Server stop task panicked: {}", e);
                     let html = maud::html! { div class="error" { "Internal error" } };
                     (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
+                }
+            }
+        }
+    }
+}
+
+/// Widget type display name used in the showcase section badges
+fn widget_type_name(wt: &WidgetType) -> &'static str {
+    match wt {
+        WidgetType::TextEntry    => "TextEntry",
+        WidgetType::TextUpdate   => "TextUpdate",
+        WidgetType::Gauge        => "Gauge",
+        WidgetType::Led          => "Led",
+        WidgetType::Slider       => "Slider",
+        WidgetType::Button       => "Button",
+        WidgetType::ToggleButton => "ToggleButton",
+        WidgetType::Select       => "Select",
+        WidgetType::Chart        => "Chart",
+    }
+}
+
+/// Render the showcase home page — each widget type in its own section with dark + light mockup cards.
+/// Widget pairing: first occurrence of each type in config → dark card, second → light card.
+fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
+    let mut pairs: Vec<(WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
+
+    for widget in &config.widgets {
+        let key = format!("{:?}", widget.widget_type);
+        if let Some(entry) = pairs.iter_mut().find(|(t, _, _)| format!("{:?}", t) == key) {
+            if entry.2.is_none() {
+                entry.2 = Some(widget);
+            }
+        } else {
+            pairs.push((widget.widget_type.clone(), widget, None));
+        }
+    }
+
+    html! {
+        (maud::DOCTYPE)
+        html lang="en" {
+            head {
+                meta charset="utf-8";
+                meta name="viewport" content="width=device-width, initial-scale=1.0";
+                title { "Widget Showcase — " (config.title) }
+                script src="/static/htmx.min.js" {}
+                script src="/static/htmx-sse.js" {}
+                script src="/static/tooltip.js" {}
+                link rel="stylesheet" href="/static/style.css";
+                style {
+                    "body { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); }"
+                }
+            }
+            body {
+                header class="main-header" {
+                    h1 { (config.title) }
+                    div class="server-controls" style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem;" {
+                        div id="server-status"
+                                hx-get="/api/server/status"
+                                hx-trigger="load, every 2s" {
+                            @if server_running {
+                                span class="success" style="display:flex;align-items:center;gap:0.4rem;" {
+                                    img src=(widgets::CHECK_CIRCLE_SVG) alt="running" style="width:20px;height:20px;";
+                                    "Server Running"
+                                }
+                            } @else {
+                                span class="warning" style="display:flex;align-items:center;gap:0.4rem;color:var(--alarm-minor)" {
+                                    img src=(widgets::CANCEL_SVG) alt="stopped" style="width:20px;height:20px;";
+                                    "Server Stopped"
+                                }
+                            }
+                        }
+                        button class="pv-button"
+                                hx-post="/api/server/start"
+                                hx-target="#server-status"
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "▶ Start" }
+                        button class="pv-button"
+                                hx-post="/api/server/stop"
+                                hx-target="#server-status"
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "⏹ Stop" }
+                    }
+                }
+
+                main class="showcase-page" hx-ext="sse" sse-connect="/stream/all" {
+                    p class="showcase-description" { (config.description) }
+
+                    div class="theme-toggle-bar" {
+                        span { "Highlight theme:" }
+                        button id="btn-dark"  onclick="highlightTheme('dark')"  { "🌙 Dark" }
+                        button id="btn-light" onclick="highlightTheme('light')" { "☀ Light" }
+                        button id="btn-both"  onclick="highlightTheme('both')"  class="active" { "Both" }
+                    }
+
+                    @for (wtype, dark_w, light_w) in &pairs {
+                        section class="widget-section" {
+                            div class="section-header" {
+                                span class="widget-type-badge" { (widget_type_name(wtype)) }
+                                p class="section-description" {
+                                    @if let Some(desc) = &dark_w.description {
+                                        (desc)
+                                    }
+                                }
+                            }
+                            div class="theme-pair" {
+                                div class="mockup-card mockup-card--dark" {
+                                    div class="mockup-card__titlebar" {
+                                        span class="theme-dot" {}
+                                        span { "Dark Theme" }
+                                    }
+                                    div class="mockup-card__screen" data-theme="dark" {
+                                        (widgets::render_widget_from_config(dark_w))
+                                    }
+                                }
+                                div class="mockup-card mockup-card--light" {
+                                    div class="mockup-card__titlebar" {
+                                        span class="theme-dot" {}
+                                        span { "Light Theme" }
+                                    }
+                                    div class="mockup-card__screen" data-theme="light" {
+                                        @if let Some(lw) = light_w {
+                                            (widgets::render_widget_from_config(lw))
+                                        } @else {
+                                            p style="color:var(--text-secondary);font-size:0.8rem;" {
+                                                "— no light widget configured —"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                script {
+                    (maud::PreEscaped(r#"
+function highlightTheme(t) {
+    document.querySelectorAll('.mockup-card').forEach(el => el.classList.remove('mockup-card--active'));
+    document.querySelectorAll('.theme-toggle-bar button').forEach(b => b.classList.remove('active'));
+    if (t === 'dark')  { document.querySelectorAll('.mockup-card--dark').forEach(el => el.classList.add('mockup-card--active')); document.getElementById('btn-dark').classList.add('active'); }
+    if (t === 'light') { document.querySelectorAll('.mockup-card--light').forEach(el => el.classList.add('mockup-card--active')); document.getElementById('btn-light').classList.add('active'); }
+    if (t === 'both')  { document.querySelectorAll('.mockup-card').forEach(el => el.classList.add('mockup-card--active')); document.getElementById('btn-both').classList.add('active'); }
+}
+                    "#))
                 }
             }
         }

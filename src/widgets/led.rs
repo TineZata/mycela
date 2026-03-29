@@ -33,7 +33,7 @@ impl Led {
         }
     }
 
-    fn run_monitor(
+    pub(crate) fn run_monitor(
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
@@ -108,11 +108,11 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
         .or_else(|_| raw.get_field_int32("value").map(|v| v != 0))
         .unwrap_or(false);
 
-    render_led_html(config, is_on, icon, false)
+    render_led_html(config, is_on, icon, false, &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
-    render_led_html(config, false, Some(super::OFFLINE_SVG), true)
+    render_led_html(config, false, Some(super::OFFLINE_SVG), true, "")
 }
 
 fn render_led_html(
@@ -120,6 +120,7 @@ fn render_led_html(
     is_on: bool,
     icon: Option<&str>,
     disconnected: bool,
+    tooltip: &str,
 ) -> Markup {
     let led_state = if is_on { "led-on" } else { "led-off" };
     html! {
@@ -128,6 +129,9 @@ fn render_led_html(
                 (config.label)
                 @if let Some(src) = icon {
                     img class="widget-status-icon" src=(src) alt="status";
+                }
+                @if !tooltip.is_empty() {
+                    (super::render_info_btn(tooltip))
                 }
             }
             div class="led-container" {
@@ -153,9 +157,7 @@ pub fn render_led(widget: &WidgetConfig) -> Markup {
     html! {
         div data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            hx-ext="sse"
-            sse-connect={"/stream/widget/" (widget.id)}
-            sse-swap="message"
+            sse-swap=(widget.id)
             hx-swap="innerHTML" {
             (render_inner_disconnected(widget))
         }
