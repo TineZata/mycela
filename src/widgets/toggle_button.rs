@@ -123,9 +123,9 @@ fn render_toggle_html(
     tooltip: &str,
 ) -> Markup {
     let btn_class = if is_on {
-        "pv-button pv-toggle-btn pv-toggle-btn--on"
+        "widget-button widget-toggle-btn widget-toggle-btn--on"
     } else {
-        "pv-button pv-toggle-btn pv-toggle-btn--off"
+        "widget-button widget-toggle-btn widget-toggle-btn--off"
     };
     let state_label = if is_on { "ON" } else { "OFF" };
 
@@ -160,10 +160,10 @@ fn render_toggle_html(
 
 pub fn render_toggle_button(widget: &WidgetConfig) -> Markup {
     html! {
-        div data-widget-id=(widget.id)
+        div style=[super::widget_container_style(widget)]
+            data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            sse-swap=(widget.id)
-            hx-swap="innerHTML" {
+            hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget))
         }
     }

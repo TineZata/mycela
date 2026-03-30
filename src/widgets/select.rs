@@ -37,12 +37,12 @@ impl Select {
         config: std::sync::Arc<WidgetConfig>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
-        tracing::info!("Select monitor starting for: {}", config.pv_name);
+        tracing::info!("[{}] Select monitor starting for PV: {}", config.id, config.pv_name);
 
         let mut ctx = match Context::from_env() {
             Ok(c) => c,
             Err(e) => {
-                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
+                tracing::error!("[{}] Context creation failed for {}: {}", config.id, config.pv_name, e);
                 let _ = tx.send(render_inner_disconnected(&config).into_string());
                 return;
             }
@@ -54,14 +54,14 @@ impl Select {
         {
             Ok(m) => m,
             Err(e) => {
-                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
+                tracing::error!("[{}] Monitor creation failed for {}: {}", config.id, config.pv_name, e);
                 let _ = tx.send(render_inner_disconnected(&config).into_string());
                 return;
             }
         };
 
         if let Err(e) = monitor.start() {
-            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
+            tracing::error!("[{}] Monitor start failed for {}: {}", config.id, config.pv_name, e);
             return;
         }
 
@@ -69,28 +69,37 @@ impl Select {
             match monitor.pop() {
                 Ok(Some(raw)) => {
                     let html = render_inner_connected(&config, &raw).into_string();
-                    if tx.send(html).is_err() { break; }
+                    if tx.send(html).is_err() {
+                        tracing::info!("[{}] SSE receiver dropped (browser closed connection?)", config.id);
+                        break;
+                    }
                 }
                 Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
                 Err(MonitorEvent::Connected(msg)) => {
-                    tracing::info!("Select {}: connected - {}", config.pv_name, msg);
+                    tracing::info!("[{}] Select connected: {}", config.id, msg);
                 }
                 Err(MonitorEvent::Disconnected(msg)) => {
-                    tracing::warn!("Select {}: disconnected - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
+                    tracing::warn!("[{}] Select disconnected: {}", config.id, msg);
+                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() {
+                        tracing::info!("[{}] SSE receiver dropped (browser closed connection?)", config.id);
+                        break;
+                    }
                 }
                 Err(MonitorEvent::Finished(msg)) => {
-                    tracing::info!("Select {}: finished - {}", config.pv_name, msg);
+                    tracing::info!("[{}] Select PV finished: {}", config.id, msg);
                     break;
                 }
                 Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                    tracing::error!("Select {}: error - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
+                    tracing::error!("[{}] Select error: {}", config.id, msg);
+                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() {
+                        tracing::info!("[{}] SSE receiver dropped (browser closed connection?)", config.id);
+                        break;
+                    }
                 }
             }
         }
 
-        tracing::info!("Select monitor stopped for: {}", config.pv_name);
+        tracing::info!("[{}] Select monitor stopped for PV: {}", config.id, config.pv_name);
     }
 }
 
@@ -123,7 +132,7 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
                 @if let Some(src) = icon {
                     img class="select-icon" src=(src) alt="status";
                 }
-                select class=(format!("pv-select {}", alarm_class))
+                select class=(format!("widget-select {}", alarm_class))
                     name="value"
                     hx-post={"/api/widget/" (config.id) "/set"}
                     hx-trigger="change"
@@ -153,7 +162,7 @@ fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
             label class="widget-label" { (config.label) }
             div class="select-with-icon-container" {
                 img class="select-icon" src=(super::OFFLINE_SVG) alt="offline";
-                select class="pv-select alarm-disconnected" disabled {
+                select class="widget-select alarm-disconnected" disabled {
                     option { "--" }
                 }
             }
@@ -170,10 +179,10 @@ fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
 /// Render the outer SSE shell for a select widget.
 pub fn render_select(widget: &WidgetConfig) -> Markup {
     html! {
-        div data-widget-id=(widget.id)
+        div style=[super::widget_container_style(widget)]
+            data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            sse-swap=(widget.id)
-            hx-swap="innerHTML" {
+            hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget))
         }
     }

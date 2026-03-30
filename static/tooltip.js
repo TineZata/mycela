@@ -245,7 +245,7 @@
 
         document.addEventListener('mouseout', function(e) {
             const target = e.target.closest('[title], [data-tooltip], [data-original-title]');
-            if (target !== currentTooltipElement) return;
+            if (!target || target !== currentTooltipElement) return;
             if (target.contains(e.relatedTarget)) return;
             if (tooltip && (e.relatedTarget === tooltip || tooltip.contains(e.relatedTarget))) return;
             if (isPinned) return;

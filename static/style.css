@@ -263,6 +263,15 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     gap: 1rem;
 }
 
+/* Widget container — propagate configured width/height to children */
+[data-widget-id] {
+    overflow: hidden;
+}
+
+[data-widget-id] > .widget-inner {
+    height: 100%;
+}
+
 .alarm-none:hover, .alarm-minor:hover, .alarm-major:hover, .alarm-invalid:hover, .alarm-disconnected:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -611,7 +620,7 @@ input[type="number"] {
     position: relative;
     background: var(--bg-secondary);
     height: 28px;
-    border-radius: 14px;
+    border-radius: 4px;
     overflow: hidden;
     margin-bottom: 0.3rem;
 }
@@ -620,7 +629,7 @@ input[type="number"] {
     height: 100%;
     background: linear-gradient(90deg, var(--alarm-none), var(--accent));
     transition: width 0.5s ease;
-    border-radius: 14px;
+    border-radius: 4px;
 }
 
 /* Alarm/warning limit markers — thin vertical lines on the bar */
@@ -644,12 +653,12 @@ input[type="number"] {
     color: var(--text-secondary);
 }
 
-/* Alarm limit value labels — positioned below each marker */
-.gauge-labels {
+/* Alarm limit labels — positioned above the bar (horizontal) or to the right (vertical) */
+.gauge-limits {
     position: relative;
-    height: 3.2em;
+    height: 1.6em;
     font-size: 0.7rem;
-    margin-top: 0.15rem;
+    margin-bottom: 0.15rem;
 }
 
 .gauge-limit {
@@ -662,11 +671,122 @@ input[type="number"] {
 .gauge-limit--alarm { color: var(--alarm-major); }
 .gauge-limit--warn  { color: var(--alarm-minor); }
 
-/* Four named limit levels — low_low and high_high are offset to avoid overlap */
-.gauge-limit--low-low   { color: var(--alarm-major); transform: translateX(-50%) translateY(1.3em); }
+.gauge-limit--low-low   { color: var(--alarm-major); }
 .gauge-limit--low       { color: var(--alarm-minor); }
 .gauge-limit--high      { color: var(--alarm-minor); }
-.gauge-limit--high-high { color: var(--alarm-major); transform: translateX(-50%) translateY(1.3em); }
+.gauge-limit--high-high { color: var(--alarm-major); }
+
+/* Graduated axis — positioned below the bar (horizontal) or to the left (vertical) */
+.gauge-axis {
+    position: relative;
+    height: 2em;
+    margin-top: 0.15rem;
+}
+
+.gauge-tick {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+}
+
+.gauge-tick-mark {
+    display: block;
+    width: 1px;
+    height: 6px;
+    background: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.gauge-tick-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Vertical gauge variant */
+.gauge-vertical {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: none;
+}
+
+.gauge-vertical .gauge-body {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    padding-bottom: 1em;
+    padding-top: 0.5em;
+}
+
+/* In vertical mode the bar area uses a row: limits | bar | axis */
+.gauge-vertical .gauge-bar {
+    width: 28px;
+    height: 180px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-bottom: 0;
+}
+
+.gauge-vertical .gauge-fill {
+    width: 100%;
+    height: 0%;
+    border-radius: 4px;
+    background: linear-gradient(0deg, var(--alarm-none), var(--accent));
+    transition: height 0.5s ease;
+}
+
+.gauge-vertical .gauge-marker {
+    width: 100%;
+    height: 2px;
+    top: auto;
+    left: 0;
+    right: 0;
+    transform: translateY(50%);
+}
+
+.gauge-vertical .gauge-limits {
+    position: relative;
+    height: 180px;
+    width: 3.2em;
+    margin-bottom: 0;
+    margin-right: 0.4rem;
+    overflow: visible;
+}
+
+.gauge-vertical .gauge-limit {
+    left: auto;
+    right: 0;
+    text-align: right;
+    transform: translateY(50%);
+}
+
+.gauge-vertical .gauge-axis {
+    position: relative;
+    height: 180px;
+    width: 3.2em;
+    margin-top: 0;
+    margin-left: 0.4rem;
+    overflow: visible;
+}
+
+.gauge-vertical .gauge-tick {
+    left: 0;
+    transform: translateY(50%);
+    flex-direction: row;
+}
+
+.gauge-vertical .gauge-tick-mark {
+    width: 6px;
+    height: 1px;
+    margin-bottom: 0;
+    margin-right: 2px;
+}
 
 /* LED widget */
 .led-container {
@@ -713,7 +833,7 @@ input[type="number"] {
     text-align: center;
 }
 
-.pv-button {
+.widget-button {
     background: var(--accent);
     color: white;
     border: none;
@@ -727,32 +847,32 @@ input[type="number"] {
     letter-spacing: 1px;
 }
 
-.pv-button:hover {
+.widget-button:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(30, 144, 255, 0.4);
 }
 
-.pv-button:active {
+.widget-button:active {
     transform: translateY(0);
 }
 
 /* Toggle button ON/OFF states */
-.pv-toggle-btn--on {
+.widget-toggle-btn--on {
     background: var(--alarm-none);
     box-shadow: 0 0 10px rgba(0, 200, 100, 0.45);
 }
-.pv-toggle-btn--on:hover {
+.widget-toggle-btn--on:hover {
     background: var(--alarm-none);
     filter: brightness(1.1);
     box-shadow: 0 4px 14px rgba(0, 200, 100, 0.55);
 }
-.pv-toggle-btn--off {
+.widget-toggle-btn--off {
     background: var(--bg-secondary);
     color: var(--text-secondary);
     box-shadow: none;
 }
-.pv-toggle-btn--off:hover {
+.widget-toggle-btn--off:hover {
     background: var(--bg-tertiary, var(--bg-secondary));
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
@@ -766,7 +886,7 @@ input[type="number"] {
     gap: 1rem;
 }
 
-.pv-slider {
+.widget-slider {
     flex: 1;
     -webkit-appearance: none;
     appearance: none;
@@ -776,7 +896,7 @@ input[type="number"] {
     outline: none;
 }
 
-.pv-slider::-webkit-slider-thumb {
+.widget-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 20px;
@@ -787,11 +907,11 @@ input[type="number"] {
     transition: all 0.2s;
 }
 
-.pv-slider::-webkit-slider-thumb:hover {
+.widget-slider::-webkit-slider-thumb:hover {
     transform: scale(1.2);
 }
 
-.pv-slider::-moz-range-thumb {
+.widget-slider::-moz-range-thumb {
     width: 20px;
     height: 20px;
     background: var(--accent);
@@ -820,6 +940,67 @@ input[type="number"] {
 .chart-canvas {
     width: 100%;
     height: auto;
+}
+
+/* Select widget */
+.select-with-icon-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.select-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.widget-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    font-family: var(--font-monospace);
+    font-size: 0.85rem;
+    cursor: pointer;
+    min-width: 140px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    text-align: center;
+    text-align-last: center;
+
+    /* Custom dropdown arrow */
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 12px;
+}
+
+.widget-select:hover {
+    border-color: var(--accent);
+}
+
+.widget-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.15);
+    background: #fffacd !important;
+    color: #1a1a1a !important;
+}
+
+.widget-select option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 0.4rem;
+    text-align: center;
+}
+
+.widget-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Footer */
@@ -934,27 +1115,35 @@ footer {
     color: var(--text-secondary);
 }
 
+[data-theme="light"] .gauge-tick-label {
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .gauge-tick-mark {
+    background: var(--text-secondary);
+}
+
 [data-theme="light"] .slider-container .slider-value {
     color: var(--accent);
 }
 
-[data-theme="light"] .pv-slider {
+[data-theme="light"] .widget-slider {
     background: var(--bg-secondary);
 }
 
-[data-theme="light"] .pv-slider::-webkit-slider-thumb {
+[data-theme="light"] .widget-slider::-webkit-slider-thumb {
     background: var(--accent);
 }
 
-[data-theme="light"] .pv-slider::-moz-range-thumb {
+[data-theme="light"] .widget-slider::-moz-range-thumb {
     background: var(--accent);
 }
 
-[data-theme="light"] .pv-button {
+[data-theme="light"] .widget-button {
     background: var(--accent);
 }
 
-[data-theme="light"] .pv-button:hover {
+[data-theme="light"] .widget-button:hover {
     background: var(--accent-hover);
     box-shadow: 0 4px 12px rgba(0, 102, 204, 0.35);
 }
@@ -969,6 +1158,13 @@ footer {
 
 [data-theme="light"] .text-entry:focus {
     background: #fff9e6 !important;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+}
+
+[data-theme="light"] .widget-select:focus {
+    background: #fff9e6 !important;
+    color: #1a1a1a !important;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
 }

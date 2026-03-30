@@ -10,6 +10,7 @@
       "label": "Motor X Position",
       "data_type": "double",
       "description": "Editable numeric field with live alarm feedback",
+      "style": { "width": "100%", "height": "auto" },
       "server": {
         "alarm_serverity": "NONE",
         "alarm_status": "NO_ALARM",
@@ -23,7 +24,7 @@
           },
           "control": {
             "limit_low": 0.0,
-            "limit_high": 120.0,
+            "limit_high": 100.0,
             "min_step": 0.1
           },
           "alarm": {
@@ -46,7 +47,8 @@
       "type": "text_entry",
       "label": "Motor X Position",
       "data_type": "double",
-      "description": "Editable numeric field with live alarm feedback"
+      "description": "Editable numeric field with live alarm feedback",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "text_update_dark",
@@ -54,7 +56,8 @@
       "type": "text_update",
       "label": "Motor X Readback",
       "data_type": "double",
-      "description": "Read-only live value display"
+      "description": "Read-only live value display",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "text_update_light",
@@ -62,7 +65,8 @@
       "type": "text_update",
       "label": "Motor X Readback",
       "data_type": "double",
-      "description": "Read-only live value display"
+      "description": "Read-only live value display",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "gauge_dark",
@@ -70,7 +74,9 @@
       "type": "gauge",
       "label": "Motor X Position",
       "data_type": "double",
-      "description": "Analogue bar gauge with alarm zones"
+      "description": "Analogue bar gauge with alarm zones",
+      "orientation": "horizontal",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "gauge_light",
@@ -78,7 +84,9 @@
       "type": "gauge",
       "label": "Motor X Position",
       "data_type": "double",
-      "description": "Analogue bar gauge with alarm zones"
+      "description": "Analogue bar gauge with alarm zones",
+      "orientation": "vertical",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "slider_dark",
@@ -87,6 +95,7 @@
       "label": "Valve Position",
       "data_type": "int32",
       "description": "Drag range control with live setpoint",
+      "style": { "width": "100%", "height": "auto" },
       "server": {
         "alarm_serverity": "NONE",
         "alarm_status": "NO_ALARM",
@@ -123,7 +132,8 @@
       "type": "slider",
       "label": "Valve Position",
       "data_type": "int32",
-      "description": "Drag range control with live setpoint"
+      "description": "Drag range control with live setpoint",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "button_dark",
@@ -132,6 +142,7 @@
       "label": "Heater On",
       "data_type": "bool",
       "description": "Momentary action button — sends value 1 on click",
+      "style": { "width": "100%", "height": "auto" },
       "server": {
         "alarm_serverity": "NONE",
         "alarm_status": "NO_ALARM"
@@ -143,7 +154,8 @@
       "type": "button",
       "label": "Heater On",
       "data_type": "bool",
-      "description": "Momentary action button — sends value 1 on click"
+      "description": "Momentary action button — sends value 1 on click",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "led_dark",
@@ -151,7 +163,8 @@
       "type": "led",
       "label": "Heater Status",
       "data_type": "bool",
-      "description": "Binary on/off indicator with glow effect"
+      "description": "Binary on/off indicator with glow effect",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "led_light",
@@ -159,7 +172,8 @@
       "type": "led",
       "label": "Heater Status",
       "data_type": "bool",
-      "description": "Binary on/off indicator with glow effect"
+      "description": "Binary on/off indicator with glow effect",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "toggle_button_dark",
@@ -167,7 +181,8 @@
       "type": "toggle_button",
       "label": "Heater",
       "data_type": "bool",
-      "description": "Toggle button — reflects live PV state and sends the opposite value on click"
+      "description": "Toggle button — reflects live PV state and sends the opposite value on click",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "toggle_button_light",
@@ -175,7 +190,8 @@
       "type": "toggle_button",
       "label": "Heater",
       "data_type": "bool",
-      "description": "Toggle button — reflects live PV state and sends the opposite value on click"
+      "description": "Toggle button — reflects live PV state and sends the opposite value on click",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "select_dark",
@@ -184,6 +200,7 @@
       "label": "Operating Mode",
       "data_type": "enum",
       "description": "Enum dropdown backed by NTEnum PV",
+      "style": { "width": "100%", "height": "30px" },
       "options": ["Off", "Manual", "Auto", "Remote"],
       "server": {
         "alarm_serverity": "NONE",
@@ -197,6 +214,7 @@
       "label": "Operating Mode",
       "data_type": "enum",
       "description": "Enum dropdown backed by NTEnum PV",
+      "style": { "width": "100%", "height": "30px" },
       "options": ["Off", "Manual", "Auto", "Remote"]
     },
     {
@@ -205,7 +223,8 @@
       "type": "chart",
       "label": "Temperature History",
       "data_type": "double",
-      "description": "Scrolling time-series chart"
+      "description": "Scrolling time-series chart",
+      "style": { "width": "100%", "height": "auto" }
     },
     {
       "id": "chart_light",
@@ -213,7 +232,8 @@
       "type": "chart",
       "label": "Temperature History",
       "data_type": "double",
-      "description": "Scrolling time-series chart"
+      "description": "Scrolling time-series chart",
+      "style": { "width": "100%", "height": "auto" }
     }
   ]
 }

@@ -6,7 +6,7 @@ use axum::{
     Router,
     routing::{get, post},
     extract::{Path, State},
-    response::{Html, IntoResponse, Response, sse::{Event, Sse}},
+    response::{Html, IntoResponse, Response, sse::{Event, KeepAlive, Sse}},
     http::StatusCode,
 };
 use std::sync::{Arc, Mutex};
@@ -27,6 +27,7 @@ use server_setup::setup_server_pvs;
 pub struct AppState {
     pub pv_server: Arc<Mutex<Option<pvxs_sys::Server>>>,
     pub config: Arc<ScreenConfig>,
+    pub write_ctx: Arc<Mutex<pvxs_sys::Context>>,
 }
 
 impl AppState {
@@ -91,9 +92,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    let write_ctx = Arc::new(Mutex::new(pvxs_sys::Context::from_env()?));
+
     let state = AppState {
         pv_server,
         config: Arc::new(config),
+        write_ctx,
     };
 
     // Build the application router
@@ -172,7 +176,7 @@ type SseStream = std::pin::Pin<Box<dyn tokio_stream::Stream<Item = Result<Event,
 async fn stream_widget(
     Path(widget_id): Path<String>,
     State(state): State<AppState>,
-) -> Sse<SseStream> {
+) -> impl IntoResponse {
     tracing::info!("SSE stream requested for widget: {}", widget_id);
 
     let Some(config) = state.config.widgets.iter().find(|w| w.id == widget_id).cloned() else {
@@ -180,7 +184,7 @@ async fn stream_widget(
         let stream: SseStream = Box::pin(async_stream::stream! {
             yield Ok(Event::default().data("<!-- widget not found -->"));
         });
-        return Sse::new(stream);
+        return Sse::new(stream).keep_alive(KeepAlive::default());
     };
 
     use crate::config::WidgetType;
@@ -196,7 +200,7 @@ async fn stream_widget(
         WidgetType::Select     => Box::pin(widgets::select::Select::new(config).into_sse_stream()),
     };
 
-    Sse::new(stream)
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 /// Multiplexed SSE endpoint — a single connection serves ALL widget updates.
@@ -206,7 +210,7 @@ async fn stream_widget(
 /// Each widget update is sent as a named SSE event (event: {widget_id}).
 async fn stream_all_widgets(
     State(state): State<AppState>,
-) -> Sse<SseStream> {
+) -> impl IntoResponse {
     tracing::info!("Multiplexed SSE stream requested for all widgets");
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
@@ -223,12 +227,22 @@ async fn stream_all_widgets(
     drop(tx);
 
     let stream: SseStream = Box::pin(async_stream::stream! {
+        // Drop guard: logs when the browser disconnects and axum drops this stream
+        struct SseDropGuard;
+        impl Drop for SseDropGuard {
+            fn drop(&mut self) {
+                tracing::warn!("SSE stream DROPPED — browser disconnected or connection lost");
+            }
+        }
+        let _guard = SseDropGuard;
+
         while let Some((widget_id, html)) = rx.recv().await {
             yield Ok(Event::default().event(widget_id).data(html));
         }
+        tracing::info!("SSE stream ended normally (all senders dropped)");
     });
 
-    Sse::new(stream)
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 /// Start the PVXS server
@@ -346,7 +360,6 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
                 title { "Widget Showcase — " (config.title) }
                 script src="/static/htmx.min.js" {}
-                script src="/static/htmx-sse.js" {}
                 script src="/static/tooltip.js" {}
                 link rel="stylesheet" href="/static/style.css";
                 style {
@@ -372,18 +385,18 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                                 }
                             }
                         }
-                        button class="pv-button"
+                        button class="widget-button"
                                 hx-post="/api/server/start"
                                 hx-target="#server-status"
                                 style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "▶ Start" }
-                        button class="pv-button"
+                        button class="widget-button"
                                 hx-post="/api/server/stop"
                                 hx-target="#server-status"
                                 style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "⏹ Stop" }
                     }
                 }
 
-                main class="showcase-page" hx-ext="sse" sse-connect="/stream/all" {
+                main class="showcase-page" hx-sse="connect:/stream/all" {
                     p class="showcase-description" { (config.description) }
 
                     div class="theme-toggle-bar" {

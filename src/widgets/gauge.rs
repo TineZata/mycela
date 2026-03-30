@@ -150,6 +150,26 @@ fn render_gauge_html(
 ) -> Markup {
     let has_alarm_labels = low_alarm.is_some() || low_warn.is_some()
         || high_warn.is_some() || high_alarm.is_some();
+    let vertical = config.orientation.as_deref() == Some("vertical");
+    let fill_style = if vertical {
+        format!("height: {:.1}%", percentage)
+    } else {
+        format!("width: {:.1}%", percentage)
+    };
+    let display_class = if vertical { "gauge-display gauge-vertical" } else { "gauge-display" };
+
+    // Graduated axis: 5 evenly-spaced ticks from min to max
+    let tick_count = 5;
+    let range = max - min;
+    let ticks: Vec<(f64, f64)> = (0..=tick_count)
+        .map(|i| {
+            let frac = i as f64 / tick_count as f64;
+            let val = min + frac * range;
+            let pct = frac * 100.0;
+            (val, pct)
+        })
+        .collect();
+
     html! {
         div class="widget-inner" {
             label class="widget-label" {
@@ -161,46 +181,63 @@ fn render_gauge_html(
                     (super::render_info_btn(tooltip))
                 }
             }
-            div class="gauge-display" {
+            div class=(display_class) {
                 div class="gauge-value" {
                     (display_value)
                     @if !units.is_empty() { " " (units) }
                 }
-                // bar + alarm marker overlay
-                div class="gauge-bar" {
-                    div class="gauge-fill" style=(format!("width: {:.1}%", percentage)) {}
-                    @if let Some((_, p)) = low_alarm {
-                        div class="gauge-marker gauge-marker--alarm" style=(format!("left:{:.2}%", p)) {}
-                    }
-                    @if let Some((_, p)) = low_warn {
-                        div class="gauge-marker gauge-marker--warn" style=(format!("left:{:.2}%", p)) {}
-                    }
-                    @if let Some((_, p)) = high_warn {
-                        div class="gauge-marker gauge-marker--warn" style=(format!("left:{:.2}%", p)) {}
-                    }
-                    @if let Some((_, p)) = high_alarm {
-                        div class="gauge-marker gauge-marker--alarm" style=(format!("left:{:.2}%", p)) {}
-                    }
-                }
-                @if has_alarm_labels {
-                    div class="gauge-labels" {
-                        @if let Some((v, p)) = low_alarm {
-                            span class="gauge-limit gauge-limit--low-low" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
-                        }
-                        @if let Some((v, p)) = low_warn {
-                            span class="gauge-limit gauge-limit--low" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
-                        }
-                        @if let Some((v, p)) = high_warn {
-                            span class="gauge-limit gauge-limit--high" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
-                        }
-                        @if let Some((v, p)) = high_alarm {
-                            span class="gauge-limit gauge-limit--high-high" style=(format!("left:{:.2}%", p)) { (format!("{:.1}", v)) }
+                // Body row: limits | bar | axis
+                div class="gauge-body" {
+                    // Alarm limit labels (above bar in horizontal, left of bar in vertical)
+                    @if has_alarm_labels {
+                        div class="gauge-limits" {
+                            @if let Some((v, p)) = low_alarm {
+                                @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                                span class="gauge-limit gauge-limit--low-low" style=(pos) { (format!("{:.1}", v)) }
+                            }
+                            @if let Some((v, p)) = low_warn {
+                                @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                                span class="gauge-limit gauge-limit--low" style=(pos) { (format!("{:.1}", v)) }
+                            }
+                            @if let Some((v, p)) = high_warn {
+                                @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                                span class="gauge-limit gauge-limit--high" style=(pos) { (format!("{:.1}", v)) }
+                            }
+                            @if let Some((v, p)) = high_alarm {
+                                @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                                span class="gauge-limit gauge-limit--high-high" style=(pos) { (format!("{:.1}", v)) }
+                            }
                         }
                     }
-                } @else {
-                    div class="gauge-range" {
-                        span class="min" { (format!("{:.1}", min)) }
-                        span class="max" { (format!("{:.1}", max)) }
+                    // bar + alarm marker overlay
+                    div class="gauge-bar" {
+                        div class="gauge-fill" style=(fill_style) {}
+                        @if let Some((_, p)) = low_alarm {
+                            @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                            div class="gauge-marker gauge-marker--alarm" style=(pos) {}
+                        }
+                        @if let Some((_, p)) = low_warn {
+                            @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                            div class="gauge-marker gauge-marker--warn" style=(pos) {}
+                        }
+                        @if let Some((_, p)) = high_warn {
+                            @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                            div class="gauge-marker gauge-marker--warn" style=(pos) {}
+                        }
+                        @if let Some((_, p)) = high_alarm {
+                            @let pos = if vertical { format!("bottom:{:.2}%", p) } else { format!("left:{:.2}%", p) };
+                            div class="gauge-marker gauge-marker--alarm" style=(pos) {}
+                        }
+                    }
+                    // Graduated axis (below bar in horizontal, right of bar in vertical)
+                    div class="gauge-axis" {
+                        @for &(val, pct) in &ticks {
+                            @let pos = if vertical { format!("bottom:{:.2}%", pct) } else { format!("left:{:.2}%", pct) };
+                            span class="gauge-tick" style=(pos) {
+                                span class="gauge-tick-mark" {}
+                                span class="gauge-tick-label" { (format!("{:.1}", val)) }
+                            }
+                        }
                     }
                 }
             }
@@ -215,10 +252,10 @@ fn render_gauge_html(
 
 pub fn render_gauge(widget: &WidgetConfig) -> Markup {
     html! {
-        div data-widget-id=(widget.id)
+        div style=[super::widget_container_style(widget)]
+            data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            sse-swap=(widget.id)
-            hx-swap="innerHTML" {
+            hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget))
         }
     }

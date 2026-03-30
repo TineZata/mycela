@@ -1,4 +1,5 @@
 use maud::{html, Markup};
+use std::sync::{Arc, Mutex};
 use axum::{
     extract::{Path, State, Form},
     response::{Html, IntoResponse, Response},
@@ -23,7 +24,7 @@ pub async fn write_widget(
     match widget {
         None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
         Some(w) => {
-            Html(put_pv(w, form.value).await.into_string()).into_response()
+            Html(put_pv(w, form.value, state.write_ctx.clone()).await.into_string()).into_response()
         }
     }
 }
@@ -133,7 +134,6 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                 title { (config.title) }
 
                 script src="/static/htmx.min.js" {}
-                script src="/static/htmx-sse.js" {}
                 script src="/static/tooltip.js" {}
                 link rel="stylesheet" href="/static/style.css";
             }
@@ -144,7 +144,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                     a href="/" class="back-link" { "← Back to Home" }
                 }
 
-                main class="screen-container" hx-ext="sse" sse-connect="/stream/all" {
+                main class="screen-container" hx-sse="connect:/stream/all" {
                     @let num_widgets = config.widgets.len();
                     @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
                     div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
@@ -166,12 +166,13 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 }
 
 /// Render a group of widgets
-pub async fn put_pv(config: WidgetConfig, value_str: String) -> Markup {
+pub async fn put_pv(config: WidgetConfig, value_str: String, write_ctx: Arc<Mutex<pvxs_sys::Context>>) -> Markup {
     let pv_name = config.pv_name.clone();
     let data_type = config.data_type.clone();
+    tracing::info!("[{}] put_pv: pv={}, data_type={:?}, value='{}'", config.id, pv_name, data_type, value_str);
 
     let result = tokio::task::spawn_blocking(move || -> pvxs_sys::Result<()> {
-        let mut ctx = pvxs_sys::Context::from_env()?;
+        let mut ctx = write_ctx.lock().unwrap();
         match data_type.as_deref() {
             Some("int32") | Some("int") | Some("integer") | Some("bool") => {
                 let v: i32 = value_str.trim().parse()
@@ -196,9 +197,18 @@ pub async fn put_pv(config: WidgetConfig, value_str: String) -> Markup {
     .await;
 
     match result {
-        Ok(Ok(())) => html! { span class="put-ok" { "✓" } },
-        Ok(Err(e)) => html! { span class="put-err" { "Error: " (e.to_string()) } },
-        Err(e)     => html! { span class="put-err" { "Task error: " (e.to_string()) } },
+        Ok(Ok(())) => {
+            tracing::info!("[{}] put_pv OK for {}", config.id, config.pv_name);
+            html! { span class="put-ok" { "✓" } }
+        }
+        Ok(Err(e)) => {
+            tracing::error!("[{}] put_pv error for {}: {}", config.id, config.pv_name, e);
+            html! { span class="put-err" { "Error: " (e.to_string()) } }
+        }
+        Err(e) => {
+            tracing::error!("[{}] put_pv task error for {}: {}", config.id, config.pv_name, e);
+            html! { span class="put-err" { "Task error: " (e.to_string()) } }
+        }
     }
 }
 
@@ -260,6 +270,17 @@ pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, raw: &pvxs_sys
     t.trim_end().to_string()
 }
 
+/// Build an inline style string from the widget's optional style config (width/height).
+/// Returns `None` when no sizing is configured, so maud's `style=[…]` omits the attribute.
+pub(crate) fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<String> {
+    let mut s = String::new();
+    if let Some(style) = &config.style {
+        if let Some(w) = &style.width  { s.push_str(&format!("width:{};",  w)); }
+        if let Some(h) = &style.height { s.push_str(&format!("height:{};", h)); }
+    }
+    if s.is_empty() { None } else { Some(s) }
+}
+
 /// Render an info button — two icon variants let CSS pick the right one per theme.
 pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
     html! {
@@ -276,3 +297,64 @@ pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
 //     let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(timestamp, 0).unwrap_or_default();
 //     datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{WidgetConfig, WidgetType, WidgetStyle};
+
+    fn make_widget(style: Option<WidgetStyle>) -> WidgetConfig {
+        WidgetConfig {
+            id: "test1".into(),
+            pv_name: "demo:pv".into(),
+            widget_type: WidgetType::Gauge,
+            label: "Test".into(),
+            data_type: None,
+            description: None,
+            style,
+            server: None,
+            options: None,
+            orientation: None,
+        }
+    }
+
+    #[test]
+    fn style_none_produces_no_attribute() {
+        let w = make_widget(None);
+        assert!(widget_container_style(&w).is_none());
+        let html = render_gauge(&w).into_string();
+        // The outer div should not have a style attribute
+        // Extract the opening tag (up to the first '>') and check there
+        let outer_tag = &html[..html.find('>').unwrap() + 1];
+        assert!(!outer_tag.contains("style="),
+                "expected no style on outer div, got: {}", outer_tag);
+    }
+
+    #[test]
+    fn style_width_height_in_html() {
+        let w = make_widget(Some(WidgetStyle {
+            width: Some("400px".into()),
+            height: Some("200px".into()),
+            background: None,
+        }));
+        let css = widget_container_style(&w).unwrap();
+        assert!(css.contains("width:400px;"), "CSS must contain width");
+        assert!(css.contains("height:200px;"), "CSS must contain height");
+
+        let html = render_gauge(&w).into_string();
+        assert!(html.contains("style=\"width:400px;height:200px;\""),
+                "rendered HTML must include inline style, got: {}", html);
+    }
+
+    #[test]
+    fn style_width_only() {
+        let w = make_widget(Some(WidgetStyle {
+            width: Some("50%".into()),
+            height: None,
+            background: None,
+        }));
+        let css = widget_container_style(&w).unwrap();
+        assert_eq!(css, "width:50%;");
+        assert!(!css.contains("height"));
+    }
+}

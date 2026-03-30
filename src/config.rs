@@ -56,6 +56,9 @@ pub struct WidgetConfig {
     /// Enum choice labels for Select widgets backed by enum PVs
     #[serde(default)]
     pub options: Option<Vec<String>>,
+    /// Gauge orientation: "horizontal" (default) or "vertical"
+    #[serde(default)]
+    pub orientation: Option<String>,
 }
 
 /// Server configuration for providing a PV

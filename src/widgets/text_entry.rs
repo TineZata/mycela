@@ -223,10 +223,10 @@ fn render_input_html(
 /// The monitor immediately pushes the first update via SSE — no initial value needed.
 pub fn render_text_entry(widget: &WidgetConfig) -> Markup {
     html! {
-        div data-widget-id=(widget.id)
+        div style=[super::widget_container_style(widget)]
+            data-widget-id=(widget.id)
             data-pv=(widget.pv_name)
-            sse-swap=(widget.id)
-            hx-swap="innerHTML" {
+            hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget, "Connecting..."))
         }
     }
