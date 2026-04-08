@@ -41,6 +41,7 @@ pub struct ScreenConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetConfig {
     pub id: String,
+    #[serde(default)]
     pub pv_name: String,
     #[serde(rename = "type")]
     pub widget_type: WidgetType,
@@ -59,6 +60,12 @@ pub struct WidgetConfig {
     /// Gauge orientation: "horizontal" (default) or "vertical"
     #[serde(default)]
     pub orientation: Option<String>,
+    /// Heading level for Group containers: 1 (H1), 2 (H2), 3 (H3). Default: 1
+    #[serde(default)]
+    pub level: Option<u8>,
+    /// Child widgets for Group containers
+    #[serde(default)]
+    pub children: Option<Vec<WidgetConfig>>,
 }
 
 /// Server configuration for providing a PV
@@ -119,7 +126,7 @@ pub struct AlarmMetadata {
 }
 
 /// Widget type enumeration
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum WidgetType {
     TextEntry,
@@ -131,6 +138,7 @@ pub enum WidgetType {
     Slider,
     Chart,
     Select,
+    Group,
 }
 
 /// Optional widget styling
@@ -164,23 +172,31 @@ impl ScreenConfig {
     
     /// Validate that the configuration has all required data
     fn validate_config(config: &ScreenConfig) -> Result<(), ConfigError> {
-        // Check for any additional runtime validations if needed
-        // For example, checking that widget IDs are unique
         let mut seen_ids = std::collections::HashSet::new();
-        for (idx, widget) in config.widgets.iter().enumerate() {
-            if !seen_ids.insert(&widget.id) {
+        Self::validate_widgets(&config.widgets, &mut seen_ids)
+    }
+
+    /// Recursively validate widgets (including children of groups)
+    fn validate_widgets(
+        widgets: &[WidgetConfig],
+        seen_ids: &mut std::collections::HashSet<String>,
+    ) -> Result<(), ConfigError> {
+        for (idx, widget) in widgets.iter().enumerate() {
+            if !seen_ids.insert(widget.id.clone()) {
                 let context = format!(
                     "⚠️  Widget #{} has duplicate ID: '{}'\n\
                      💡 Each widget must have a unique 'id' field.",
                     idx + 1, widget.id
                 );
-                // Create a synthetic error by serializing and deserializing invalid data
                 let err = serde_json::from_str::<()>("\"duplicate_id\"")
                     .unwrap_err();
                 return Err(ConfigError::JsonError { 
                     source: err,
                     context 
                 });
+            }
+            if let Some(children) = &widget.children {
+                Self::validate_widgets(children, seen_ids)?;
             }
         }
         Ok(())
@@ -226,7 +242,7 @@ impl ScreenConfig {
             }
         } else if error_msg.contains("unknown variant") || error_msg.contains("unknown field") {
             context.push_str("💡 Hint: Check for typos in field names or enum values.\n");
-            context.push_str("   Valid widget types: text_entry, text_update, gauge, led, button, slider, chart\n");
+            context.push_str("   Valid widget types: text_entry, text_update, gauge, led, button, slider, chart, select, toggle_button, group\n");
         } else if error_msg.contains("invalid type") {
             context.push_str("💡 Hint: Check that the field has the correct data type (string, number, boolean, etc.)\n");
         }

@@ -20,7 +20,9 @@ pub async fn write_widget(
     State(state): State<AppState>,
     Form(form): Form<PutForm>,
 ) -> Response {
-    let widget = state.config.widgets.iter().find(|w| w.id == widget_id).cloned();
+    let widget = collect_data_widgets(&state.config.widgets)
+        .into_iter()
+        .find(|w| w.id == widget_id);
     match widget {
         None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
         Some(w) => {
@@ -62,6 +64,7 @@ pub mod button;
 pub mod toggle_button;
 pub mod chart;
 pub mod select;
+pub mod group;
 
 // Re-export widget render functions
 pub use text_entry::render_text_entry;
@@ -73,6 +76,23 @@ pub use button::render_button;
 pub use toggle_button::render_toggle_button;
 pub use chart::render_chart;
 pub use select::render_select;
+pub use group::render_group;
+
+/// Recursively collect all data widgets (non-Group) from a widget tree,
+/// flattening children of Group containers so they can each get SSE monitors.
+pub fn collect_data_widgets(widgets: &[WidgetConfig]) -> Vec<WidgetConfig> {
+    let mut result = Vec::new();
+    for w in widgets {
+        if w.widget_type == WidgetType::Group {
+            if let Some(children) = &w.children {
+                result.extend(collect_data_widgets(children));
+            }
+        } else {
+            result.push(w.clone());
+        }
+    }
+    result
+}
 
 /// Dispatch a widget monitor, tagging each HTML fragment with the widget ID.
 /// Used by the multiplexed `/stream/all` SSE endpoint.
@@ -105,6 +125,7 @@ pub fn run_widget_monitor(
         WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor(config, inner_tx),
         WidgetType::Chart        => chart::Chart::run_monitor(config, inner_tx),
         WidgetType::Select       => select::Select::run_monitor(config, inner_tx),
+        WidgetType::Group        => return, // Groups have no PV — nothing to monitor
     }
 }
 
@@ -120,6 +141,7 @@ pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
         WidgetType::ToggleButton => render_toggle_button(widget),
         WidgetType::Chart      => render_chart(widget),
         WidgetType::Select     => render_select(widget),
+        WidgetType::Group      => render_group(widget),
     }
 }
 
@@ -144,7 +166,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                     a href="/" class="back-link" { "← Back to Home" }
                 }
 
-                main class="screen-container" hx-sse="connect:/stream/all" {
+                main class="screen-container" hx-sse=(format!("connect:/stream/screen/{}", config.id)) {
                     @let num_widgets = config.widgets.len();
                     @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
                     div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
@@ -315,6 +337,8 @@ mod tests {
             server: None,
             options: None,
             orientation: None,
+            level: None,
+            children: None,
         }
     }
 

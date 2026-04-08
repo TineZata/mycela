@@ -129,9 +129,9 @@ fn render_button_html(
                 hx-vals=r#"{"value": "1"}"#
                 hx-target="next .status"
                 hx-swap="innerHTML" {
-                @if let Some(src) = icon {
-                    img class="button-icon" src=(src) alt="status";
-                }
+                //@if let Some(src) = icon {
+                //    img class="button-icon" src=(src) alt="status";
+                //}
                 (config.label)
             }
             span class="status" {}

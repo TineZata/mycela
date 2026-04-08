@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "ctrl_sys_widgets=debug,tower_http=debug,axum=trace".into()),
+                .unwrap_or_else(|_| "ctrl_demo_server=debug,ctrl_sys_widgets=debug,tower_http=debug,axum=trace".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -71,7 +71,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to load demo_config.json from any expected location. Try running from project root.");
 
     tracing::info!("✅ Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
-    for (idx, widget) in config.widgets.iter().enumerate() {
+    let data_widgets = widgets::collect_data_widgets(&config.widgets);
+    for (idx, widget) in data_widgets.iter().enumerate() {
         tracing::info!(
             "  Widget {}: id={}, type={:?}, label='{}', pv={}",
             idx, widget.id, widget.widget_type, widget.label, widget.pv_name
@@ -79,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let pv_server = {
-        let widgets_with_server: Vec<_> = config.widgets.iter().filter(|w| w.server.is_some()).collect();
+        let widgets_with_server: Vec<_> = data_widgets.iter().filter(|w| w.server.is_some()).collect();
         if widgets_with_server.is_empty() {
             tracing::info!("No server PVs configured, running in client-only mode");
             Arc::new(Mutex::new(None))
@@ -119,6 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Server-Sent Events for real-time monitoring
         .route("/stream/widget/{name}", get(stream_widget))
         .route("/stream/all", get(stream_all_widgets))
+        .route("/stream/screen/{screen_id}", get(stream_screen_widgets))
         
         // Static files (CSS, JS, images)
         .nest_service("/static", ServeDir::new("static"))
@@ -179,7 +181,9 @@ async fn stream_widget(
 ) -> impl IntoResponse {
     tracing::info!("SSE stream requested for widget: {}", widget_id);
 
-    let Some(config) = state.config.widgets.iter().find(|w| w.id == widget_id).cloned() else {
+    // Search through flattened data widgets (nested group children included)
+    let data_widgets = widgets::collect_data_widgets(&state.config.widgets);
+    let Some(config) = data_widgets.into_iter().find(|w| w.id == widget_id) else {
         tracing::error!("Widget '{}' not found", widget_id);
         let stream: SseStream = Box::pin(async_stream::stream! {
             yield Ok(Event::default().data("<!-- widget not found -->"));
@@ -198,6 +202,13 @@ async fn stream_widget(
         WidgetType::ToggleButton => Box::pin(widgets::toggle_button::ToggleButton::new(config).into_sse_stream()),
         WidgetType::Chart      => Box::pin(widgets::chart::Chart::new(config).into_sse_stream()),
         WidgetType::Select     => Box::pin(widgets::select::Select::new(config).into_sse_stream()),
+        WidgetType::Group      => {
+            // Groups have no SSE stream
+            let stream: SseStream = Box::pin(async_stream::stream! {
+                yield Ok(Event::default().data("<!-- group widget has no stream -->"));
+            });
+            return Sse::new(stream).keep_alive(KeepAlive::default());
+        }
     };
 
     Sse::new(stream).keep_alive(KeepAlive::default())
@@ -215,7 +226,9 @@ async fn stream_all_widgets(
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
 
-    for config in state.config.widgets.iter().cloned() {
+    // Flatten group children so nested data widgets get monitors
+    let data_widgets = widgets::collect_data_widgets(&state.config.widgets);
+    for config in data_widgets {
         let tx = tx.clone();
         let widget_id = config.id.clone();
 
@@ -240,6 +253,63 @@ async fn stream_all_widgets(
             yield Ok(Event::default().event(widget_id).data(html));
         }
         tracing::info!("SSE stream ended normally (all senders dropped)");
+    });
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+/// Screen-specific SSE endpoint — loads the screen config and spawns monitors
+/// for its data widgets (including those nested inside Group containers).
+async fn stream_screen_widgets(
+    Path(screen_id): Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    tracing::info!("SSE stream requested for screen: {}", screen_id);
+
+    let config_path = format!("examples/{}_config.json", screen_id);
+    let config = match ScreenConfig::load(&config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("Failed to load screen config for SSE: {}", e);
+            let stream: SseStream = Box::pin(async_stream::stream! {
+                yield Ok(Event::default().data("<!-- screen config not found -->"));
+            });
+            return Sse::new(stream).keep_alive(KeepAlive::default());
+        }
+    };
+
+    // Set up server PVs for this screen's widgets if we have a running server
+    if let Some(server) = state.pv_server.lock().unwrap().as_ref() {
+        if let Err(e) = setup_server_pvs(server, &config.widgets) {
+            tracing::warn!("Failed to setup server PVs for screen {}: {}", screen_id, e);
+        }
+    }
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
+
+    let data_widgets = widgets::collect_data_widgets(&config.widgets);
+    for widget_config in data_widgets {
+        let tx = tx.clone();
+        let widget_id = widget_config.id.clone();
+
+        tokio::task::spawn_blocking(move || {
+            widgets::run_widget_monitor(widget_config, widget_id, tx);
+        });
+    }
+    drop(tx);
+
+    let stream: SseStream = Box::pin(async_stream::stream! {
+        struct SseDropGuard(String);
+        impl Drop for SseDropGuard {
+            fn drop(&mut self) {
+                tracing::warn!("Screen '{}' SSE stream DROPPED", self.0);
+            }
+        }
+        let _guard = SseDropGuard(screen_id);
+
+        while let Some((widget_id, html)) = rx.recv().await {
+            yield Ok(Event::default().event(widget_id).data(html));
+        }
     });
 
     Sse::new(stream).keep_alive(KeepAlive::default())
@@ -333,6 +403,7 @@ fn widget_type_name(wt: &WidgetType) -> &'static str {
         WidgetType::ToggleButton => "ToggleButton",
         WidgetType::Select       => "Select",
         WidgetType::Chart        => "Chart",
+        WidgetType::Group        => "Group",
     }
 }
 
@@ -341,7 +412,22 @@ fn widget_type_name(wt: &WidgetType) -> &'static str {
 fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
     let mut pairs: Vec<(WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
 
-    for widget in &config.widgets {
+    // Recursively collect data widget references (skip Groups, recurse into children)
+    fn collect_refs<'a>(widgets: &'a [WidgetConfig], out: &mut Vec<&'a WidgetConfig>) {
+        for w in widgets {
+            if w.widget_type == WidgetType::Group {
+                if let Some(children) = &w.children {
+                    collect_refs(children, out);
+                }
+            } else {
+                out.push(w);
+            }
+        }
+    }
+    let mut data_widgets: Vec<&WidgetConfig> = Vec::new();
+    collect_refs(&config.widgets, &mut data_widgets);
+
+    for widget in data_widgets {
         let key = format!("{:?}", widget.widget_type);
         if let Some(entry) = pairs.iter_mut().find(|(t, _, _)| format!("{:?}", t) == key) {
             if entry.2.is_none() {

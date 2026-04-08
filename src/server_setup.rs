@@ -1,7 +1,9 @@
 use crate::config::{ServerConfig, WidgetConfig};
+use crate::widgets::collect_data_widgets;
 
 pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> pvxs_sys::Result<()> {
-    for widget in widgets {
+    let data_widgets = collect_data_widgets(widgets);
+    for widget in &data_widgets {
         if let Some(server_config) = &widget.server {
             match widget.data_type.as_deref() {
                 Some("enum") => {
@@ -11,7 +13,7 @@ pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> 
                         .iter()
                         .map(|s| s.as_str())
                         .collect();
-                    let metadata = pvxs_sys::NTEnumMetadataBuilder::new();
+                    let metadata = build_enum_metadata(server_config);
                     server.create_pv_enum(&widget.pv_name, choices, 0, metadata)?;
                 }
                 _ => {
@@ -40,6 +42,18 @@ pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> 
         }
     }
     Ok(())
+}
+
+fn build_enum_metadata(server_config: &ServerConfig) -> pvxs_sys::NTEnumMetadataBuilder {
+    let severity = server_config.alarm_serverity.as_ref()
+        .map(|s| parse_alarm_severity(s))
+        .unwrap_or(pvxs_sys::AlarmSeverity::NoAlarm);
+    let status = server_config.alarm_status.as_ref()
+        .map(|s| parse_alarm_status(s))
+        .unwrap_or(pvxs_sys::AlarmStatus::NoAlarm);
+
+    pvxs_sys::NTEnumMetadataBuilder::new()
+        .alarm(severity as i32, status as i32, server_config.alarm_message.as_deref().unwrap_or(""))
 }
 
 fn build_pv_metadata(server_config: &ServerConfig) -> pvxs_sys::NTScalarMetadataBuilder {

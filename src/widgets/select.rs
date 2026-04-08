@@ -65,13 +65,23 @@ impl Select {
             return;
         }
 
+        let mut last_html = String::new();
+
         loop {
             match monitor.pop() {
                 Ok(Some(raw)) => {
+                    let current_index = raw.get_field_enum("value.index").unwrap_or(0);
+                    tracing::debug!("[{}] monitor pop => index={}", config.id, current_index);
                     let html = render_inner_connected(&config, &raw).into_string();
-                    if tx.send(html).is_err() {
-                        tracing::info!("[{}] SSE receiver dropped (browser closed connection?)", config.id);
-                        break;
+                    if html != last_html {
+                        tracing::debug!("[{}] HTML changed, sending SSE update", config.id);
+                        last_html = html.clone();
+                        if tx.send(html).is_err() {
+                            tracing::info!("[{}] SSE receiver dropped (browser closed connection?)", config.id);
+                            break;
+                        }
+                    } else {
+                        tracing::debug!("[{}] HTML unchanged, skipping SSE", config.id);
                     }
                 }
                 Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
@@ -114,7 +124,7 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     };
 
     // Enum index currently selected
-    let current_index = raw.get_field_enum("value").unwrap_or(0) as usize;
+    let current_index = raw.get_field_enum("value.index").unwrap_or(0) as usize;
 
     // Choices from value.choices as array of strings
     let choices = raw.get_field_string_array("value.choices").unwrap_or_default();
