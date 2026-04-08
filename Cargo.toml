@@ -15,7 +15,7 @@ path = "test_config_load.rs"
 [dependencies]
 # Web framework
 axum = "0.8.8"
-tokio = { version = "1.50.0", features = ["full"] }
+tokio = { version = "1.51.1", features = ["full"] }
 tower = "0.5.3"
 tower-http = { version = "0.6.8", features = ["fs", "trace", "cors"] }
 
@@ -40,6 +40,12 @@ async-stream = "0.3"
 
 # Time handling
 chrono = "0.4.44"
+
+# Charting (SVG-only backend, minimal deps)
+plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
+
+# Random number generation (for demo simulator)
+rand = "0.10.0"
 
 # EPICS
 pvxs-sys = { path = "../pvxs-sys" }

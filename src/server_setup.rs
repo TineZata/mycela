@@ -1,44 +1,78 @@
 use crate::config::{ServerConfig, WidgetConfig};
 use crate::widgets::collect_data_widgets;
+use std::collections::HashSet;
 
 pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> pvxs_sys::Result<()> {
     let data_widgets = collect_data_widgets(widgets);
+    let mut created: HashSet<String> = HashSet::new();
+
     for widget in &data_widgets {
         if let Some(server_config) = &widget.server {
-            match widget.data_type.as_deref() {
-                Some("enum") => {
-                    tracing::info!("Creating ENUM PV: {}", widget.pv_name);
-                    let choices: Vec<&str> = widget.options.as_deref()
-                        .unwrap_or(&[])
-                        .iter()
-                        .map(|s| s.as_str())
-                        .collect();
-                    let metadata = build_enum_metadata(server_config);
-                    server.create_pv_enum(&widget.pv_name, choices, 0, metadata)?;
-                }
-                _ => {
-                    let metadata = build_pv_metadata(server_config);
-                    match widget.data_type.as_deref() {
-                        Some("double") | Some("float") => {
-                            tracing::info!("Creating DOUBLE PV: {}", widget.pv_name);
-                            server.create_pv_double(&widget.pv_name, 1.0, metadata)?;
-                        }
-                        Some("int32") | Some("int") | Some("integer") | Some("bool") => {
-                            tracing::info!("Creating INT32 PV: {}", widget.pv_name);
-                            server.create_pv_int32(&widget.pv_name, 0, metadata)?
-                        }
-                        Some("string") | None => {
-                            tracing::info!("Creating STRING PV: {}", widget.pv_name);
-                            server.create_pv_string(&widget.pv_name, "", metadata)?;
-                        }
-                        Some(other) => {
-                            tracing::warn!("Unknown data_type '{}' for {}, defaulting to STRING", other, widget.pv_name);
-                            server.create_pv_string(&widget.pv_name, "", metadata)?;
+            if created.insert(widget.pv_name.clone()) {
+                create_widget_pv(server, widget, server_config)?;
+                tracing::info!("✓ Added PV: {}", widget.pv_name);
+            }
+
+            // For multi-series line charts, also create PVs for each extra entry in pv_names.
+            if widget.chart_type.as_deref().unwrap_or("line") == "line" {
+                if let Some(extra_pvs) = &widget.pv_names {
+                    let max_points = widget.max_points.unwrap_or(100);
+                    for extra_name in extra_pvs.iter().take(5) {
+                        if created.insert(extra_name.clone()) {
+                            let meta = build_pv_metadata(server_config);
+                            tracing::info!("Creating DOUBLE ARRAY PV (extra series): {} ({} points)", extra_name, max_points);
+                            server.create_pv_double_array(extra_name, vec![0.0; max_points], meta)?;
+                            tracing::info!("✓ Added extra series PV: {}", extra_name);
                         }
                     }
                 }
             }
-            tracing::info!("✓ Added PV: {}", widget.pv_name);
+        }
+    }
+    Ok(())
+}
+
+fn create_widget_pv(
+    server: &pvxs_sys::Server,
+    widget: &WidgetConfig,
+    server_config: &ServerConfig,
+) -> pvxs_sys::Result<()> {
+    match widget.data_type.as_deref() {
+        Some("enum") => {
+            tracing::info!("Creating ENUM PV: {}", widget.pv_name);
+            let choices: Vec<&str> = widget.options.as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            let metadata = build_enum_metadata(server_config);
+            server.create_pv_enum(&widget.pv_name, choices, 0, metadata)?;
+        }
+        _ => {
+            let metadata = build_pv_metadata(server_config);
+            match widget.data_type.as_deref() {
+                Some("double") | Some("float") => {
+                    tracing::info!("Creating DOUBLE PV: {}", widget.pv_name);
+                    server.create_pv_double(&widget.pv_name, 1.0, metadata)?;
+                }
+                Some("double_array") => {
+                    let max_points = widget.max_points.unwrap_or(100);
+                    tracing::info!("Creating DOUBLE ARRAY PV: {} ({} points)", widget.pv_name, max_points);
+                    server.create_pv_double_array(&widget.pv_name, vec![0.0; max_points], metadata)?;
+                }
+                Some("int32") | Some("int") | Some("integer") | Some("bool") => {
+                    tracing::info!("Creating INT32 PV: {}", widget.pv_name);
+                    server.create_pv_int32(&widget.pv_name, 0, metadata)?
+                }
+                Some("string") | None => {
+                    tracing::info!("Creating STRING PV: {}", widget.pv_name);
+                    server.create_pv_string(&widget.pv_name, "", metadata)?;
+                }
+                Some(other) => {
+                    tracing::warn!("Unknown data_type '{}' for {}, defaulting to STRING", other, widget.pv_name);
+                    server.create_pv_string(&widget.pv_name, "", metadata)?;
+                }
+            }
         }
     }
     Ok(())

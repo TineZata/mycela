@@ -100,25 +100,18 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     let next_val = if is_on { "0" } else { "1" };
 
     let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let icon: Option<&str> = match alarm_severity {
-        1 => Some(super::MINOR_ALARM_SVG),
-        2 => Some(super::MAJOR_ALARM_SVG),
-        3 => Some(super::INVALID_SVG),
-        _ => None,
-    };
 
-    render_toggle_html(config, is_on, next_val, icon, false, &super::build_tooltip(config, raw))
+    render_toggle_html(config, is_on, next_val, false, &super::build_tooltip(config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
-    render_toggle_html(config, false, "0", Some(super::OFFLINE_SVG), true, "")
+    render_toggle_html(config, false, "0", true, "")
 }
 
 fn render_toggle_html(
     config: &WidgetConfig,
     is_on: bool,
     next_val: &str,
-    icon: Option<&str>,
     disabled: bool,
     tooltip: &str,
 ) -> Markup {

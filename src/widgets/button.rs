@@ -96,22 +96,15 @@ impl Button {
 
 fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let icon: Option<&str> = match alarm_severity {
-        1 => Some(super::MINOR_ALARM_SVG),
-        2 => Some(super::MAJOR_ALARM_SVG),
-        3 => Some(super::INVALID_SVG),
-        _ => Some(super::BOLT_SVG),
-    };
-    render_button_html(config, icon, false, &super::build_tooltip(&config, raw))
+    render_button_html(config, false, &super::build_tooltip(&config, raw))
 }
 
 fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
-    render_button_html(config, Some(super::OFFLINE_SVG), true, "")
+    render_button_html(config, true, "")
 }
 
 fn render_button_html(
     config: &WidgetConfig,
-    icon: Option<&str>,
     disabled: bool,
     tooltip: &str,
 ) -> Markup {

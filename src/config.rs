@@ -66,6 +66,24 @@ pub struct WidgetConfig {
     /// Child widgets for Group containers
     #[serde(default)]
     pub children: Option<Vec<WidgetConfig>>,
+    /// Maximum data points for Chart widgets (default: 100)
+    #[serde(default)]
+    pub max_points: Option<usize>,
+    /// Chart type: "line" (default), "histogram", "scatter", "scatter_histogram"
+    #[serde(default)]
+    pub chart_type: Option<String>,
+    /// Additional PV names for multi-series charts (max 5 extra, 6 total)
+    #[serde(default)]
+    pub pv_names: Option<Vec<String>>,
+    /// X-axis label
+    #[serde(default)]
+    pub axis_label_x: Option<String>,
+    /// Y-axis label
+    #[serde(default)]
+    pub axis_label_y: Option<String>,
+    /// Explicit size for Group containers (sets min-width / min-height via inline CSS)
+    #[serde(default)]
+    pub size: Option<WidgetSize>,
 }
 
 /// Server configuration for providing a PV
@@ -139,6 +157,15 @@ pub enum WidgetType {
     Chart,
     Select,
     Group,
+}
+
+/// Explicit container size for Group widgets (applied as inline min-width/min-height)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WidgetSize {
+    #[serde(default)]
+    pub width: Option<String>,
+    #[serde(default)]
+    pub height: Option<String>,
 }
 
 /// Optional widget styling

@@ -249,25 +249,142 @@
       "type": "group",
       "label": "Monitoring",
       "level": 1,
-      "description": "Time-series charts",
+      "description": "Time-series charts, histograms, and scatter plots",
+      "size": { "width": "1000px", "height": "1000px" },
       "children": [
         {
-          "id": "chart_dark",
+          "id": "chart_line_single",
           "pv_name": "demo:temp:sensor",
           "type": "chart",
           "label": "Temperature History",
-          "data_type": "double",
-          "description": "Scrolling time-series chart",
-          "style": { "width": "100%", "height": "auto" }
+          "data_type": "double_array",
+          "chart_type": "line",
+          "max_points": 100,
+          "axis_label_x": "Sample",
+          "axis_label_y": "Temperature (°C)",
+          "description": "Single-series rolling line chart",
+          "style": { "width": "100%", "height": "auto" },
+          "server": {
+            "alarm_serverity": "NONE",
+            "alarm_status": "NO_ALARM",
+            "metadata": {
+              "display": {
+                "limit_low": 15.0,
+                "limit_high": 35.0,
+                "description": "Ambient temperature sensor",
+                "precision": 2,
+                "units": "°C"
+              }
+            }
+          }
         },
         {
-          "id": "chart_light",
-          "pv_name": "demo:temp:sensor",
+          "id": "chart_line_multi",
+          "pv_name": "demo:pressure:sensor",
           "type": "chart",
-          "label": "Temperature History",
-          "data_type": "double",
-          "description": "Scrolling time-series chart",
-          "style": { "width": "100%", "height": "auto" }
+          "label": "Multi-PV Line Chart",
+          "data_type": "double_array",
+          "chart_type": "line",
+          "max_points": 100,
+          "axis_label_x": "Sample",
+          "axis_label_y": "Value",
+          "pv_names": [
+            "demo:flow:sensor",
+            "demo:vibration:sensor"
+          ],
+          "description": "Up to 6 PVs on one line chart",
+          "style": { "width": "100%", "height": "auto" },
+          "server": {
+            "alarm_serverity": "NONE",
+            "alarm_status": "NO_ALARM",
+            "metadata": {
+              "display": {
+                "limit_low": 0.0,
+                "limit_high": 100.0,
+                "description": "Process pressure",
+                "precision": 2,
+                "units": "bar"
+              }
+            }
+          }
+        },
+        {
+          "id": "chart_histogram",
+          "pv_name": "demo:noise:sensor",
+          "type": "chart",
+          "label": "Signal Distribution",
+          "data_type": "double_array",
+          "chart_type": "histogram",
+          "max_points": 200,
+          "axis_label_x": "Amplitude",
+          "axis_label_y": "Count",
+          "description": "Histogram of noise signal distribution",
+          "style": { "width": "100%", "height": "auto" },
+          "server": {
+            "alarm_serverity": "NONE",
+            "alarm_status": "NO_ALARM",
+            "metadata": {
+              "display": {
+                "limit_low": -5.0,
+                "limit_high": 5.0,
+                "description": "ADC noise signal",
+                "precision": 3,
+                "units": "V"
+              }
+            }
+          }
+        },
+        {
+          "id": "chart_scatter",
+          "pv_name": "demo:scatter:xy",
+          "type": "chart",
+          "label": "X vs Y Scatter",
+          "data_type": "double_array",
+          "chart_type": "scatter",
+          "max_points": 80,
+          "axis_label_x": "X Position (mm)",
+          "axis_label_y": "Y Position (mm)",
+          "description": "Scatter plot — interleaved [x0,y0, x1,y1, …] array",
+          "style": { "width": "100%", "height": "auto" },
+          "server": {
+            "alarm_serverity": "NONE",
+            "alarm_status": "NO_ALARM",
+            "metadata": {
+              "display": {
+                "limit_low": -10.0,
+                "limit_high": 10.0,
+                "description": "2D beam position",
+                "precision": 3,
+                "units": "mm"
+              }
+            }
+          }
+        },
+        {
+          "id": "chart_scatter_hist",
+          "pv_name": "demo:scatter2:xy",
+          "type": "chart",
+          "label": "Scatter + X Histogram",
+          "data_type": "double_array",
+          "chart_type": "scatter_histogram",
+          "max_points": 80,
+          "axis_label_x": "Horizontal Pos (mm)",
+          "axis_label_y": "Vertical Pos (mm)",
+          "description": "Scatter plot with X-axis histogram below",
+          "style": { "width": "100%", "height": "auto" },
+          "server": {
+            "alarm_serverity": "NONE",
+            "alarm_status": "NO_ALARM",
+            "metadata": {
+              "display": {
+                "limit_low": -8.0,
+                "limit_high": 8.0,
+                "description": "Beam spot position",
+                "precision": 3,
+                "units": "mm"
+              }
+            }
+          }
         }
       ]
     }

@@ -1,6 +1,7 @@
 mod widgets;
 mod config;
 mod server_setup;
+mod demo_simulator;
 
 use axum::{
     Router,
@@ -89,6 +90,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let server = pvxs_sys::Server::start_from_env()?;
             setup_server_pvs(&server, &config.widgets)?;
             tracing::info!("✅ PVXS server started successfully");
+
+            // Pass a cloneable ServerHandle to the simulator; the Server itself
+            // stays owned by AppState so stop_drop() still works cleanly.
+            demo_simulator::start_demo_simulator(server.handle(), &config.widgets);
+
             Arc::new(Mutex::new(Some(server)))
         }
     };
@@ -334,6 +340,10 @@ async fn start_server(State(state): State<AppState>) -> Response {
 
     match result {
         Ok(Ok(server)) => {
+            // Pass a cloneable ServerHandle to the simulator; the Server itself
+            // stays owned by AppState so stop_drop() still works cleanly.
+            demo_simulator::start_demo_simulator(server.handle(), &state.config.widgets);
+
             *state.pv_server.lock().unwrap() = Some(server);
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
@@ -410,7 +420,9 @@ fn widget_type_name(wt: &WidgetType) -> &'static str {
 /// Render the showcase home page — each widget type in its own section with dark + light mockup cards.
 /// Widget pairing: first occurrence of each type in config → dark card, second → light card.
 fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
-    let mut pairs: Vec<(WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
+    // Each entry: (section_key, widget_type, dark_widget, light_widget)
+    // Chart widgets use their ID as the key so each gets its own section.
+    let mut pairs: Vec<(String, WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
 
     // Recursively collect data widget references (skip Groups, recurse into children)
     fn collect_refs<'a>(widgets: &'a [WidgetConfig], out: &mut Vec<&'a WidgetConfig>) {
@@ -428,13 +440,16 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
     collect_refs(&config.widgets, &mut data_widgets);
 
     for widget in data_widgets {
-        let key = format!("{:?}", widget.widget_type);
-        if let Some(entry) = pairs.iter_mut().find(|(t, _, _)| format!("{:?}", t) == key) {
-            if entry.2.is_none() {
-                entry.2 = Some(widget);
+        let key = match widget.widget_type {
+            WidgetType::Chart => format!("Chart_{}", widget.id),
+            _ => format!("{:?}", widget.widget_type),
+        };
+        if let Some(entry) = pairs.iter_mut().find(|(k, _, _, _)| *k == key) {
+            if entry.3.is_none() {
+                entry.3 = Some(widget);
             }
         } else {
-            pairs.push((widget.widget_type.clone(), widget, None));
+            pairs.push((key, widget.widget_type.clone(), widget, None));
         }
     }
 
@@ -492,7 +507,7 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                         button id="btn-both"  onclick="highlightTheme('both')"  class="active" { "Both" }
                     }
 
-                    @for (wtype, dark_w, light_w) in &pairs {
+                    @for (_key, wtype, dark_w, light_w) in &pairs {
                         section class="widget-section" {
                             div class="section-header" {
                                 span class="widget-type-badge" { (widget_type_name(wtype)) }
@@ -502,27 +517,34 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                                     }
                                 }
                             }
-                            div class="theme-pair" {
+                            div class={"theme-pair" @if *wtype == WidgetType::Chart { " theme-pair--chart" }} {
                                 div class="mockup-card mockup-card--dark" {
                                     div class="mockup-card__titlebar" {
                                         span class="theme-dot" {}
-                                        span { "Dark Theme" }
+                                        // Charts show their label; others show "Dark Theme"
+                                        @if *wtype == WidgetType::Chart {
+                                            span { (dark_w.label) }
+                                        } @else {
+                                            span { "Dark Theme" }
+                                        }
                                     }
                                     div class="mockup-card__screen" data-theme="dark" {
                                         (widgets::render_widget_from_config(dark_w))
                                     }
                                 }
-                                div class="mockup-card mockup-card--light" {
-                                    div class="mockup-card__titlebar" {
-                                        span class="theme-dot" {}
-                                        span { "Light Theme" }
-                                    }
-                                    div class="mockup-card__screen" data-theme="light" {
-                                        @if let Some(lw) = light_w {
-                                            (widgets::render_widget_from_config(lw))
-                                        } @else {
-                                            p style="color:var(--text-secondary);font-size:0.8rem;" {
-                                                "— no light widget configured —"
+                                @if *wtype != WidgetType::Chart {
+                                    div class="mockup-card mockup-card--light" {
+                                        div class="mockup-card__titlebar" {
+                                            span class="theme-dot" {}
+                                            span { "Light Theme" }
+                                        }
+                                        div class="mockup-card__screen" data-theme="light" {
+                                            @if let Some(lw) = light_w {
+                                                (widgets::render_widget_from_config(lw))
+                                            } @else {
+                                                p style="color:var(--text-secondary);font-size:0.8rem;" {
+                                                    "— no light widget configured —"
+                                                }
                                             }
                                         }
                                     }
