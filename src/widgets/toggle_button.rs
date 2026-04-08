@@ -143,9 +143,6 @@ fn render_toggle_html(
                 hx-vals=(format!(r#"{{"value": "{}"}}"#, next_val))
                 hx-target="next .status"
                 hx-swap="innerHTML" {
-                @if let Some(src) = icon {
-                    img class="button-icon" src=(src) alt="status";
-                }
                 (config.label) " — " (state_label)
             }
             span class="status" {}

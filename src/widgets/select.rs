@@ -129,6 +129,8 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
     // Choices from value.choices as array of strings
     let choices = raw.get_field_string_array("value.choices").unwrap_or_default();
     let tooltip = super::build_tooltip(&config, raw);
+    let display_text = choices.get(current_index).map(|s| s.trim().to_string())
+        .unwrap_or_else(|| current_index.to_string());
 
     html! {
         div class="widget-inner" {
@@ -142,18 +144,21 @@ fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
                 @if let Some(src) = icon {
                     img class="select-icon" src=(src) alt="status";
                 }
-                select class=(format!("widget-select {}", alarm_class))
-                    name="value"
-                    hx-post={"/api/widget/" (config.id) "/set"}
-                    hx-trigger="change"
-                    hx-target="next .status"
-                    hx-swap="innerHTML" {
-                    @for (idx, choice) in choices.iter().enumerate() {
-                        option value=(idx) selected[idx == current_index] { (choice.trim()) }
+                div class="select-wrapper" {
+                    select class=(format!("widget-select {}", alarm_class))
+                        name="value"
+                        hx-post={"/api/widget/" (config.id) "/set"}
+                        hx-trigger="change"
+                        hx-target="next .status"
+                        hx-swap="innerHTML" {
+                        @for (idx, choice) in choices.iter().enumerate() {
+                            option value=(idx) selected[idx == current_index] { (choice.trim()) }
+                        }
+                        @if choices.is_empty() {
+                            option value=(current_index) selected { (current_index) }
+                        }
                     }
-                    @if choices.is_empty() {
-                        option value=(current_index) selected { (current_index) }
-                    }
+                    span class="select-display-text" { (display_text) }
                 }
             }
             span class="status" {}
@@ -172,8 +177,11 @@ fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
             label class="widget-label" { (config.label) }
             div class="select-with-icon-container" {
                 img class="select-icon" src=(super::OFFLINE_SVG) alt="offline";
-                select class="widget-select alarm-disconnected" disabled {
-                    option { "--" }
+                div class="select-wrapper" {
+                    select class="widget-select alarm-disconnected" disabled {
+                        option { "--" }
+                    }
+                    span class="select-display-text" { "--" }
                 }
             }
             span class="status" {}
