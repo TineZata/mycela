@@ -45,7 +45,7 @@ chrono = "0.4.44"
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
 
 # Random number generation (for demo simulator)
-rand = "0.10.0"
+rand = "0.10.1"
 
 # EPICS
 pvxs-sys = { path = "../pvxs-sys" }

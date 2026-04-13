@@ -500,13 +500,6 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                 main class="showcase-page" hx-sse="connect:/stream/all" {
                     p class="showcase-description" { (config.description) }
 
-                    div class="theme-toggle-bar" {
-                        span { "Highlight theme:" }
-                        button id="btn-dark"  onclick="highlightTheme('dark')"  { "🌙 Dark" }
-                        button id="btn-light" onclick="highlightTheme('light')" { "☀ Light" }
-                        button id="btn-both"  onclick="highlightTheme('both')"  class="active" { "Both" }
-                    }
-
                     @for (_key, wtype, dark_w, light_w) in &pairs {
                         section class="widget-section" {
                             div class="section-header" {
