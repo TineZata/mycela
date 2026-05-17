@@ -146,6 +146,117 @@ struct ZedResponse {
 
 ---
 
+### Phase 3.5: Visual Widget Builder (Drag & Drop Designer)
+
+**Objective**: Enable users to visually design control system screens by dragging and dropping widgets, inspired by Windows Forms visual designer
+
+#### 3.5.1 Widget Palette & Toolbox
+- Create a visual widget palette sidebar in the webview
+- Available widgets:
+  - **Display Widgets**: Text labels, gauges, charts, indicators
+  - **Control Widgets**: Buttons, sliders, text inputs, dropdown menus
+  - **Container Widgets**: Panels, groups, tabs, grids
+  - **Monitoring Widgets**: PV readbacks, trend plots, alarm displays
+- Each widget shows icon, name, and quick description
+- Drag widgets from palette onto canvas
+
+#### 3.5.2 Canvas & Layout Engine
+- WYSIWYG (What You See Is What You Get) design surface
+- Grid-based or free-form positioning
+- Snap-to-grid for alignment
+- Automatic layout options (flex, grid layout)
+- Real-time preview with actual PV data
+- Undo/redo support for all design operations
+
+#### 3.5.3 Property Inspector
+- When widget selected on canvas, show properties panel
+- Editable properties:
+  - **Common**: Widget type, name/ID, position, size, visible, enabled
+  - **PV Binding**: PV name(s), update frequency, read/write access
+  - **Display**: Format, units, precision, colors, fonts
+  - **Behavior**: On-click actions, hover effects, animations
+  - **Validation**: Min/max ranges, input filters, error messages
+- Live property changes reflected on canvas
+- Property inheritance for widget groups
+
+#### 3.5.4 Data Binding Interface
+- Drag PV names from a PV browser onto widgets
+- Auto-detect compatible widgets for PV type
+- Visual indicator of bound PVs (e.g., color-coded borders)
+- Binding editor for complex mappings:
+  - Formula fields (e.g., `PV1 + PV2 * 2`)
+  - Unit conversions
+  - Conditional display logic
+- PV connection status display
+
+#### 3.5.5 Screen/Layout Management
+- Create multiple named screens/views
+- Switch between screens via tabs or menu
+- Screen properties: name, description, refresh rate
+- Export/import screens as JSON
+- Version control friendly format (JSON/YAML)
+
+#### 3.5.6 Design Persistence
+- Auto-save design to local storage as user edits
+- Periodic save to configuration file
+- Integration with `config.rs`:
+  - Save screen layouts to `demo_config.json`
+  - Load existing configurations into designer
+  - Option to edit config via visual designer
+- Backup/snapshot functionality
+
+#### 3.5.7 Implementation Architecture
+
+**Widget Definition Format** (JSON/TOML):
+```json
+{
+  "id": "control_panel_main",
+  "type": "screen",
+  "title": "Motor Control",
+  "widgets": [
+    {
+      "id": "motor_speed_slider",
+      "type": "slider",
+      "position": { "x": 10, "y": 20 },
+      "size": { "width": 200, "height": 40 },
+      "pv": "IOC:m1.VAL",
+      "min": 0,
+      "max": 100,
+      "unit": "RPM"
+    },
+    {
+      "id": "status_display",
+      "type": "gauge",
+      "position": { "x": 220, "y": 20 },
+      "size": { "width": 150, "height": 150 },
+      "pv": "IOC:m1.RBV",
+      "formula": "value"
+    }
+  ]
+}
+```
+
+**Designer Components** (HTMX + JavaScript):
+- `designer.js` - Canvas manipulation, drag-drop events
+- `widget-palette.html` - Searchable widget list
+- `property-inspector.html` - Dynamic property editor
+- `canvas.html` - Rendering engine for widgets
+
+**Storage & Sync**:
+- Designer state stored in IndexedDB (client-side cache)
+- Server endpoint: `POST /api/screens/{id}` - Save screen design
+- Server endpoint: `GET /api/screens/{id}` - Load screen design
+- Real-time sync with file system via Axum
+
+**Deliverables**:
+- Visual designer webview component
+- Widget registry system (extensible)
+- Screen serialization format
+- Integration with existing `demo_config.json`
+- Documentation: "Creating Screens with the Designer"
+
+---
+
 ### Phase 4: Data Synchronization
 
 **Objective**: Sync EPICS PV data with Zed editor workspace
@@ -312,7 +423,11 @@ struct ZedResponse {
 - [ ] Test webview rendering of existing UI
 - [ ] Basic refresh/reload capability
 
-### Sprint 3: Enhancement (Weeks 5-6)
+### Sprint 3: Widget Designer & Enhancement (Weeks 5-6)
+- [ ] Implement visual widget designer/builder
+- [ ] Widget palette and canvas rendering
+- [ ] Property inspector with data binding UI
+- [ ] Screen persistence and layout management
 - [ ] Context bridge implementation
 - [ ] Status bar integration
 - [ ] Command palette additions
@@ -357,36 +472,45 @@ User opens Zed
 
 ## Success Metrics
 
-1. **Functionality**: All existing features work in Zed extension
-2. **Performance**: Server starts in <2 seconds; UI responsive
-3. **User Experience**: Installation and setup within 5 minutes
-4. **Adoption**: 100+ installs in first month (stretch: 500+)
-5. **Stability**: <1% crash rate in production
-6. **Documentation**: Complete with examples and troubleshooting
+1. **Functionality**: All existing features work in Zed extension + visual widget designer
+2. **Designer UX**: Users can create a complete control screen in <10 minutes without coding
+3. **Performance**: Server starts in <2 seconds; UI responsive; canvas renders 50+ widgets smoothly
+4. **User Experience**: Installation and setup within 5 minutes; designer intuitive for Windows Forms users
+5. **Adoption**: 100+ installs in first month (stretch: 500+)
+6. **Stability**: <1% crash rate in production
+7. **Documentation**: Complete with examples, tutorials, and troubleshooting; designer user guide included
 
 ---
 
 ## Future Enhancements (Post-MVP)
 
-- [ ] Workspace integration: PV references in code
-- [ ] Custom widget designer (drag & drop)
+- [ ] Advanced theme customization engine (custom CSS/styling)
 - [ ] Historical data visualization/archiving
 - [ ] Alarm notifications in IDE
 - [ ] Multi-extension coordination
 - [ ] Plugin marketplace for custom widgets
-- [ ] VCS integration (track PV changes)
-- [ ] Collaborative sessions (multiple users)
+- [ ] Custom widget development toolkit (SDKs for 3rd-party widgets)
+- [ ] VCS integration (track PV changes and screen designs)
+- [ ] Collaborative sessions (multiple users editing screens)
+- [ ] Automated testing framework for control screens
+- [ ] Performance profiling dashboard
+- [ ] Mobile companion app (remote screen viewing)
+- [ ] AI-assisted screen layout suggestions
+- [ ] Integration with EPICS alarm handler
+- [ ] Advanced formula editor with validation
+- [ ] Screen templates library for common patterns
 
 ---
 
 ## Conclusion
 
-Integrating the EPICS Control System UI into Zed as a standalone extension provides a powerful workflow where engineers can monitor and control systems directly within their editor. By keeping the existing Axum + HTMX stack and adding a thin webview integration layer, we achieve:
+Integrating the EPICS Control System UI into Zed as a standalone extension with a visual widget designer provides a powerful workflow where engineers can monitor and control systems directly within their editor. The drag-and-drop widget builder, inspired by Windows Forms visual design, enables both developers and control system engineers to create custom screens without coding. By keeping the existing Axum + HTMX stack and adding a thin webview integration layer with an intuitive designer, we achieve:
 
 ✅ **Minimal refactoring** - Reuse 95% of existing code  
 ✅ **Maximum compatibility** - Works with all current features  
 ✅ **Native IDE experience** - Seamless Zed integration  
+✅ **Easy screen design** - Visual drag-and-drop builder for non-programmers  
 ✅ **Easy distribution** - Simple installation via registry  
 ✅ **Maintainability** - Clear separation of concerns  
 
-This approach validates Rust + HTMX as a viable full-stack framework for both traditional web apps and modern IDE extensions.
+This approach validates Rust + HTMX as a viable full-stack framework for both traditional web apps and modern IDE extensions, combined with visual design paradigms that empower domain experts to build sophisticated control interfaces.
