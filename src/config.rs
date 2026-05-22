@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+﻿use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fmt;
 
@@ -37,23 +37,116 @@ pub struct ScreenConfig {
     pub widgets: Vec<WidgetConfig>,
 }
 
+// â”€â”€â”€ Protocol configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+/// Protocol-specific channel configuration.
+///
+/// Uses serde's internally-tagged enum so JSON looks like:
+/// ```json
+/// { "type": "epics-pva", "pv_name": "demo:double", ... }
+/// { "type": "modbus-tcp", "host": "127.0.0.1", "register": 1000, ... }
+/// ```
+/// Adding a new protocol = one new enum variant + struct, no changes to WidgetConfig.
+/// 
+/// This enum is extensible because new protocols will be added over time, 
+/// therefore is use will prevent match statments lacking a wildcard arm.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum ProtocolConfig {
+    EpicsPva(EpicsPvaConfig),
+    ModbusTcp(ModbusTCPConfig),
+}
+
+/// EPICS Process Variable Access channel configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EpicsPvaConfig {
+    /// EPICS PV name (e.g. "demo:double")
+    pub pv_name: String,
+    /// Optional embedded PVXS server PV definition (creates the PV on start-up)
+    #[serde(default)]
+    pub server: Option<ServerConfig>,
+    /// Extra PV names for multi-series line charts (max 5 additional, 6 total)
+    #[serde(default)]
+    pub pv_names: Option<Vec<String>>,
+}
+
+impl EpicsPvaConfig {
+    /// All PV names for this widget (primary + up to 5 extra series for charts).
+    pub fn series_pvs(&self) -> Vec<String> {
+        let mut pvs = vec![self.pv_name.clone()];
+        if let Some(extras) = &self.pv_names {
+            pvs.extend(extras.iter().take(5).cloned());
+        }
+        pvs
+    }
+}
+
+/// Modbus TCP channel configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModbusTCPConfig {
+    /// Modbus server hostname or IP address
+    pub host: String,
+    /// TCP port (default: 502)
+    #[serde(default = "default_modbus_port")]
+    pub port: u16,
+    /// Modbus unit ID (default: 1)
+    #[serde(default = "default_unit_id", alias = "slave_id")]
+    pub unit_id: u8,
+    /// Starting register address
+    pub register: u16,
+    /// Register type
+    pub register_type: ModbusRegisterType,
+    /// Minimum poll interval in milliseconds (default: 500); actual rate may be lower under load
+    #[serde(default = "default_min_poll_interval_ms", alias = "poll_interval_ms")]
+    pub min_poll_interval_ms: u64,
+    /// Scale factor applied to the raw register value: physical = raw * scale + offset
+    #[serde(default = "default_scale")]
+    pub scale: f64,
+    /// Offset applied after scaling: physical = raw * scale + offset
+    #[serde(default = "default_offset")]
+    pub offset: f64,
+    /// Number of 16-bit registers to read (1 = u16, 2 = f32/u32 big-endian)
+    #[serde(default = "default_word_count")]
+    pub word_count: u8,
+}
+
+fn default_modbus_port() -> u16 { 502 }
+fn default_unit_id() -> u8 { 1 }
+fn default_min_poll_interval_ms() -> u64 { 500 }
+fn default_scale() -> f64 { 1.0 }
+fn default_offset() -> f64 { 0.0 }
+fn default_word_count() -> u8 { 1 }
+
+/// Modbus register / coil type.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ModbusRegisterType {
+    HoldingRegister,
+    InputRegister,
+    Coil,
+    DiscreteInput,
+}
+
+// â”€â”€â”€ Widget configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 /// Individual widget configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WidgetConfig {
     pub id: String,
-    #[serde(default)]
-    pub pv_name: String,
     #[serde(rename = "type")]
     pub widget_type: WidgetType,
     pub label: String,
+    /// Protocol and channel address for this widget.
+    /// Required for all data widgets (everything except Group containers).
+    #[serde(default)]
+    pub protocol: Option<ProtocolConfig>,
     #[serde(default)]
     pub data_type: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
     pub style: Option<WidgetStyle>,
-    #[serde(default)]
-    pub server: Option<ServerConfig>,
     /// Enum choice labels for Select widgets backed by enum PVs
     #[serde(default)]
     pub options: Option<Vec<String>>,
@@ -72,9 +165,6 @@ pub struct WidgetConfig {
     /// Chart type: "line" (default), "histogram", "scatter", "scatter_histogram"
     #[serde(default)]
     pub chart_type: Option<String>,
-    /// Additional PV names for multi-series charts (max 5 extra, 6 total)
-    #[serde(default)]
-    pub pv_names: Option<Vec<String>>,
     /// X-axis label
     #[serde(default)]
     pub axis_label_x: Option<String>,
@@ -84,9 +174,44 @@ pub struct WidgetConfig {
     /// Explicit size for Group containers (sets min-width / min-height via inline CSS)
     #[serde(default)]
     pub size: Option<WidgetSize>,
+    /// Widget-level default metadata (display limits, units, precision, alarm bands).
+    /// Used as fallback when the protocol backend has not yet delivered its own metadata
+    /// (e.g. EPICS PVA before the first monitor update) and as the primary metadata
+    /// source for protocols that carry no metadata themselves (e.g. Modbus TCP).
+    #[serde(default)]
+    pub metadata: Option<PvMetadata>,
 }
 
-/// Server configuration for providing a PV
+impl WidgetConfig {
+    /// Returns a human-readable channel address for logging and the `data-ch` DOM attribute.
+    pub fn channel_address(&self) -> String {
+        match &self.protocol {
+            Some(ProtocolConfig::EpicsPva(e)) => e.pv_name.clone(),
+            Some(ProtocolConfig::ModbusTcp(m)) => {
+                format!("modbus-tcp://{}:{}/reg{}", m.host, m.port, m.register)
+            }
+            None => String::new(),
+        }
+    }
+
+    /// Returns the `EpicsPvaConfig` if this widget uses the `epics-pva` protocol.
+    pub fn epics_pva(&self) -> Option<&EpicsPvaConfig> {
+        match &self.protocol {
+            Some(ProtocolConfig::EpicsPva(e)) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Returns the `ModbusTCPConfig` if this widget uses the `modbus-tcp` protocol.
+    pub fn modbus_tcp(&self) -> Option<&ModbusTCPConfig> {
+        match &self.protocol {
+            Some(ProtocolConfig::ModbusTcp(m)) => Some(m),
+            _ => None,
+        }
+    }
+}
+
+/// Server configuration for providing an EPICS PV (lives inside `EpicsPvaConfig.server`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     #[serde(default)]
@@ -141,6 +266,27 @@ pub struct AlarmMetadata {
     pub high_warning_severity: String,
     pub high_alarm_severity: String,
     pub hysteresis: i32,
+}
+
+impl AlarmMetadata {
+    fn severity_int(s: &str) -> i32 {
+        match s { "MAJOR" => 2, "MINOR" => 1, _ => 0 }
+    }
+
+    /// Compute alarm severity (0=none, 1=MINOR, 2=MAJOR) for a given scalar value.
+    pub fn compute_severity(&self, value: f64) -> i32 {
+        if value < self.low_alarm_limit {
+            Self::severity_int(&self.low_alarm_severity)
+        } else if value > self.high_alarm_limit {
+            Self::severity_int(&self.high_alarm_severity)
+        } else if value < self.low_warning_limit {
+            Self::severity_int(&self.low_warning_severity)
+        } else if value > self.high_warning_limit {
+            Self::severity_int(&self.high_warning_severity)
+        } else {
+            0
+        }
+    }
 }
 
 /// Widget type enumeration
@@ -198,7 +344,7 @@ impl ScreenConfig {
     }
     
     /// Validate that the configuration has all required data
-    fn validate_config(config: &ScreenConfig) -> Result<(), ConfigError> {
+    pub(crate) fn validate_config(config: &ScreenConfig) -> Result<(), ConfigError> {
         let mut seen_ids = std::collections::HashSet::new();
         Self::validate_widgets(&config.widgets, &mut seen_ids)
     }
@@ -211,8 +357,8 @@ impl ScreenConfig {
         for (idx, widget) in widgets.iter().enumerate() {
             if !seen_ids.insert(widget.id.clone()) {
                 let context = format!(
-                    "⚠️  Widget #{} has duplicate ID: '{}'\n\
-                     💡 Each widget must have a unique 'id' field.",
+                    "âš ï¸  Widget #{} has duplicate ID: '{}'\n\
+                     ðŸ’¡ Each widget must have a unique 'id' field.",
                     idx + 1, widget.id
                 );
                 let err = serde_json::from_str::<()>("\"duplicate_id\"")
@@ -231,12 +377,12 @@ impl ScreenConfig {
     
     /// Build a helpful error context message
     fn build_error_context(error: &serde_json::Error, content: &str, path: &str) -> String {
-        let mut context = format!("📄 File: {}\n", path);
+        let mut context = format!("ðŸ“„ File: {}\n", path);
         
         // Try to determine what's wrong and where
         let line = error.line();
         if line > 0 {
-            context.push_str(&format!("📍 Line: {}, Column: {}\n\n", line, error.column()));
+            context.push_str(&format!("ðŸ“ Line: {}, Column: {}\n\n", line, error.column()));
             
             // Show the problematic line and surrounding context
             let lines: Vec<&str> = content.lines().collect();
@@ -247,7 +393,7 @@ impl ScreenConfig {
             for (i, line_content) in lines[start..end].iter().enumerate() {
                 let line_num = start + i + 1;
                 if line_num == line {
-                    context.push_str(&format!("  ➤ {}: {}\n", line_num, line_content));
+                    context.push_str(&format!("  âž¤ {}: {}\n", line_num, line_content));
                 } else {
                     context.push_str(&format!("    {}: {}\n", line_num, line_content));
                 }
@@ -257,21 +403,21 @@ impl ScreenConfig {
         
         // Add helpful hints based on error message
         let error_msg = error.to_string();
-        context.push_str("❌ Error: ");
+        context.push_str("âŒ Error: ");
         context.push_str(&error_msg);
         context.push_str("\n\n");
         
         if error_msg.contains("missing field") {
             if let Some(field_name) = Self::extract_field_name(&error_msg) {
-                context.push_str("💡 Hint: ");
+                context.push_str("ðŸ’¡ Hint: ");
                 context.push_str(&Self::get_field_hint(&field_name));
                 context.push_str("\n");
             }
         } else if error_msg.contains("unknown variant") || error_msg.contains("unknown field") {
-            context.push_str("💡 Hint: Check for typos in field names or enum values.\n");
+            context.push_str("ðŸ’¡ Hint: Check for typos in field names or enum values.\n");
             context.push_str("   Valid widget types: text_entry, text_update, gauge, led, button, slider, chart, select, toggle_button, group\n");
         } else if error_msg.contains("invalid type") {
-            context.push_str("💡 Hint: Check that the field has the correct data type (string, number, boolean, etc.)\n");
+            context.push_str("ðŸ’¡ Hint: Check that the field has the correct data type (string, number, boolean, etc.)\n");
         }
         
         context
@@ -293,12 +439,15 @@ impl ScreenConfig {
     fn get_field_hint(field_name: &str) -> String {
         match field_name {
             "id" => "Each widget must have a unique 'id' field (string).".to_string(),
-            "pv_name" => "Each widget must have a 'pv_name' field specifying the EPICS PV (string).".to_string(),
-            "type" => "Each widget must have a 'type' field. Valid types: text_entry, text_update, gauge, led, button, slider, chart".to_string(),
+            "type" => "Each widget must have a 'type' field. Valid types: text_entry, text_update, gauge, led, button, slider, chart, select, toggle_button, group".to_string(),
             "label" => "Each widget must have a 'label' field for display (string).".to_string(),
             "title" => "The config root must have a 'title' field (string).".to_string(),
             "description" => "The config root must have a 'description' field (string).".to_string(),
             "widgets" => "The config root must have a 'widgets' array containing widget configurations.".to_string(),
+            "pv_name" => "Inside an 'epics-pva' protocol block, 'pv_name' must be set to the EPICS PV name.".to_string(),
+            "host" => "Inside a 'modbus' protocol block, 'host' must be set to the device IP/hostname.".to_string(),
+            "register" => "Inside a 'modbus' protocol block, 'register' must be the register address (u16).".to_string(),
+            "register_type" => "Inside a 'modbus' protocol block, 'register_type' must be one of: holding_register, input_register, coil, discrete_input.".to_string(),
             _ => format!("The field '{}' is required but missing.", field_name),
         }
     }
@@ -310,3 +459,9 @@ impl ScreenConfig {
         Ok(())
     }
 }
+
+// â”€â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+#[cfg(test)]
+#[path = "tests/config.rs"]
+mod tests;

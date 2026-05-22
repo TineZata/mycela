@@ -2,15 +2,14 @@
 name = "ctrl-sys-widgets"
 version = "0.1.0"
 edition = "2021"
-default-run = "ctrl-demo-server"
-
-[[bin]]
-name = "ctrl-demo-server"
-path = "src/main.rs"
 
 [[bin]]
 name = "test-config-load"
 path = "test_config_load.rs"
+
+[[example]]
+name = "demo_server"
+path = "examples/demo_server/main.rs"
 
 [dependencies]
 # Web framework
@@ -44,12 +43,15 @@ chrono = "0.4.44"
 # Charting (SVG-only backend, minimal deps)
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
 
-# Random number generation (for demo simulator)
-rand = "0.10.1"
-
 # EPICS
 pvxs-sys = { path = "../pvxs-sys" }
 # pvxs-sys = "0.1.1"
+
+# Modbus
+tokio-modbus = { version = "0.17.0", features = ["tcp"] }
+
+[dev-dependencies]
+rand = "0.10.1"
 
 [profile.release]
 opt-level = "z"

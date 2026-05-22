@@ -1,6 +1,8 @@
-use maud::{html, Markup};
+﻿use maud::{html, Markup};
+use std::sync::Arc;
+use futures::StreamExt;
+use crate::channel::{ChannelContext, ChannelEvent, ChannelValue};
 use crate::config::WidgetConfig;
-use pvxs_sys::{Context, Value, MonitorEvent};
 
 pub struct Button {
     config: WidgetConfig,
@@ -13,14 +15,14 @@ impl Button {
 
     pub fn into_sse_stream(
         self,
+        ctx: Arc<ChannelContext>,
     ) -> impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>
            + Send
            + 'static {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        let config = std::sync::Arc::new(self.config);
-        let config_thread = config.clone();
+        let config = Arc::new(self.config);
 
-        tokio::task::spawn_blocking(move || Self::run_monitor(config_thread, tx));
+        tokio::spawn(Self::run_monitor_async(config.clone(), ctx, tx));
 
         async_stream::stream! {
             yield Ok(axum::response::sse::Event::default().data(
@@ -33,73 +35,29 @@ impl Button {
         }
     }
 
-    pub(crate) fn run_monitor(
-        config: std::sync::Arc<WidgetConfig>,
+    pub(crate) async fn run_monitor_async(
+        config: Arc<WidgetConfig>,
+        ctx: Arc<ChannelContext>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
-        tracing::info!("Button monitor starting for: {}", config.pv_name);
-
-        let mut ctx = match Context::from_env() {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config).into_string());
-                return;
-            }
-        };
-
-        let mut monitor = match ctx
-            .monitor_builder(&config.pv_name)
-            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-        {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config).into_string());
-                return;
-            }
-        };
-
-        if let Err(e) = monitor.start() {
-            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
-            return;
+        let mut stream = crate::channel::channel_stream(config.clone(), ctx);
+        while let Some(event) = stream.next().await {
+            let html = match event {
+                ChannelEvent::Value(cv)          => render_inner_connected(&config, &cv).into_string(),
+                ChannelEvent::Disconnected(_)
+                | ChannelEvent::Error(_)         => render_inner_disconnected(&config).into_string(),
+                ChannelEvent::Connected          => continue,
+            };
+            if tx.send(html).is_err() { break; }
         }
-
-        loop {
-            match monitor.pop() {
-                Ok(Some(raw)) => {
-                    let html = render_inner_connected(&config, &raw).into_string();
-                    if tx.send(html).is_err() { break; }
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                Err(MonitorEvent::Connected(msg)) => {
-                    tracing::info!("Button {}: connected - {}", config.pv_name, msg);
-                }
-                Err(MonitorEvent::Disconnected(msg)) => {
-                    tracing::warn!("Button {}: disconnected - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                }
-                Err(MonitorEvent::Finished(msg)) => {
-                    tracing::info!("Button {}: finished - {}", config.pv_name, msg);
-                    break;
-                }
-                Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                    tracing::error!("Button {}: error - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                }
-            }
-        }
-
-        tracing::info!("Button monitor stopped for: {}", config.pv_name);
     }
 }
 
-fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
-    let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    render_button_html(config, false, &super::build_tooltip(&config, raw))
+pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+    render_button_html(config, false, &super::build_tooltip(config, cv))
 }
 
-fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_button_html(config, true, "")
 }
 
@@ -138,10 +96,14 @@ pub fn render_button(widget: &WidgetConfig) -> Markup {
     html! {
         div style=[super::widget_container_style(widget)]
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name)
+            data-ch=(widget.channel_address())
             hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget))
         }
     }
 }
 
+
+#[cfg(test)]
+#[path = "tests/button.rs"]
+mod tests;

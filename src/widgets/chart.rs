@@ -1,9 +1,9 @@
 use maud::{html, Markup, PreEscaped};
+use std::sync::Arc;
+use futures::StreamExt;
+use crate::channel::{ChannelContext, ChannelEvent, ChannelValue};
 use crate::config::WidgetConfig;
-use pvxs_sys::{Context, Value, MonitorEvent};
 use plotters::prelude::*;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 // ─── Chart colours (dark-theme friendly) ────────────────────────────────────
 
@@ -439,27 +439,7 @@ fn render_scatter_histogram(
 
 // ─── Widget struct ──────────────────────────────────────────────────────────
 
-/// Lightweight snapshot of primary-PV metadata (Value is not Clone/Send).
-#[derive(Default, Clone)]
-struct PrimaryMeta {
-    alarm_severity: i32,
-    description: String,
-    units: String,
-    limit_lo: f64,
-    limit_hi: f64,
-}
-
-impl PrimaryMeta {
-    fn from_value(raw: &Value) -> Self {
-        Self {
-            alarm_severity: raw.get_field_int32("alarm.severity").unwrap_or(0),
-            description: raw.get_field_string("display.description").unwrap_or_default(),
-            units: raw.get_field_string("display.units").unwrap_or_default(),
-            limit_lo: raw.get_field_double("display.limitLow").unwrap_or(0.0),
-            limit_hi: raw.get_field_double("display.limitHigh").unwrap_or(0.0),
-        }
-    }
-}
+// ─── Widget struct ──────────────────────────────────────────────────────────
 
 pub struct Chart {
     config: WidgetConfig,
@@ -472,14 +452,14 @@ impl Chart {
 
     pub fn into_sse_stream(
         self,
+        ctx: Arc<ChannelContext>,
     ) -> impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>
            + Send
            + 'static {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        let config = std::sync::Arc::new(self.config);
-        let config_thread = config.clone();
+        let config = Arc::new(self.config);
 
-        tokio::task::spawn_blocking(move || Self::run_monitor(config_thread, tx));
+        tokio::spawn(Self::run_monitor_async(config.clone(), ctx, tx));
 
         async_stream::stream! {
             yield Ok(axum::response::sse::Event::default().data(
@@ -492,169 +472,41 @@ impl Chart {
         }
     }
 
-    pub(crate) fn run_monitor(
-        config: std::sync::Arc<WidgetConfig>,
+    pub(crate) async fn run_monitor_async(
+        config: Arc<WidgetConfig>,
+        ctx: Arc<ChannelContext>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
-        // Multi-series line chart: each PV needs its own concurrent monitor.
-        let chart_type = config.chart_type.as_deref().unwrap_or("line");
-        let all_pvs = collect_series_pvs(&config);
-        if chart_type == "line" && all_pvs.len() > 1 {
-            Self::run_monitor_multi(config, all_pvs, tx);
-            return;
+        let mut stream = crate::channel::channel_stream(config.clone(), ctx);
+        while let Some(event) = stream.next().await {
+            let html = match event {
+                ChannelEvent::Value(cv)          => render_inner_connected(&config, &cv).into_string(),
+                ChannelEvent::Disconnected(_)
+                | ChannelEvent::Error(_)         => render_inner_disconnected(&config).into_string(),
+                ChannelEvent::Connected          => continue,
+            };
+            if tx.send(html).is_err() { break; }
         }
-
-        tracing::info!("Chart monitor starting for: {}", config.pv_name);
-
-        let mut ctx = match Context::from_env() {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config).into_string());
-                return;
-            }
-        };
-
-        let mut monitor = match ctx
-            .monitor_builder(&config.pv_name)
-            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-        {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config).into_string());
-                return;
-            }
-        };
-
-        if let Err(e) = monitor.start() {
-            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
-            return;
-        }
-
-        loop {
-            match monitor.pop() {
-                Ok(Some(raw)) => {
-                    let html = render_inner_connected(&config, &raw).into_string();
-                    if tx.send(html).is_err() { break; }
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                Err(MonitorEvent::Connected(msg)) => {
-                    tracing::info!("Chart {}: connected - {}", config.pv_name, msg);
-                }
-                Err(MonitorEvent::Disconnected(msg)) => {
-                    tracing::warn!("Chart {}: disconnected - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                }
-                Err(MonitorEvent::Finished(msg)) => {
-                    tracing::info!("Chart {}: finished - {}", config.pv_name, msg);
-                    break;
-                }
-                Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                    tracing::error!("Chart {}: error - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                }
-            }
-        }
-
-        tracing::info!("Chart monitor stopped for: {}", config.pv_name);
-    }
-
-    /// Monitor every PV concurrently, re-rendering the chart whenever any series updates.
-    fn run_monitor_multi(
-        config: std::sync::Arc<WidgetConfig>,
-        all_pvs: Vec<String>,
-        tx: tokio::sync::mpsc::UnboundedSender<String>,
-    ) {
-        tracing::info!("Chart multi-series monitor starting for {} PVs", all_pvs.len());
-
-        // Shared state: latest data per PV name + metadata snapshot from primary PV.
-        type SharedState = Arc<Mutex<(HashMap<String, Vec<f64>>, PrimaryMeta)>>;
-        let state: SharedState = Arc::new(Mutex::new((HashMap::new(), PrimaryMeta::default())));
-
-        let handles: Vec<_> = all_pvs.iter().cloned().enumerate().map(|(idx, pv_name)| {
-            let config    = config.clone();
-            let all_pvs   = all_pvs.clone();
-            let state     = state.clone();
-            let tx        = tx.clone();
-            let is_primary = idx == 0;
-
-            std::thread::spawn(move || {
-                let mut ctx = match Context::from_env() {
-                    Ok(c) => c,
-                    Err(e) => {
-                        tracing::error!("Multi-monitor: Context failed for {}: {}", pv_name, e);
-                        return;
-                    }
-                };
-
-                let mut monitor = match ctx
-                    .monitor_builder(&pv_name)
-                    .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-                {
-                    Ok(m) => m,
-                    Err(e) => {
-                        tracing::error!("Multi-monitor: Monitor failed for {}: {}", pv_name, e);
-                        return;
-                    }
-                };
-
-                if let Err(e) = monitor.start() {
-                    tracing::error!("Multi-monitor: Start failed for {}: {}", pv_name, e);
-                    return;
-                }
-
-                loop {
-                    match monitor.pop() {
-                        Ok(Some(raw)) => {
-                            if let Ok(arr) = raw.get_field_double_array("value") {
-                                let mut guard = state.lock().unwrap();
-                                guard.0.insert(pv_name.clone(), arr);
-                                if is_primary {
-                                    guard.1 = PrimaryMeta::from_value(&raw);
-                                }
-                                let html = render_inner_connected_multi(
-                                    &config, &guard.0, &all_pvs, &guard.1,
-                                ).into_string();
-                                drop(guard);
-                                if tx.send(html).is_err() { break; }
-                            }
-                        }
-                        Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                        Err(MonitorEvent::Connected(msg)) => {
-                            tracing::info!("Multi-monitor {}: connected - {}", pv_name, msg);
-                        }
-                        Err(MonitorEvent::Disconnected(msg)) => {
-                            tracing::warn!("Multi-monitor {}: disconnected - {}", pv_name, msg);
-                            if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                        }
-                        Err(MonitorEvent::Finished(msg)) => {
-                            tracing::info!("Multi-monitor {}: finished - {}", pv_name, msg);
-                            break;
-                        }
-                        Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                            tracing::error!("Multi-monitor {}: error - {}", pv_name, msg);
-                            if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                        }
-                    }
-                }
-                tracing::info!("Multi-monitor stopped for: {}", pv_name);
-            })
-        }).collect();
-
-        for h in handles { let _ = h.join(); }
     }
 }
 
 // ─── Tooltip helpers ─────────────────────────────────────────────────────────
 
 /// Build a chart-specific tooltip that lists every PV and which axis/series it maps to.
-fn build_chart_tooltip(config: &WidgetConfig, raw: &Value) -> String {
+fn build_chart_tooltip(config: &WidgetConfig, raw: &ChannelValue) -> String {
+    use crate::config::ProtocolConfig;
     let chart_type = config.chart_type.as_deref().unwrap_or("line");
     let x_label = config.axis_label_x.as_deref().unwrap_or("").to_string();
     let y_label = config.axis_label_y.as_deref().unwrap_or("").to_string();
 
     let mut t = String::new();
+
+    let protocol_label = match &config.protocol {
+        Some(ProtocolConfig::EpicsPva(_))  => "EPICS PVA",
+        Some(ProtocolConfig::ModbusTcp(_)) => "Modbus TCP",
+        None                               => "None",
+    };
+    t.push_str(&format!("Protocol: {}\n", protocol_label));
 
     // Chart type line
     let type_str = match chart_type {
@@ -675,15 +527,19 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &Value) -> String {
     match chart_type {
         "scatter" | "scatter_histogram" => {
             // pv_name → X axis, first name in pv_names → Y axis
-            t.push_str(&format!("X data:  {}\n", config.pv_name));
-            if let Some(names) = &config.pv_names {
-                if let Some(y_pv) = names.first() {
-                    t.push_str(&format!("Y data:  {}\n", y_pv));
+            if let Some(epics) = config.epics_pva() {
+                t.push_str(&format!("X data:  {}\n", epics.pv_name));
+                if let Some(names) = &epics.pv_names {
+                    if let Some(y_pv) = names.first() {
+                        t.push_str(&format!("Y data:  {}\n", y_pv));
+                    }
                 }
+            } else {
+                t.push_str(&format!("Channel: {}\n", config.channel_address()));
             }
         }
         "histogram" => {
-            t.push_str(&format!("Data PV: {}\n", config.pv_name));
+            t.push_str(&format!("Data PV: {}\n", config.channel_address()));
         }
         _ => {
             // Line chart — list all series PVs
@@ -694,176 +550,111 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &Value) -> String {
         }
     }
 
-    // Standard PV metadata (from the primary PV's Value)
+    // Standard PV metadata (from the normalised ChannelValue fields)
     t.push('\n');
-    if let Ok(v) = raw.get_field_string("display.description") {
-        if !v.is_empty() { t.push_str(&format!("{}\n", v)); }
+    if !raw.primary_meta.description.is_empty() {
+        t.push_str(&format!("{}\n", raw.primary_meta.description));
     }
-    if let Ok(v) = raw.get_field_string("display.units") {
-        if !v.is_empty() { t.push_str(&format!("Units: {}\n", v)); }
+    if !raw.units.is_empty() {
+        t.push_str(&format!("Units: {}\n", raw.units));
     }
-    if let Ok(lo) = raw.get_field_double("display.limitLow") {
-        if let Ok(hi) = raw.get_field_double("display.limitHigh") {
-            t.push_str(&format!("Display range: {:.2} – {:.2}\n", lo, hi));
-        }
+    if raw.display_low != 0.0 || raw.display_high != 0.0 {
+        t.push_str(&format!("Display range: {:.2} – {:.2}\n", raw.display_low, raw.display_high));
     }
 
-    let severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let sev_str = match pvxs_sys::AlarmSeverity::from(severity) {
-        pvxs_sys::AlarmSeverity::NoAlarm => "No Alarm",
-        pvxs_sys::AlarmSeverity::Minor   => "Minor",
-        pvxs_sys::AlarmSeverity::Major   => "Major",
-        pvxs_sys::AlarmSeverity::Invalid => "Invalid",
-        _                                => "Unknown",
+    let sev_str = match raw.alarm_severity {
+        0 => "No Alarm",
+        1 => "Minor",
+        2 => "Major",
+        3 => "Invalid",
+        _ => "Unknown",
     };
     t.push_str(&format!("Alarm: {}\n", sev_str));
 
     t.trim_end().to_string()
 }
 
-/// Collect all PV names for a line chart (primary + up to 5 extras).
+/// Collect all PV names for a multi-series line chart (primary + extras from EpicsPva config).
 fn collect_series_pvs(config: &WidgetConfig) -> Vec<String> {
-    let mut pvs = vec![config.pv_name.clone()];
-    if let Some(extra) = &config.pv_names {
-        for pv in extra.iter().take(5) {
-            pvs.push(pv.clone());
-        }
+    use crate::config::ProtocolConfig;
+    match &config.protocol {
+        Some(ProtocolConfig::EpicsPva(e)) => e.series_pvs(),
+        _ => Vec::new(),
     }
-    pvs
 }
 
-// ─── HTML rendering helpers ─────────────────────────────────────────────────
-
-fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
-    let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let alarm_class = super::alarm_severity_class(alarm_severity);
-    let icon: Option<&str> = match alarm_severity {
+pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+    let alarm_class = super::alarm_severity_class(cv.alarm_severity);
+    let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
         2 => Some(super::MAJOR_ALARM_SVG),
         3 => Some(super::INVALID_SVG),
         _ => None,
     };
+
+    // Multi-series: named_series is populated by epics_channel::run_multi_monitor
+    if !cv.named_series.is_empty() {
+        let x_label = config.axis_label_x.as_deref().unwrap_or("");
+        let y_label = config.axis_label_y.as_deref().unwrap_or("");
+        let all_pvs = collect_series_pvs(config);
+        let series_vecs: Vec<(&str, Vec<f64>)> = all_pvs.iter()
+            .filter_map(|pv| cv.named_series.get(pv).map(|v| (pv.as_str(), v.clone())))
+            .collect();
+        let series_refs: Vec<(&str, &[f64])> = series_vecs.iter()
+            .map(|(n, v)| (*n, v.as_slice()))
+            .collect();
+        let svg_string = render_line_chart(&series_refs, x_label, y_label);
+        let mut t = format!("Chart type: Line\n");
+        if !x_label.is_empty() { t.push_str(&format!("X-axis: {}\n", x_label)); }
+        if !y_label.is_empty() { t.push_str(&format!("Y-axis: {}\n", y_label)); }
+        t.push('\n');
+        for (idx, pv) in all_pvs.iter().enumerate() {
+            t.push_str(&format!("Series {}: {}\n", idx + 1, pv));
+        }
+        t.push('\n');
+        let meta = &cv.primary_meta;
+        if !meta.description.is_empty() { t.push_str(&format!("{0}\n", meta.description)); }
+        if !cv.units.is_empty() { t.push_str(&format!("Units: {}\n", cv.units)); }
+        let sev_str = match cv.alarm_severity { 0 => "No Alarm", 1 => "Minor", 2 => "Major", _ => "Invalid" };
+        t.push_str(&format!("Alarm: {}\n", sev_str));
+        return render_chart_html(config, None, &format!("chart {}", alarm_class), icon,
+                                  t.trim_end(), &svg_string);
+    }
 
     let chart_type = config.chart_type.as_deref().unwrap_or("line");
     let x_label = config.axis_label_x.as_deref().unwrap_or("");
     let y_label = config.axis_label_y.as_deref().unwrap_or("");
 
     let svg_string = match chart_type {
-        "histogram" => {
-            match raw.get_field_double_array("value") {
-                Ok(arr) => render_histogram(&arr, x_label, y_label),
-                _       => render_histogram(&[], x_label, y_label),
-            }
-        }
+        "histogram" => render_histogram(&cv.array_values, x_label, y_label),
         "scatter" => {
-            // Primary PV = X data; first pv_names entry = Y data.
-            // Both PVs are colocated in the same double_array PV via interleaved storage
-            // convention: the array holds [x0,y0, x1,y1, ...] OR we read two separate PVs.
-            // Here we read from the "value" field: first half X, second half Y.
-            match raw.get_field_double_array("value") {
-                Ok(arr) if arr.len() >= 2 => {
-                    let mid = arr.len() / 2;
-                    render_scatter(&arr[..mid], &arr[mid..], x_label, y_label)
-                }
-                _ => render_scatter(&[], &[], x_label, y_label),
+            let arr = &cv.array_values;
+            if arr.len() >= 2 {
+                let mid = arr.len() / 2;
+                render_scatter(&arr[..mid], &arr[mid..], x_label, y_label)
+            } else {
+                render_scatter(&[], &[], x_label, y_label)
             }
         }
         "scatter_histogram" => {
-            match raw.get_field_double_array("value") {
-                Ok(arr) if arr.len() >= 2 => {
-                    let mid = arr.len() / 2;
-                    render_scatter_histogram(&arr[..mid], &arr[mid..], x_label, y_label)
-                }
-                _ => render_scatter_histogram(&[], &[], x_label, y_label),
+            let arr = &cv.array_values;
+            if arr.len() >= 2 {
+                let mid = arr.len() / 2;
+                render_scatter_histogram(&arr[..mid], &arr[mid..], x_label, y_label)
+            } else {
+                render_scatter_histogram(&[], &[], x_label, y_label)
             }
         }
-        _ => {
-            // Line chart — primary PV only (multi-PV requires separate monitors; todo future)
-            match raw.get_field_double_array("value") {
-                Ok(arr) => {
-                    // If pv_names is set the label is the PV name for the legend.
-                    let primary_label = if config.pv_names.as_ref().map_or(false, |v| !v.is_empty()) {
-                        config.pv_name.as_str()
-                    } else {
-                        "value"
-                    };
-                    render_line_chart(&[(primary_label, &arr)], x_label, y_label)
-                }
-                _ => render_line_chart(&[], x_label, y_label),
-            }
-        }
+        _ => render_line_chart(&[("value", cv.array_values.as_slice())], x_label, y_label),
     };
 
-    let tooltip = build_chart_tooltip(config, raw);
-
-    render_chart_html(
-        config,
-        None,
-        &format!("chart {}", alarm_class),
-        icon,
-        &tooltip,
-        &svg_string,
-    )
+    let tooltip = build_chart_tooltip(config, cv);
+    render_chart_html(config, None, &format!("chart {}", alarm_class), icon, &tooltip, &svg_string)
 }
 
-/// Render a multi-series line chart from pre-extracted data (no Value needed).
-fn render_inner_connected_multi(
-    config: &WidgetConfig,
-    series_map: &HashMap<String, Vec<f64>>,
-    all_pvs: &[String],
-    meta: &PrimaryMeta,
-) -> Markup {
-    let alarm_severity = meta.alarm_severity;
-    let alarm_class = super::alarm_severity_class(alarm_severity);
-    let icon: Option<&str> = match alarm_severity {
-        1 => Some(super::MINOR_ALARM_SVG),
-        2 => Some(super::MAJOR_ALARM_SVG),
-        3 => Some(super::INVALID_SVG),
-        _ => None,
-    };
-    let x_label = config.axis_label_x.as_deref().unwrap_or("");
-    let y_label = config.axis_label_y.as_deref().unwrap_or("");
 
-    // Build series in config-defined order; skip PVs not yet received
-    let series_vecs: Vec<(&str, Vec<f64>)> = all_pvs.iter()
-        .filter_map(|pv| series_map.get(pv).map(|v| (pv.as_str(), v.clone())))
-        .collect();
-    let series_refs: Vec<(&str, &[f64])> = series_vecs.iter()
-        .map(|(n, v)| (*n, v.as_slice()))
-        .collect();
-    let svg_string = render_line_chart(&series_refs, x_label, y_label);
 
-    // Build tooltip without needing a Value
-    let mut t = format!("Chart type: Line\n");
-    if !x_label.is_empty() { t.push_str(&format!("X-axis: {}\n", x_label)); }
-    if !y_label.is_empty() { t.push_str(&format!("Y-axis: {}\n", y_label)); }
-    t.push('\n');
-    for (idx, pv) in all_pvs.iter().enumerate() {
-        t.push_str(&format!("Series {}: {}\n", idx + 1, pv));
-    }
-    t.push('\n');
-    if !meta.description.is_empty() { t.push_str(&format!("{}\n", meta.description)); }
-    if !meta.units.is_empty() { t.push_str(&format!("Units: {}\n", meta.units)); }
-    if meta.limit_lo != 0.0 || meta.limit_hi != 0.0 {
-        t.push_str(&format!("Display range: {:.2} \u{2013} {:.2}\n", meta.limit_lo, meta.limit_hi));
-    }
-    let sev_str = match meta.alarm_severity {
-        0 => "No Alarm", 1 => "Minor", 2 => "Major", 3 => "Invalid", _ => "Unknown",
-    };
-    t.push_str(&format!("Alarm: {}\n", sev_str));
-    let tooltip = t.trim_end().to_string();
-
-    render_chart_html(
-        config,
-        None,
-        &format!("chart {}", alarm_class),
-        icon,
-        &tooltip,
-        &svg_string,
-    )
-}
-
-fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_chart_html(config, None, "chart alarm-disconnected", Some(super::OFFLINE_SVG), "", "")
 }
 
@@ -906,7 +697,7 @@ pub fn render_chart(widget: &WidgetConfig) -> Markup {
     html! {
         div style=[super::widget_container_style(widget)]
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name)
+            data-ch=(widget.channel_address())
             hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget))
         }

@@ -1,34 +1,11 @@
-use maud::{html, Markup};
+﻿use maud::{html, Markup};
 use std::sync::{Arc, Mutex};
-use axum::{
-    extract::{Path, State, Form},
-    response::{Html, IntoResponse, Response},
-    http::StatusCode,
-};
-use crate::config::{ScreenConfig, WidgetConfig, WidgetType};
-use crate::AppState;
+use crate::channel::{ChannelContext, ChannelValue};
+use crate::config::{ModbusTCPConfig, ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
 
 #[derive(serde::Deserialize)]
 pub struct PutForm {
     pub value: String,
-}
-
-/// Widget write endpoint — form post → PVXS put → HTML feedback span.
-/// Lives here so widget I/O (reads via SSE, writes via put) is fully owned by the widget layer.
-pub async fn write_widget(
-    Path(widget_id): Path<String>,
-    State(state): State<AppState>,
-    Form(form): Form<PutForm>,
-) -> Response {
-    let widget = collect_data_widgets(&state.config.widgets)
-        .into_iter()
-        .find(|w| w.id == widget_id);
-    match widget {
-        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
-        Some(w) => {
-            Html(put_pv(w, form.value, state.write_ctx.clone()).await.into_string()).into_response()
-        }
-    }
 }
 
 // Base64 encoded SVG icons for different alarm states (shared across all widgets)
@@ -44,15 +21,15 @@ pub const INFO_SVG_LIGHT: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0
 
 pub const INFO_SVG_DARK: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PHJlY3QgeD0iMTEiIHk9IjEwIiB3aWR0aD0iMiIgaGVpZ2h0PSI3IiBmaWxsPSJ3aGl0ZSIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iMSIgZmlsbD0id2hpdGUiLz48L3N2Zz4=";
 
-// Material Design status icons (new — do not replace the alarm icons above)
-/// MD check_circle — green, 20 px — server running / PV connected OK
+// Material Design status icons (new â€” do not replace the alarm icons above)
+/// MD check_circle â€” green, 20 px â€” server running / PV connected OK
 pub const CHECK_CIRCLE_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsPSIjMDBjYzY2IiBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTIgMTVsLTUtNSAxLjQxLTEuNDFMMTAgMTQuMTdsNy41OS03LjU5TDE5IDhsLTkgOXoiLz48L3N2Zz4=";
 
-/// MD cancel — red, 20 px — server stopped / error
+/// MD cancel â€” red, 20 px â€” server stopped / error
 pub const CANCEL_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsPSIjZmYzMzMzIiBkPSJNMTIgMkM2LjQ3IDIgMiA2LjQ3IDIgMTJzNC40NyAxMCAxMCAxMCAxMC00LjQ3IDEwLTEwUzE3LjUzIDIgMTIgMnptNSAxMy41OUwxNS41OSAxNyAxMiAxMy40MSA4LjQxIDE3IDcgMTUuNTkgMTAuNTkgMTIgNyA4LjQxIDguNDEgNyAxMiAxMC41OSAxNS41OSA3IDE3IDguNDEgMTMuNDEgMTIgMTcgMTUuNTl6Ii8+PC9zdmc+";
 
-/// MD bolt — white fill, 16 px — button widget action indicator
-pub const BOLT_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2Ij48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTcgMnYxMWgzdjlsNy0xMmgtNGw0LTh6Ii8+PC9zdmc+";
+/// MD bolt â€” white fill, 16 px â€” button widget action indicator
+// pub const BOLT_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2Ij48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTcgMnYxMWgzdjlsNy0xMmgtNGw0LTh6Ii8+PC9zdmc+";
 
 // Widget type modules
 pub mod text_entry;
@@ -94,42 +71,42 @@ pub fn collect_data_widgets(widgets: &[WidgetConfig]) -> Vec<WidgetConfig> {
     result
 }
 
-/// Dispatch a widget monitor, tagging each HTML fragment with the widget ID.
+/// Dispatch an async widget monitor, tagging each HTML fragment with the widget ID.
 /// Used by the multiplexed `/stream/all` SSE endpoint.
-pub fn run_widget_monitor(
+pub async fn run_widget_monitor_async(
     config: WidgetConfig,
     widget_id: String,
+    ctx: Arc<ChannelContext>,
     tx: tokio::sync::mpsc::UnboundedSender<(String, String)>,
 ) {
-    // Inner channel: the widget monitor sends plain HTML here
     let (inner_tx, mut inner_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
 
-    // Forward thread: tags each HTML string with the widget_id
-    let wid = widget_id;
-    std::thread::spawn(move || {
-        while let Some(html) = inner_rx.blocking_recv() {
-            if tx.send((wid.clone(), html)).is_err() {
+    // Forward task: tags each HTML fragment with widget_id for the multiplexed SSE stream
+    let fwd_wid = widget_id;
+    tokio::spawn(async move {
+        while let Some(html) = inner_rx.recv().await {
+            if tx.send((fwd_wid.clone(), html)).is_err() {
                 break;
             }
         }
     });
 
-    let config = std::sync::Arc::new(config);
+    let config = Arc::new(config);
     match config.widget_type {
-        WidgetType::TextEntry    => text_entry::TextEntry::run_monitor(config, inner_tx),
-        WidgetType::TextUpdate   => text_update::TextUpdate::run_monitor(config, inner_tx),
-        WidgetType::Gauge        => gauge::Gauge::run_monitor(config, inner_tx),
-        WidgetType::Led          => led::Led::run_monitor(config, inner_tx),
-        WidgetType::Slider       => slider::Slider::run_monitor(config, inner_tx),
-        WidgetType::Button       => button::Button::run_monitor(config, inner_tx),
-        WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor(config, inner_tx),
-        WidgetType::Chart        => chart::Chart::run_monitor(config, inner_tx),
-        WidgetType::Select       => select::Select::run_monitor(config, inner_tx),
-        WidgetType::Group        => return, // Groups have no PV — nothing to monitor
+        WidgetType::TextEntry    => text_entry::TextEntry::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::TextUpdate   => text_update::TextUpdate::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Gauge        => gauge::Gauge::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Led          => led::Led::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Slider       => slider::Slider::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Button       => button::Button::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Chart        => chart::Chart::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Select       => select::Select::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::Group        => {} // Groups have no channel â€” nothing to monitor
     }
 }
 
-/// Render widget from config — each widget's outer div contains its own SSE connection.
+/// Render widget from config â€” each widget's outer div contains its own SSE connection.
 pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
     match widget.widget_type {
         WidgetType::TextEntry  => render_text_entry(widget),
@@ -163,7 +140,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                 header class="screen-header" {
                     h1 { (config.title) }
                     p class="description" { (config.description) }
-                    a href="/" class="back-link" { "← Back to Home" }
+                    a href="/" class="back-link" { "â† Back to Home" }
                 }
 
                 main class="screen-container" hx-sse=(format!("connect:/stream/screen/{}", config.id)) {
@@ -178,7 +155,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 
                 footer {
                     p class="screen-footer" {
-                        "Screen: " (config.id) " • "
+                        "Screen: " (config.id) " â€¢ "
                         span class="widget-count" { (config.widgets.len()) " widgets" }
                     }
                 }
@@ -187,49 +164,95 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
     }
 }
 
-/// Render a group of widgets
-pub async fn put_pv(config: WidgetConfig, value_str: String, write_ctx: Arc<Mutex<pvxs_sys::Context>>) -> Markup {
-    let pv_name = config.pv_name.clone();
-    let data_type = config.data_type.clone();
-    tracing::info!("[{}] put_pv: pv={}, data_type={:?}, value='{}'", config.id, pv_name, data_type, value_str);
+/// Write a value to a widget channel â€” routes to EPICS or Modbus based on `config.protocol`.
+pub async fn put_pv(
+    config: WidgetConfig,
+    value_str: String,
+    write_ctx: Arc<Mutex<pvxs_sys::Context>>,
+    channel_ctx: Arc<ChannelContext>,
+) -> Markup {
+    tracing::info!("[{}] put_pv: ch={}, data_type={:?}, value='{}'",
+        config.id, config.channel_address(), config.data_type, value_str);
+    match &config.protocol {
+        Some(ProtocolConfig::EpicsPva(e)) => {
+            put_pv_epics(&config.id, &e.pv_name, &config.data_type, value_str, write_ctx).await
+        }
+        Some(ProtocolConfig::ModbusTcp(m)) => {
+            put_pv_modbus(&config.id, m.clone(), value_str, channel_ctx).await
+        }
+        None => html! { span class="put-err" { "No protocol configured for this widget" } },
+    }
+}
 
+async fn put_pv_epics(
+    widget_id: &str,
+    pv_name: &str,
+    data_type: &Option<String>,
+    value_str: String,
+    write_ctx: Arc<Mutex<pvxs_sys::Context>>,
+) -> Markup {
+    let pv = pv_name.to_string();
+    let dt = data_type.clone();
     let result = tokio::task::spawn_blocking(move || -> pvxs_sys::Result<()> {
         let mut ctx = write_ctx.lock().unwrap();
-        match data_type.as_deref() {
+        match dt.as_deref() {
             Some("int32") | Some("int") | Some("integer") | Some("bool") => {
                 let v: i32 = value_str.trim().parse()
                     .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid int32: '{}'", value_str.trim())))?;
-                ctx.put_int32(&pv_name, v, 5.0)
+                ctx.put_int32(&pv, v, 5.0)
             }
             Some("enum") => {
                 let v: i16 = value_str.trim().parse()
                     .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid enum index: '{}'", value_str.trim())))?;
-                ctx.put_enum(&pv_name, v, 5.0)
+                ctx.put_enum(&pv, v, 5.0)
             }
             Some("double") | Some("float") | Some("f64") | Some("f32") => {
                 let v: f64 = value_str.trim().parse()
                     .map_err(|_| pvxs_sys::PvxsError::new(format!("invalid float: '{}'", value_str.trim())))?;
-                ctx.put_double(&pv_name, v, 5.0)
+                ctx.put_double(&pv, v, 5.0)
             }
-            _ => {
-                ctx.put_string(&pv_name, value_str.trim(), 5.0)
-            }
+            _ => ctx.put_string(&pv, value_str.trim(), 5.0),
         }
     })
     .await;
-
     match result {
         Ok(Ok(())) => {
-            tracing::info!("[{}] put_pv OK for {}", config.id, config.pv_name);
-            html! { span class="put-ok" { "✓" } }
+            tracing::info!("[{}] put_pv EPICS OK", widget_id);
+            html! { span class="put-ok" { "âœ“" } }
         }
         Ok(Err(e)) => {
-            tracing::error!("[{}] put_pv error for {}: {}", config.id, config.pv_name, e);
+            tracing::error!("[{}] put_pv EPICS error: {}", widget_id, e);
             html! { span class="put-err" { "Error: " (e.to_string()) } }
         }
         Err(e) => {
-            tracing::error!("[{}] put_pv task error for {}: {}", config.id, config.pv_name, e);
-            html! { span class="put-err" { "Task error: " (e.to_string()) } }
+            tracing::error!("[{}] put_pv task panicked: {}", widget_id, e);
+            html! { span class="put-err" { "Internal error" } }
+        }
+    }
+}
+
+async fn put_pv_modbus(
+    widget_id: &str,
+    m: ModbusTCPConfig,
+    value_str: String,
+    channel_ctx: Arc<ChannelContext>,
+) -> Markup {
+    let physical: f64 = match value_str.trim().parse() {
+        Ok(v) => v,
+        Err(_) => match value_str.trim().to_lowercase().as_str() {
+            "true" | "1" | "on"  => 1.0,
+            "false" | "0" | "off" => 0.0,
+            _ => return html! { span class="put-err" { "Invalid value: '" (value_str.trim()) "'" } },
+        },
+    };
+    match crate::modbus_client::modbus_write(&m, physical, &channel_ctx.modbus_pool).await {
+        Ok(()) => {
+            tracing::info!("[{}] put_pv Modbus OK", widget_id);
+            html! { span class="put-ok" { "âœ“" } }
+        }
+        Err(e) => {
+            tracing::error!("[{}] put_pv Modbus error: {}", widget_id, e);
+            html! { span class="put-err" { "Error: " (e) } }
         }
     }
 }
@@ -258,42 +281,53 @@ pub(super) fn alarm_status_str(status: i32) -> &'static str {
     }
 }
 
-/// Build a tooltip string from live PV metadata — shared by all widgets.
-pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, raw: &pvxs_sys::Value) -> String {
+/// Build a tooltip string from a `ChannelValue` â€” shared by all widgets.
+pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelValue) -> String {
+    use crate::config::ProtocolConfig;
     let mut t = String::new();
 
-    t.push_str(&format!("PV: {}\n", config.pv_name));
+    let protocol_label = match &config.protocol {
+        Some(ProtocolConfig::EpicsPva(_))  => "EPICS PVA",
+        Some(ProtocolConfig::ModbusTcp(_)) => "Modbus TCP",
+        None                               => "None",
+    };
+    t.push_str(&format!("Protocol: {}\n", protocol_label));
+    t.push_str(&format!("Channel: {}\n", config.channel_address()));
 
-    if let Ok(v) = raw.get_field_string("display.description") { if !v.is_empty() { t.push_str(&v); t.push('\n'); } }
-    if let Ok(v) = raw.get_field_string("display.units")       { if !v.is_empty() { t.push_str(&format!("Units: {}\n", v)); } }
-    if let Ok(v) = raw.get_field_int32("display.precision")    { t.push_str(&format!("Precision: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("display.limitLow")    { t.push_str(&format!("Display Low: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("display.limitHigh")   { t.push_str(&format!("Display High: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("control.limitLow")    { t.push_str(&format!("Control Low: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("control.limitHigh")   { t.push_str(&format!("Control High: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("control.minStep")     { if v != 0.0 { t.push_str(&format!("Min Step: {}\n", v)); } }
-    if let Ok(v) = raw.get_field_double("valueAlarm.lowAlarmLimit")    { t.push_str(&format!("Low Alarm Limit: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("valueAlarm.lowWarningLimit")  { t.push_str(&format!("Low Warning Limit: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("valueAlarm.highWarningLimit") { t.push_str(&format!("High Warning Limit: {}\n", v)); }
-    if let Ok(v) = raw.get_field_double("valueAlarm.highAlarmLimit")   { t.push_str(&format!("High Alarm Limit: {}\n", v)); }
-
-    let severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let sev_str = match pvxs_sys::AlarmSeverity::from(severity) {
-        pvxs_sys::AlarmSeverity::NoAlarm => "No Alarm",
-        pvxs_sys::AlarmSeverity::Minor   => "Minor",
-        pvxs_sys::AlarmSeverity::Major   => "Major",
-        pvxs_sys::AlarmSeverity::Invalid => "Invalid",
-        _                                => "Unknown",
+    if !cv.primary_meta.description.is_empty() {
+        t.push_str(&cv.primary_meta.description);
+        t.push('\n');
+    }
+    if !cv.units.is_empty() { t.push_str(&format!("Units: {}\n", cv.units)); }
+    t.push_str(&format!("Precision: {}\n", cv.precision));
+    if cv.display_low != 0.0 || (cv.display_high - 100.0).abs() > f64::EPSILON {
+        t.push_str(&format!("Display Low: {}\n",  cv.display_low));
+        t.push_str(&format!("Display High: {}\n", cv.display_high));
+    }
+    if cv.control_low != cv.display_low || cv.control_high != cv.display_high {
+        t.push_str(&format!("Control Low: {}\n",  cv.control_low));
+        t.push_str(&format!("Control High: {}\n", cv.control_high));
+    }
+    if cv.low_alarm_limit != 0.0 || cv.high_alarm_limit != 100.0 {
+        t.push_str(&format!("Low Alarm Limit: {}\n",    cv.low_alarm_limit));
+        t.push_str(&format!("Low Warning Limit: {}\n",  cv.low_warn_limit));
+        t.push_str(&format!("High Warning Limit: {}\n", cv.high_warn_limit));
+        t.push_str(&format!("High Alarm Limit: {}\n",   cv.high_alarm_limit));
+    }
+    let sev_str = match cv.alarm_severity {
+        0 => "No Alarm",
+        1 => "Minor",
+        2 => "Major",
+        _ => "Invalid",
     };
     t.push_str(&format!("Alarm Severity: {}\n", sev_str));
-    if let Ok(v) = raw.get_field_int32("alarm.status") { t.push_str(&format!("Alarm Status: {}\n", alarm_status_str(v))); }
-    if let Ok(v) = raw.get_field_string("alarm.message") { if !v.is_empty() { t.push_str(&format!("Alarm Message: {}\n", v)); } }
+    t.push_str(&format!("Alarm Status: {}\n", alarm_status_str(cv.alarm_status)));
 
     t.trim_end().to_string()
 }
 
 /// Build an inline style string from the widget's optional style config (width/height).
-/// Returns `None` when no sizing is configured, so maud's `style=[…]` omits the attribute.
+/// Returns `None` when no sizing is configured, so maud's `style=[â€¦]` omits the attribute.
 pub(crate) fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<String> {
     let mut s = String::new();
     if let Some(style) = &config.style {
@@ -303,7 +337,7 @@ pub(crate) fn widget_container_style(config: &crate::config::WidgetConfig) -> Op
     if s.is_empty() { None } else { Some(s) }
 }
 
-/// Render an info button — two icon variants let CSS pick the right one per theme.
+/// Render an info button â€” two icon variants let CSS pick the right one per theme.
 pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
     html! {
         button class="widget-info-btn" data-tooltip=(tooltip) type="button" {
@@ -320,65 +354,7 @@ pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
 //     datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 // }
 
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::{WidgetConfig, WidgetType, WidgetStyle};
-
-    fn make_widget(style: Option<WidgetStyle>) -> WidgetConfig {
-        WidgetConfig {
-            id: "test1".into(),
-            pv_name: "demo:pv".into(),
-            widget_type: WidgetType::Gauge,
-            label: "Test".into(),
-            data_type: None,
-            description: None,
-            style,
-            server: None,
-            options: None,
-            orientation: None,
-            level: None,
-            children: None,
-        }
-    }
-
-    #[test]
-    fn style_none_produces_no_attribute() {
-        let w = make_widget(None);
-        assert!(widget_container_style(&w).is_none());
-        let html = render_gauge(&w).into_string();
-        // The outer div should not have a style attribute
-        // Extract the opening tag (up to the first '>') and check there
-        let outer_tag = &html[..html.find('>').unwrap() + 1];
-        assert!(!outer_tag.contains("style="),
-                "expected no style on outer div, got: {}", outer_tag);
-    }
-
-    #[test]
-    fn style_width_height_in_html() {
-        let w = make_widget(Some(WidgetStyle {
-            width: Some("400px".into()),
-            height: Some("200px".into()),
-            background: None,
-        }));
-        let css = widget_container_style(&w).unwrap();
-        assert!(css.contains("width:400px;"), "CSS must contain width");
-        assert!(css.contains("height:200px;"), "CSS must contain height");
-
-        let html = render_gauge(&w).into_string();
-        assert!(html.contains("style=\"width:400px;height:200px;\""),
-                "rendered HTML must include inline style, got: {}", html);
-    }
-
-    #[test]
-    fn style_width_only() {
-        let w = make_widget(Some(WidgetStyle {
-            width: Some("50%".into()),
-            height: None,
-            background: None,
-        }));
-        let css = widget_container_style(&w).unwrap();
-        assert_eq!(css, "width:50%;");
-        assert!(!css.contains("height"));
-    }
-}
+#[path = "tests/mod.rs"]
+mod tests;

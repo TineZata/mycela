@@ -17,7 +17,7 @@ fn main() {
     
     match ScreenConfig::load(config_path) {
         Ok(config) => {
-            println!("✅ SUCCESS! Loaded configuration:");
+            println!(" SUCCESS! Loaded configuration:");
             println!("   Title: {}", config.title);
             println!("   Description: {}", config.description);
             println!("   Widgets: {}", config.widgets.len());

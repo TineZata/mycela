@@ -1,6 +1,8 @@
-use maud::{html, Markup};
+﻿use maud::{html, Markup};
+use std::sync::Arc;
+use futures::StreamExt;
+use crate::channel::{ChannelContext, ChannelEvent, ChannelValue};
 use crate::config::WidgetConfig;
-use pvxs_sys::{Context, Value, MonitorEvent};
 
 pub struct TextUpdate {
     config: WidgetConfig,
@@ -13,14 +15,14 @@ impl TextUpdate {
 
     pub fn into_sse_stream(
         self,
+        ctx: Arc<ChannelContext>,
     ) -> impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>
            + Send
            + 'static {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        let config = std::sync::Arc::new(self.config);
-        let config_thread = config.clone();
+        let config = Arc::new(self.config);
 
-        tokio::task::spawn_blocking(move || Self::run_monitor(config_thread, tx));
+        tokio::spawn(Self::run_monitor_async(config.clone(), ctx, tx));
 
         async_stream::stream! {
             yield Ok(axum::response::sse::Event::default().data(
@@ -33,96 +35,37 @@ impl TextUpdate {
         }
     }
 
-    pub(crate) fn run_monitor(
-        config: std::sync::Arc<WidgetConfig>,
+    pub(crate) async fn run_monitor_async(
+        config: Arc<WidgetConfig>,
+        ctx: Arc<ChannelContext>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
-        tracing::info!("TextUpdate monitor starting for: {}", config.pv_name);
-
-        let mut ctx = match Context::from_env() {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config, &e.to_string()).into_string());
-                return;
-            }
-        };
-
-        let mut monitor = match ctx
-            .monitor_builder(&config.pv_name)
-            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-        {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config, &e.to_string()).into_string());
-                return;
-            }
-        };
-
-        if let Err(e) = monitor.start() {
-            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
-            return;
+        let mut stream = crate::channel::channel_stream(config.clone(), ctx);
+        while let Some(event) = stream.next().await {
+            let html = match event {
+                ChannelEvent::Value(cv)          => render_inner_connected(&config, &cv).into_string(),
+                ChannelEvent::Disconnected(msg)
+                | ChannelEvent::Error(msg)       => render_inner_disconnected(&config, &msg).into_string(),
+                ChannelEvent::Connected          => continue,
+            };
+            if tx.send(html).is_err() { break; }
         }
-
-        loop {
-            match monitor.pop() {
-                Ok(Some(raw)) => {
-                    let html = render_inner_connected(&config, &raw).into_string();
-                    if tx.send(html).is_err() { break; }
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                Err(MonitorEvent::Connected(msg)) => {
-                    tracing::info!("TextUpdate {}: connected - {}", config.pv_name, msg);
-                }
-                Err(MonitorEvent::Disconnected(msg)) => {
-                    tracing::warn!("TextUpdate {}: disconnected - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config, "PV Disconnected").into_string()).is_err() { break; }
-                }
-                Err(MonitorEvent::Finished(msg)) => {
-                    tracing::info!("TextUpdate {}: finished - {}", config.pv_name, msg);
-                    break;
-                }
-                Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                    tracing::error!("TextUpdate {}: error - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config, &msg).into_string()).is_err() { break; }
-                }
-            }
-        }
-
-        tracing::info!("TextUpdate monitor stopped for: {}", config.pv_name);
     }
 }
 
-fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
-    let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let alarm_class = super::alarm_severity_class(alarm_severity);
-    let icon: Option<&str> = match alarm_severity {
+pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+    let alarm_class = super::alarm_severity_class(cv.alarm_severity);
+    let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
         2 => Some(super::MAJOR_ALARM_SVG),
         3 => Some(super::INVALID_SVG),
         _ => None,
     };
-
-    let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32") | Some("bool"));
-    let is_string = matches!(config.data_type.as_deref(), Some("string") | None);
-
-    let current_value = if is_integer {
-        raw.get_field_int32("value").ok().map(|v| v.to_string())
-    } else if is_string {
-        raw.get_field_string("value").ok()
-    } else {
-        let prec = raw.get_field_int32("display.precision").unwrap_or(2);
-        raw.get_field_double("value").ok()
-            .map(|v| format!("{:.prec$}", v, prec = prec as usize))
-    }.unwrap_or_else(|| "??".to_string());
-
-    let units = raw.get_field_string("display.units").unwrap_or_default();
-
-    render_display_html(config, &current_value, &units, &format!("text-update {}", alarm_class), icon, &super::build_tooltip(&config, raw))
+    let tooltip = super::build_tooltip(config, cv);
+    render_display_html(config, &cv.value_str, &cv.units, &format!("text-update {}", alarm_class), icon, &tooltip)
 }
 
-fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
+pub(crate) fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
     render_display_html(config, "--", "", "text-update alarm-disconnected", Some(super::OFFLINE_SVG), "")
 }
 
@@ -169,7 +112,7 @@ pub fn render_text_update(widget: &WidgetConfig) -> Markup {
     html! {
         div style=[super::widget_container_style(widget)]
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name)
+            data-ch=(widget.channel_address())
             hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget, "Connecting..."))
         }
@@ -177,3 +120,6 @@ pub fn render_text_update(widget: &WidgetConfig) -> Markup {
 }
 
 
+#[cfg(test)]
+#[path = "tests/text_update.rs"]
+mod tests;

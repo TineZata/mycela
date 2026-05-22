@@ -1,0 +1,135 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+// ─── Unified value type ───────────────────────────────────────────────────────
+
+/// A normalised snapshot of a channel value, protocol-independent.
+///
+/// Fields that are not meaningful for a given protocol default to safe values
+/// (zero / empty string / 0–100 display range) so widget render functions can
+/// use them unconditionally.
+#[derive(Debug, Clone)]
+pub struct ChannelValue {
+    /// Scalar numeric value (applies to all non-array types)
+    pub raw_value: f64,
+    /// Pre-formatted display string (honours precision, handles integers / strings)
+    pub value_str: String,
+    /// Sample array for single-series chart widgets
+    pub array_values: Vec<f64>,
+    /// Sample arrays keyed by PV/channel name for multi-series line charts
+    pub named_series: HashMap<String, Vec<f64>>,
+    /// Alarm severity  (0 = NO_ALARM, 1 = MINOR, 2 = MAJOR, 3 = INVALID)
+    pub alarm_severity: i32,
+    /// Alarm status code (protocol-specific; 0 = no alarm)
+    pub alarm_status: i32,
+    /// Engineering units string (e.g. "mm", "°C")
+    pub units: String,
+    /// Display range low limit
+    pub display_low: f64,
+    /// Display range high limit
+    pub display_high: f64,
+    /// Controllable range low limit
+    pub control_low: f64,
+    /// Controllable range high limit
+    pub control_high: f64,
+    /// Number of decimal places for display
+    pub precision: i32,
+    /// Alarm/warning band limits (used by Gauge widget for markers)
+    pub low_alarm_limit: f64,
+    pub low_warn_limit: f64,
+    pub high_warn_limit: f64,
+    pub high_alarm_limit: f64,
+    /// Current enum index (Select / ToggleButton widgets)
+    pub enum_index: i16,
+    /// Enum choice strings (Select widget)
+    pub enum_choices: Vec<String>,
+    /// Extra metadata used by multi-series Chart rendering
+    pub primary_meta: PrimaryMeta,
+}
+
+impl Default for ChannelValue {
+    fn default() -> Self {
+        Self {
+            raw_value: 0.0,
+            value_str: String::new(),
+            array_values: Vec::new(),
+            named_series: HashMap::new(),
+            alarm_severity: 0,
+            alarm_status: 0,
+            units: String::new(),
+            display_low: 0.0,
+            display_high: 100.0,
+            control_low: 0.0,
+            control_high: 100.0,
+            precision: 2,
+            low_alarm_limit: 0.0,
+            low_warn_limit: 0.0,
+            high_warn_limit: 100.0,
+            high_alarm_limit: 100.0,
+            enum_index: 0,
+            enum_choices: Vec::new(),
+            primary_meta: PrimaryMeta::default(),
+        }
+    }
+}
+
+/// Lightweight metadata snapshot used by multi-series chart rendering.
+#[derive(Debug, Clone, Default)]
+pub struct PrimaryMeta {
+    pub alarm_severity: i32,
+    pub description: String,
+    pub units: String,
+    pub limit_lo: f64,
+    pub limit_hi: f64,
+}
+
+// ─── Channel events ───────────────────────────────────────────────────────────
+
+/// Events emitted by a channel stream, independent of the underlying protocol.
+#[derive(Debug)]
+pub enum ChannelEvent {
+    /// The channel has successfully connected to its data source.
+    Connected,
+    /// The channel has disconnected (e.g. device offline, PV not found).
+    Disconnected(String),
+    /// A new value has been received from the data source.
+    Value(ChannelValue),
+    /// An error occurred (connection failure, protocol error, etc.).
+    Error(String),
+}
+
+// ─── Channel context ──────────────────────────────────────────────────────────
+
+/// Holds all protocol-level handles needed to create channel streams.
+/// Passed through `AppState` and into every SSE handler.
+/// Add new protocol handles here when new protocols are introduced.
+pub struct ChannelContext {
+    pub modbus_pool: Arc<crate::modbus_client::ModbusPool>,
+}
+
+impl ChannelContext {
+    pub fn new(modbus_pool: Arc<crate::modbus_client::ModbusPool>) -> Arc<Self> {
+        Arc::new(Self { modbus_pool })
+    }
+}
+
+// ─── Routing ─────────────────────────────────────────────────────────────────
+
+/// Create a live stream of `ChannelEvent`s for the given widget config.
+///
+/// Routes to the correct protocol backend based on `config.protocol`.
+/// Returns a boxed `Stream` so callers need not know which backend is active.
+pub fn channel_stream(
+    config: Arc<crate::config::WidgetConfig>,
+    ctx: Arc<ChannelContext>,
+) -> futures::stream::BoxStream<'static, ChannelEvent> {
+    use crate::config::ProtocolConfig;
+    match config.protocol.as_ref() {
+        Some(ProtocolConfig::EpicsPva(_)) | None => {
+            Box::pin(crate::epics_channel::epics_stream(config))
+        }
+        Some(ProtocolConfig::ModbusTcp(_)) => {
+            Box::pin(crate::modbus_client::modbus_stream(config, ctx.modbus_pool.clone()))
+        }
+    }
+}

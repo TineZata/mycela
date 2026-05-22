@@ -5,9 +5,9 @@
   "widgets": [
     {
       "id": "widget1",
-      "pv_name": "demo:test:pv",
       "type": "text_update",
-      "data_type": "double"
+      "data_type": "double",
+      "protocol": { "type": "epics-pva", "pv_name": "demo:test:pv" }
     }
   ]
 }

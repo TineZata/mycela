@@ -1,12 +1,10 @@
-mod widgets;
-mod config;
-mod server_setup;
-mod demo_simulator;
+mod epics_simulator;
+mod modbus_simulator;
 
 use axum::{
     Router,
     routing::{get, post},
-    extract::{Path, State},
+    extract::{Path, State, Form},
     response::{Html, IntoResponse, Response, sse::{Event, KeepAlive, Sse}},
     http::StatusCode,
 };
@@ -19,21 +17,50 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use maud::{html, Markup};
-use crate::config::{ScreenConfig, WidgetConfig, WidgetType};
-use server_setup::setup_server_pvs;
+
+use ctrl_sys_widgets::channel::ChannelContext;
+use ctrl_sys_widgets::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
+use ctrl_sys_widgets::server_setup::setup_server_pvs;
+use ctrl_sys_widgets::{modbus_client, widgets};
 
 // ─── Application state ───────────────────────────────────────────────────────
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pv_server: Arc<Mutex<Option<pvxs_sys::Server>>>,
-    pub config: Arc<ScreenConfig>,
-    pub write_ctx: Arc<Mutex<pvxs_sys::Context>>,
+    pub pv_server:   Arc<Mutex<Option<pvxs_sys::Server>>>,
+    pub config:      Arc<ScreenConfig>,
+    pub write_ctx:   Arc<Mutex<pvxs_sys::Context>>,
+    pub channel_ctx: Arc<ChannelContext>,
+    pub modbus_task: Arc<Mutex<Option<Vec<tokio::task::JoinHandle<()>>>>>,
 }
 
 impl AppState {
     fn is_server_running(&self) -> bool {
         self.pv_server.lock().unwrap().is_some()
+    }
+    fn is_modbus_running(&self) -> bool {
+        self.modbus_task.lock().unwrap()
+            .as_ref()
+            .map(|v| v.iter().any(|h| !h.is_finished()))
+            .unwrap_or(false)
+    }
+}
+
+// ─── Widget write endpoint ───────────────────────────────────────────────────
+
+async fn write_widget(
+    Path(widget_id): Path<String>,
+    State(state): State<AppState>,
+    Form(form): Form<widgets::PutForm>,
+) -> Response {
+    let widget = widgets::collect_data_widgets(&state.config.widgets)
+        .into_iter()
+        .find(|w| w.id == widget_id);
+    match widget {
+        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
+        Some(w) => {
+            Html(widgets::put_pv(w, form.value, state.write_ctx.clone(), state.channel_ctx.clone()).await.into_string()).into_response()
+        }
     }
 }
 
@@ -51,17 +78,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Starting EPICS Web UI Server");
 
+    let cwd = std::env::current_dir().unwrap_or_default();
+    tracing::info!("Working directory: {}", cwd.display());
+
     let config_paths = [
+        // Compile-time absolute path to the workspace root — always correct with `cargo run`
+        concat!(env!("CARGO_MANIFEST_DIR"), "/examples/demo_config.json"),
         "examples/demo_config.json",
-        "../examples/demo_config.json",
-        "../../examples/demo_config.json",
+        "demo_config.json",
+        "../demo_config.json",
     ];
 
     let config = config_paths
         .iter()
         .find_map(|path| match ScreenConfig::load(path) {
             Ok(cfg) => {
-                tracing::info!("✅ Loaded configuration from: {}", path);
+                tracing::info!(" Loaded configuration from: {}", path);
                 Some(cfg)
             }
             Err(e) => {
@@ -71,17 +103,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .expect("Failed to load demo_config.json from any expected location. Try running from project root.");
 
-    tracing::info!("✅ Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
+    tracing::info!(" Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
     let data_widgets = widgets::collect_data_widgets(&config.widgets);
     for (idx, widget) in data_widgets.iter().enumerate() {
         tracing::info!(
-            "  Widget {}: id={}, type={:?}, label='{}', pv={}",
-            idx, widget.id, widget.widget_type, widget.label, widget.pv_name
+            "  Widget {}: id={}, type={:?}, label='{}', ch={}",
+            idx, widget.id, widget.widget_type, widget.label, widget.channel_address()
         );
     }
 
     let pv_server = {
-        let widgets_with_server: Vec<_> = data_widgets.iter().filter(|w| w.server.is_some()).collect();
+        let widgets_with_server: Vec<_> = data_widgets
+            .iter()
+            .filter(|w| w.epics_pva().and_then(|e| e.server.as_ref()).is_some())
+            .collect();
         if widgets_with_server.is_empty() {
             tracing::info!("No server PVs configured, running in client-only mode");
             Arc::new(Mutex::new(None))
@@ -89,11 +124,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tracing::info!("Found {} widgets with server configuration", widgets_with_server.len());
             let server = pvxs_sys::Server::start_from_env()?;
             setup_server_pvs(&server, &config.widgets)?;
-            tracing::info!("✅ PVXS server started successfully");
+            tracing::info!(" PVXS server started successfully");
 
-            // Pass a cloneable ServerHandle to the simulator; the Server itself
-            // stays owned by AppState so stop_drop() still works cleanly.
-            demo_simulator::start_demo_simulator(server.handle(), &config.widgets);
+            epics_simulator::start_demo_simulator(server.handle(), &config.widgets);
 
             Arc::new(Mutex::new(Some(server)))
         }
@@ -101,93 +134,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let write_ctx = Arc::new(Mutex::new(pvxs_sys::Context::from_env()?));
 
+    // ── Modbus setup ────────────────────────────────────────────────────────
+    let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
+    tracing::info!("Modbus TCP demo simulator started on port 5020");
+
+    let modbus_pool = modbus_client::ModbusPool::new();
+    let channel_ctx = ChannelContext::new(modbus_pool);
+
     let state = AppState {
         pv_server,
         config: Arc::new(config),
         write_ctx,
+        channel_ctx,
+        modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
     };
 
     // Build the application router
     let app = Router::new()
-        // Main page - directly show demo screen
-        .route("/", get(render_demo_screen))
-        
-        // Screen routes
-        .route("/screen/{screen_id}", get(render_screen))
-        
-        // Server control routes
-        .route("/api/server/start", post(start_server))
-        .route("/api/server/stop", post(stop_server))
-        .route("/api/server/status", get(server_status))
-        
-        // Widget write endpoint (form post → PVXS put → HTML feedback)
-        .route("/api/widget/{widget_id}/set", post(widgets::write_widget))
-
-        // Server-Sent Events for real-time monitoring
-        .route("/stream/widget/{name}", get(stream_widget))
-        .route("/stream/all", get(stream_all_widgets))
-        .route("/stream/screen/{screen_id}", get(stream_screen_widgets))
-        
-        // Static files (CSS, JS, images)
-        .nest_service("/static", ServeDir::new("static"))
-        
-        // Add shared state
+        .route("/",                              get(render_demo_screen))
+        .route("/screen/{screen_id}",            get(render_screen))
+        .route("/api/server/start",              post(start_server))
+        .route("/api/server/stop",               post(stop_server))
+        .route("/api/server/status",             get(server_status))
+        .route("/api/modbus/start",              post(start_modbus))
+        .route("/api/modbus/stop",               post(stop_modbus))
+        .route("/api/modbus/status",             get(modbus_status))
+        .route("/api/widget/{widget_id}/set",    post(write_widget))
+        .route("/stream/widget/{name}",          get(stream_widget))
+        .route("/stream/all",                    get(stream_all_widgets))
+        .route("/stream/screen/{screen_id}",     get(stream_screen_widgets))
+        .nest_service("/static",                 ServeDir::new("static"))
         .with_state(state)
-        
-        // Add middleware
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive());
 
-    // Bind to address
     let addr = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    
     tracing::info!("🚀 Server running at http://{}", addr);
     tracing::info!("📊 Open your browser to see the control interface");
 
-    // Start the server
     axum::serve(listener, app).await?;
-
     Ok(())
 }
 
-/// Render demo screen directly on home page
+// ─── Page handlers ────────────────────────────────────────────────────────────
+
 async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
     tracing::info!("Rendering widget showcase");
-    let markup = render_showcase(&state.config, state.is_server_running());
+    let markup = render_showcase(&state.config, state.is_server_running(), state.is_modbus_running());
     Html(markup.into_string())
 }
 
-/// Render a specific screen by ID
-async fn render_screen(
-    Path(screen_id): Path<String>,
-) -> Result<Html<String>, StatusCode> {
+async fn render_screen(Path(screen_id): Path<String>) -> Result<Html<String>, StatusCode> {
     tracing::info!("Rendering screen: {}", screen_id);
-    
-    // Load screen configuration
     let config_path = format!("examples/{}_config.json", screen_id);
-    let config = ScreenConfig::load(&config_path)
-        .map_err(|e| {
-            tracing::error!("Failed to load screen config: {}", e);
-            StatusCode::NOT_FOUND
-        })?;
-    
-    let markup = widgets::render_screen(&config);
-    
-    Ok(Html(markup.into_string()))
+    let config = ScreenConfig::load(&config_path).map_err(|e| {
+        tracing::error!("Failed to load screen config: {}", e);
+        StatusCode::NOT_FOUND
+    })?;
+    Ok(Html(widgets::render_screen(&config).into_string()))
 }
+
+// ─── SSE handlers ─────────────────────────────────────────────────────────────
 
 type SseStream = std::pin::Pin<Box<dyn tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send>>;
 
-/// SSE endpoint — one connection per widget instance.
-/// Each widget type manages its own PVXS context and monitor thread.
 async fn stream_widget(
     Path(widget_id): Path<String>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     tracing::info!("SSE stream requested for widget: {}", widget_id);
 
-    // Search through flattened data widgets (nested group children included)
     let data_widgets = widgets::collect_data_widgets(&state.config.widgets);
     let Some(config) = data_widgets.into_iter().find(|w| w.id == widget_id) else {
         tracing::error!("Widget '{}' not found", widget_id);
@@ -197,19 +214,18 @@ async fn stream_widget(
         return Sse::new(stream).keep_alive(KeepAlive::default());
     };
 
-    use crate::config::WidgetType;
+    let ctx = state.channel_ctx.clone();
     let stream: SseStream = match config.widget_type {
-        WidgetType::TextEntry  => Box::pin(widgets::text_entry::TextEntry::new(config).into_sse_stream()),
-        WidgetType::TextUpdate => Box::pin(widgets::text_update::TextUpdate::new(config).into_sse_stream()),
-        WidgetType::Gauge      => Box::pin(widgets::gauge::Gauge::new(config).into_sse_stream()),
-        WidgetType::Led        => Box::pin(widgets::led::Led::new(config).into_sse_stream()),
-        WidgetType::Slider     => Box::pin(widgets::slider::Slider::new(config).into_sse_stream()),
-        WidgetType::Button     => Box::pin(widgets::button::Button::new(config).into_sse_stream()),
-        WidgetType::ToggleButton => Box::pin(widgets::toggle_button::ToggleButton::new(config).into_sse_stream()),
-        WidgetType::Chart      => Box::pin(widgets::chart::Chart::new(config).into_sse_stream()),
-        WidgetType::Select     => Box::pin(widgets::select::Select::new(config).into_sse_stream()),
-        WidgetType::Group      => {
-            // Groups have no SSE stream
+        WidgetType::TextEntry    => Box::pin(widgets::text_entry::TextEntry::new(config).into_sse_stream(ctx)),
+        WidgetType::TextUpdate   => Box::pin(widgets::text_update::TextUpdate::new(config).into_sse_stream(ctx)),
+        WidgetType::Gauge        => Box::pin(widgets::gauge::Gauge::new(config).into_sse_stream(ctx)),
+        WidgetType::Led          => Box::pin(widgets::led::Led::new(config).into_sse_stream(ctx)),
+        WidgetType::Slider       => Box::pin(widgets::slider::Slider::new(config).into_sse_stream(ctx)),
+        WidgetType::Button       => Box::pin(widgets::button::Button::new(config).into_sse_stream(ctx)),
+        WidgetType::ToggleButton => Box::pin(widgets::toggle_button::ToggleButton::new(config).into_sse_stream(ctx)),
+        WidgetType::Chart        => Box::pin(widgets::chart::Chart::new(config).into_sse_stream(ctx)),
+        WidgetType::Select       => Box::pin(widgets::select::Select::new(config).into_sse_stream(ctx)),
+        WidgetType::Group        => {
             let stream: SseStream = Box::pin(async_stream::stream! {
                 yield Ok(Event::default().data("<!-- group widget has no stream -->"));
             });
@@ -220,33 +236,21 @@ async fn stream_widget(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-/// Multiplexed SSE endpoint — a single connection serves ALL widget updates.
-///
-/// This avoids the HTTP/1.1 per-domain connection limit (typically 6)
-/// which would starve widgets beyond the first 6 from receiving SSE events.
-/// Each widget update is sent as a named SSE event (event: {widget_id}).
-async fn stream_all_widgets(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+async fn stream_all_widgets(State(state): State<AppState>) -> impl IntoResponse {
     tracing::info!("Multiplexed SSE stream requested for all widgets");
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
 
-    // Flatten group children so nested data widgets get monitors
     let data_widgets = widgets::collect_data_widgets(&state.config.widgets);
     for config in data_widgets {
-        let tx = tx.clone();
+        let tx        = tx.clone();
         let widget_id = config.id.clone();
-
-        tokio::task::spawn_blocking(move || {
-            widgets::run_widget_monitor(config, widget_id, tx);
-        });
+        let ctx       = state.channel_ctx.clone();
+        tokio::spawn(widgets::run_widget_monitor_async(config, widget_id, ctx, tx));
     }
-    // Drop our copy so the channel closes when all monitors stop
     drop(tx);
 
     let stream: SseStream = Box::pin(async_stream::stream! {
-        // Drop guard: logs when the browser disconnects and axum drops this stream
         struct SseDropGuard;
         impl Drop for SseDropGuard {
             fn drop(&mut self) {
@@ -264,8 +268,6 @@ async fn stream_all_widgets(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-/// Screen-specific SSE endpoint — loads the screen config and spawns monitors
-/// for its data widgets (including those nested inside Group containers).
 async fn stream_screen_widgets(
     Path(screen_id): Path<String>,
     State(state): State<AppState>,
@@ -284,7 +286,6 @@ async fn stream_screen_widgets(
         }
     };
 
-    // Set up server PVs for this screen's widgets if we have a running server
     if let Some(server) = state.pv_server.lock().unwrap().as_ref() {
         if let Err(e) = setup_server_pvs(server, &config.widgets) {
             tracing::warn!("Failed to setup server PVs for screen {}: {}", screen_id, e);
@@ -295,12 +296,10 @@ async fn stream_screen_widgets(
 
     let data_widgets = widgets::collect_data_widgets(&config.widgets);
     for widget_config in data_widgets {
-        let tx = tx.clone();
+        let tx        = tx.clone();
         let widget_id = widget_config.id.clone();
-
-        tokio::task::spawn_blocking(move || {
-            widgets::run_widget_monitor(widget_config, widget_id, tx);
-        });
+        let ctx       = state.channel_ctx.clone();
+        tokio::spawn(widgets::run_widget_monitor_async(widget_config, widget_id, ctx, tx));
     }
     drop(tx);
 
@@ -321,10 +320,10 @@ async fn stream_screen_widgets(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-/// Start the PVXS server
+// ─── API handlers ─────────────────────────────────────────────────────────────
+
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
-
     if state.is_server_running() {
         let html = maud::html! { div class="warning" { "Server is already running" } };
         return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
@@ -340,10 +339,7 @@ async fn start_server(State(state): State<AppState>) -> Response {
 
     match result {
         Ok(Ok(server)) => {
-            // Pass a cloneable ServerHandle to the simulator; the Server itself
-            // stays owned by AppState so stop_drop() still works cleanly.
-            demo_simulator::start_demo_simulator(server.handle(), &state.config.widgets);
-
+            epics_simulator::start_demo_simulator(server.handle(), &state.config.widgets);
             *state.pv_server.lock().unwrap() = Some(server);
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
@@ -365,10 +361,8 @@ async fn start_server(State(state): State<AppState>) -> Response {
     }
 }
 
-/// Stop the PVXS server
 async fn stop_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/stop");
-
     let server = state.pv_server.lock().unwrap().take();
     match server {
         None => {
@@ -401,7 +395,67 @@ async fn stop_server(State(state): State<AppState>) -> Response {
     }
 }
 
-/// Widget type display name used in the showcase section badges
+async fn server_status(State(state): State<AppState>) -> Html<String> {
+    let is_running = state.is_server_running();
+    let html = maud::html! {
+        div id="server-status" class=(if is_running { "success" } else { "warning" }) {
+            span { @if is_running { "🟢 Server Running" } @else { "🔴 Server Stopped" } }
+        }
+    };
+    Html(html.into_string())
+}
+
+async fn modbus_status(State(state): State<AppState>) -> Html<String> {
+    let is_running = state.is_modbus_running();
+    let html = maud::html! {
+        div id="modbus-status" class=(if is_running { "success" } else { "warning" }) {
+            span { @if is_running { "🟢 Modbus TCP Running" } @else { "🔴 Modbus TCP Stopped" } }
+        }
+    };
+    Html(html.into_string())
+}
+
+async fn start_modbus(State(state): State<AppState>) -> Response {
+    tracing::info!("POST /api/modbus/start");
+    if state.is_modbus_running() {
+        let html = maud::html! { div class="warning" { "Modbus TCP simulator is already running" } };
+        return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
+    }
+    let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
+    *state.modbus_task.lock().unwrap() = Some(vec![sim_h, listener_h]);
+    tracing::info!("Modbus TCP demo simulator restarted on port 5020");
+    let html = maud::html! {
+        div id="modbus-status" class="success" hx-swap-oob="true" {
+            span { "🟢 Modbus TCP Running" }
+        }
+    };
+    Html(html.into_string()).into_response()
+}
+
+async fn stop_modbus(State(state): State<AppState>) -> Response {
+    tracing::info!("POST /api/modbus/stop");
+    let handles = state.modbus_task.lock().unwrap().take();
+    match handles {
+        None => {
+            let html = maud::html! { div class="warning" { "Modbus TCP simulator is not running" } };
+            (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
+        }
+        Some(handles) => {
+            for h in handles { h.abort(); }
+            state.channel_ctx.modbus_pool.disconnect_all();
+            tracing::info!("Modbus TCP demo simulator stopped");
+            let html = maud::html! {
+                div id="modbus-status" class="warning" hx-swap-oob="true" {
+                    span { "🔴 Modbus TCP Stopped" }
+                }
+            };
+            Html(html.into_string()).into_response()
+        }
+    }
+}
+
+// ─── Showcase page ────────────────────────────────────────────────────────────
+
 fn widget_type_name(wt: &WidgetType) -> &'static str {
     match wt {
         WidgetType::TextEntry    => "TextEntry",
@@ -417,14 +471,17 @@ fn widget_type_name(wt: &WidgetType) -> &'static str {
     }
 }
 
-/// Render the showcase home page — each widget type in its own section with dark + light mockup cards.
-/// Widget pairing: first occurrence of each type in config → dark card, second → light card.
-fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
-    // Each entry: (section_key, widget_type, dark_widget, light_widget)
-    // Chart widgets use their ID as the key so each gets its own section.
+fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: bool) -> Markup {
+    fn proto_label(w: &WidgetConfig) -> &'static str {
+        match &w.protocol {
+            Some(ProtocolConfig::EpicsPva(_)) | None => "EPICS PVA",
+            Some(ProtocolConfig::ModbusTcp(_))       => "Modbus TCP",
+            _ => "Unknown",
+        }
+    }
+
     let mut pairs: Vec<(String, WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
 
-    // Recursively collect data widget references (skip Groups, recurse into children)
     fn collect_refs<'a>(widgets: &'a [WidgetConfig], out: &mut Vec<&'a WidgetConfig>) {
         for w in widgets {
             if w.widget_type == WidgetType::Group {
@@ -442,7 +499,7 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
     for widget in data_widgets {
         let key = match widget.widget_type {
             WidgetType::Chart => format!("Chart_{}", widget.id),
-            _ => format!("{:?}", widget.widget_type),
+            _ => format!("{:?}_{}", widget.widget_type, proto_label(widget)),
         };
         if let Some(entry) = pairs.iter_mut().find(|(k, _, _, _)| *k == key) {
             if entry.3.is_none() {
@@ -463,37 +520,52 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                 script src="/static/htmx.min.js" {}
                 script src="/static/tooltip.js" {}
                 link rel="stylesheet" href="/static/style.css";
-                style {
-                    "body { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); }"
-                }
+                style { "body { background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); }" }
             }
             body {
                 header class="main-header" {
                     h1 { (config.title) }
-                    div class="server-controls" style="display:flex;align-items:center;gap:1rem;margin-top:0.5rem;" {
-                        div id="server-status"
-                                hx-get="/api/server/status"
-                                hx-trigger="load, every 2s" {
-                            @if server_running {
-                                span class="success" style="display:flex;align-items:center;gap:0.4rem;" {
-                                    img src=(widgets::CHECK_CIRCLE_SVG) alt="running" style="width:20px;height:20px;";
-                                    "Server Running"
-                                }
-                            } @else {
-                                span class="warning" style="display:flex;align-items:center;gap:0.4rem;color:var(--alarm-minor)" {
-                                    img src=(widgets::CANCEL_SVG) alt="stopped" style="width:20px;height:20px;";
-                                    "Server Stopped"
+                    div class="server-controls" style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem;" {
+                        div style="display:flex;align-items:center;gap:1rem;" {
+                            span style="min-width:9rem;font-size:0.8rem;color:var(--text-secondary);" { "EPICS PVA" }
+                            div id="server-status" hx-get="/api/server/status" hx-trigger="load, every 2s" {
+                                @if server_running {
+                                    span class="success" style="display:flex;align-items:center;gap:0.4rem;" {
+                                        img src=(widgets::CHECK_CIRCLE_SVG) alt="running" style="width:20px;height:20px;";
+                                        "Running"
+                                    }
+                                } @else {
+                                    span class="warning" style="display:flex;align-items:center;gap:0.4rem;color:var(--alarm-minor)" {
+                                        img src=(widgets::CANCEL_SVG) alt="stopped" style="width:20px;height:20px;";
+                                        "Stopped"
+                                    }
                                 }
                             }
-                        }
-                        button class="widget-button"
-                                hx-post="/api/server/start"
-                                hx-target="#server-status"
+                            button class="widget-button" hx-post="/api/server/start" hx-target="#server-status"
                                 style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "▶ Start" }
-                        button class="widget-button"
-                                hx-post="/api/server/stop"
-                                hx-target="#server-status"
+                            button class="widget-button" hx-post="/api/server/stop" hx-target="#server-status"
                                 style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "⏹ Stop" }
+                        }
+                        div style="display:flex;align-items:center;gap:1rem;" {
+                            span style="min-width:9rem;font-size:0.8rem;color:var(--text-secondary);" { "Modbus TCP" }
+                            div id="modbus-status" hx-get="/api/modbus/status" hx-trigger="load, every 2s" {
+                                @if modbus_running {
+                                    span class="success" style="display:flex;align-items:center;gap:0.4rem;" {
+                                        img src=(widgets::CHECK_CIRCLE_SVG) alt="running" style="width:20px;height:20px;";
+                                        "Running"
+                                    }
+                                } @else {
+                                    span class="warning" style="display:flex;align-items:center;gap:0.4rem;color:var(--alarm-minor)" {
+                                        img src=(widgets::CANCEL_SVG) alt="stopped" style="width:20px;height:20px;";
+                                        "Stopped"
+                                    }
+                                }
+                            }
+                            button class="widget-button" hx-post="/api/modbus/start" hx-target="#modbus-status"
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "▶ Start" }
+                            button class="widget-button" hx-post="/api/modbus/stop" hx-target="#modbus-status"
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "⏹ Stop" }
+                        }
                     }
                 }
 
@@ -501,20 +573,22 @@ fn render_showcase(config: &ScreenConfig, server_running: bool) -> Markup {
                     p class="showcase-description" { (config.description) }
 
                     @for (_key, wtype, dark_w, light_w) in &pairs {
+                        @let first_proto = proto_label(dark_w);
                         section class="widget-section" {
                             div class="section-header" {
                                 span class="widget-type-badge" { (widget_type_name(wtype)) }
+                                @let proto_color = if first_proto == "Modbus TCP" { "#f0a500" } else { "#5b8dd9" };
+                                span style=(format!("font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:0.9rem;background:{};color:#fff;margin-left:0.4rem;", proto_color)) {
+                                    (first_proto)
+                                }
                                 p class="section-description" {
-                                    @if let Some(desc) = &dark_w.description {
-                                        (desc)
-                                    }
+                                    @if let Some(desc) = &dark_w.description { (desc) }
                                 }
                             }
                             div class={"theme-pair" @if *wtype == WidgetType::Chart { " theme-pair--chart" }} {
                                 div class="mockup-card mockup-card--dark" {
                                     div class="mockup-card__titlebar" {
                                         span class="theme-dot" {}
-                                        // Charts show their label; others show "Dark Theme"
                                         @if *wtype == WidgetType::Chart {
                                             span { (dark_w.label) }
                                         } @else {
@@ -561,19 +635,4 @@ function highlightTheme(t) {
             }
         }
     }
-}
-
-/// Get server status
-async fn server_status(State(state): State<AppState>) -> Html<String> {
-    let is_running = state.is_server_running();
-
-    let status_html = maud::html! {
-        div id="server-status" class=(if is_running { "success" } else { "warning" }) {
-            span {
-                @if is_running { "🟢 Server Running" } @else { "🔴 Server Stopped" }
-            }
-        }
-    };
-
-    Html(status_html.into_string())
 }

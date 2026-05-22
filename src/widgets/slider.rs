@@ -1,6 +1,8 @@
-use maud::{html, Markup};
+﻿use maud::{html, Markup};
+use std::sync::Arc;
+use futures::StreamExt;
+use crate::channel::{ChannelContext, ChannelEvent, ChannelValue};
 use crate::config::WidgetConfig;
-use pvxs_sys::{Context, Value, MonitorEvent};
 
 pub struct Slider {
     config: WidgetConfig,
@@ -13,14 +15,14 @@ impl Slider {
 
     pub fn into_sse_stream(
         self,
+        ctx: Arc<ChannelContext>,
     ) -> impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>
            + Send
            + 'static {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-        let config = std::sync::Arc::new(self.config);
-        let config_thread = config.clone();
+        let config = Arc::new(self.config);
 
-        tokio::task::spawn_blocking(move || Self::run_monitor(config_thread, tx));
+        tokio::spawn(Self::run_monitor_async(config.clone(), ctx, tx));
 
         async_stream::stream! {
             yield Ok(axum::response::sse::Event::default().data(
@@ -33,95 +35,41 @@ impl Slider {
         }
     }
 
-    pub(crate) fn run_monitor(
-        config: std::sync::Arc<WidgetConfig>,
+    pub(crate) async fn run_monitor_async(
+        config: Arc<WidgetConfig>,
+        ctx: Arc<ChannelContext>,
         tx: tokio::sync::mpsc::UnboundedSender<String>,
     ) {
-        tracing::info!("Slider monitor starting for: {}", config.pv_name);
-
-        let mut ctx = match Context::from_env() {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("Context creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config).into_string());
-                return;
-            }
-        };
-
-        let mut monitor = match ctx
-            .monitor_builder(&config.pv_name)
-            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-        {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::error!("Monitor creation failed for {}: {}", config.pv_name, e);
-                let _ = tx.send(render_inner_disconnected(&config).into_string());
-                return;
-            }
-        };
-
-        if let Err(e) = monitor.start() {
-            tracing::error!("Monitor start failed for {}: {}", config.pv_name, e);
-            return;
+        let mut stream = crate::channel::channel_stream(config.clone(), ctx);
+        while let Some(event) = stream.next().await {
+            let html = match event {
+                ChannelEvent::Value(cv)          => render_inner_connected(&config, &cv).into_string(),
+                ChannelEvent::Disconnected(_)
+                | ChannelEvent::Error(_)         => render_inner_disconnected(&config).into_string(),
+                ChannelEvent::Connected          => continue,
+            };
+            if tx.send(html).is_err() { break; }
         }
-
-        loop {
-            match monitor.pop() {
-                Ok(Some(raw)) => {
-                    let html = render_inner_connected(&config, &raw).into_string();
-                    if tx.send(html).is_err() { break; }
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(50)),
-                Err(MonitorEvent::Connected(msg)) => {
-                    tracing::info!("Slider {}: connected - {}", config.pv_name, msg);
-                }
-                Err(MonitorEvent::Disconnected(msg)) => {
-                    tracing::warn!("Slider {}: disconnected - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                }
-                Err(MonitorEvent::Finished(msg)) => {
-                    tracing::info!("Slider {}: finished - {}", config.pv_name, msg);
-                    break;
-                }
-                Err(MonitorEvent::RemoteError(msg) | MonitorEvent::ClientError(msg)) => {
-                    tracing::error!("Slider {}: error - {}", config.pv_name, msg);
-                    if tx.send(render_inner_disconnected(&config).into_string()).is_err() { break; }
-                }
-            }
-        }
-
-        tracing::info!("Slider monitor stopped for: {}", config.pv_name);
     }
 }
 
-fn render_inner_connected(config: &WidgetConfig, raw: &Value) -> Markup {
-    let alarm_severity = raw.get_field_int32("alarm.severity").unwrap_or(0);
-    let alarm_class = super::alarm_severity_class(alarm_severity);
-    let icon: Option<&str> = match alarm_severity {
+pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+    let alarm_class = super::alarm_severity_class(cv.alarm_severity);
+    let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
         2 => Some(super::MAJOR_ALARM_SVG),
         3 => Some(super::INVALID_SVG),
         _ => None,
     };
-
-    let current_value = raw.get_field_double("value").unwrap_or(0.0);
-    let prec = raw.get_field_int32("display.precision").unwrap_or(2);
-    let display_value = format!("{:.prec$}", current_value, prec = prec as usize);
-    let units = raw.get_field_string("display.units").unwrap_or_default();
-
-    let min = raw.get_field_double("control.limitLow")
-        .or_else(|_| raw.get_field_double("display.limitLow"))
-        .unwrap_or(0.0);
-    let max = raw.get_field_double("control.limitHigh")
-        .or_else(|_| raw.get_field_double("display.limitHigh"))
-        .unwrap_or(100.0);
-    let step = raw.get_field_double("control.minStep").unwrap_or(0.1);
-
-    render_slider_html(config, current_value, &display_value, &units, min, max, step,
-                        &format!("slider {}", alarm_class), icon, false, &super::build_tooltip(&config, raw))
+    let display_value = cv.value_str.clone();
+    let min = cv.control_low;
+    let max = if (cv.control_high - cv.control_low).abs() < f64::EPSILON { cv.control_low + 100.0 } else { cv.control_high };
+    let step = 10f64.powi(-(cv.precision as i32).max(0));
+    render_slider_html(config, cv.raw_value, &display_value, &cv.units, min, max, step,
+                        &format!("slider {}", alarm_class), icon, false, &super::build_tooltip(config, cv))
 }
 
-fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_slider_html(config, 0.0, "--", "", 0.0, 100.0, 0.1,
                         "slider alarm-disconnected", Some(super::OFFLINE_SVG), true, "")
 }
@@ -180,10 +128,14 @@ pub fn render_slider(widget: &WidgetConfig) -> Markup {
     html! {
         div style=[super::widget_container_style(widget)]
             data-widget-id=(widget.id)
-            data-pv=(widget.pv_name)
+            data-ch=(widget.channel_address())
             hx-sse=(format!("swap:{}", widget.id)) {
             (render_inner_disconnected(widget))
         }
     }
 }
 
+
+#[cfg(test)]
+#[path = "tests/slider.rs"]
+mod tests;

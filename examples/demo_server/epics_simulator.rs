@@ -5,8 +5,8 @@ use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use crate::config::{WidgetConfig, WidgetType};
-use crate::widgets::collect_data_widgets;
+use ctrl_sys_widgets::config::{WidgetConfig, WidgetType};
+use ctrl_sys_widgets::widgets::collect_data_widgets;
 
 /// Per-chart simulation state. The simulator only drives chart array PVs;
 /// scalar PVs (double, int32, etc.) are left for external EPICS clients.
@@ -61,26 +61,24 @@ pub fn start_demo_simulator(
 fn build_sim_pvs(widgets: &[WidgetConfig]) -> Vec<SimPv> {
     let data_widgets = collect_data_widgets(widgets);
     let mut sim_pvs = Vec::new();
-    // Track PV names we've already added to avoid duplicates (multiple widgets
-    // can reference the same PV).
     let mut seen = std::collections::HashSet::new();
 
     for w in &data_widgets {
-        if w.server.is_none() {
-            continue;
-        }
-        if !seen.insert(w.pv_name.clone()) {
+        let epics = match w.epics_pva() {
+            Some(e) if e.server.is_some() => e,
+            _ => continue,
+        };
+        let pv_name = epics.pv_name.clone();
+        if !seen.insert(pv_name.clone()) {
             continue;
         }
 
-        // Skip group containers (they have no PV).
         if w.widget_type == WidgetType::Group {
             continue;
         }
 
-        let (low, high) = display_limits(&w);
+        let (low, high) = display_limits(w);
 
-        // Only simulate chart array PVs — skip everything else.
         match w.data_type.as_deref() {
             Some("double_array") => {
                 let max_points = w.max_points.unwrap_or(100);
@@ -88,19 +86,19 @@ fn build_sim_pvs(widgets: &[WidgetConfig]) -> Vec<SimPv> {
                 match chart_type {
                     "scatter" | "scatter_histogram" => {
                         sim_pvs.push(SimPv::ScatterArray {
-                            pv_name: w.pv_name.clone(),
+                            pv_name: pv_name.clone(),
                             buffer_x: VecDeque::from(vec![0.0; max_points]),
                             buffer_y: VecDeque::from(vec![0.0; max_points]),
                             max_points,
                             phase_x: 0.0,
-                            phase_y: std::f64::consts::FRAC_PI_2, // 90° offset
+                            phase_y: std::f64::consts::FRAC_PI_2,
                             amplitude: (high - low) * 0.35,
                             offset: (high + low) / 2.0,
                         });
                     }
                     _ => {
                         sim_pvs.push(SimPv::DoubleArray {
-                            pv_name: w.pv_name.clone(),
+                            pv_name: pv_name.clone(),
                             buffer: VecDeque::from(vec![0.0; max_points]),
                             max_points,
                             phase: 0.0,
@@ -110,14 +108,11 @@ fn build_sim_pvs(widgets: &[WidgetConfig]) -> Vec<SimPv> {
                     }
                 }
             }
-            // Non-array PVs (double, int32, bool, enum, string) are not
-            // driven by the demo simulator — they are left for external clients.
             _ => {}
         }
 
-        // For multi-series line charts, also simulate any extra PVs listed in pv_names.
         if w.chart_type.as_deref().unwrap_or("line") == "line" {
-            if let Some(extra_pvs) = &w.pv_names {
+            if let Some(extra_pvs) = epics.pv_names.as_ref() {
                 let max_points = w.max_points.unwrap_or(100);
                 for (i, extra_name) in extra_pvs.iter().take(5).enumerate() {
                     if !seen.insert(extra_name.clone()) {
@@ -139,19 +134,19 @@ fn build_sim_pvs(widgets: &[WidgetConfig]) -> Vec<SimPv> {
     sim_pvs
 }
 
-/// Extract display limits from widget metadata, falling back to sensible defaults.
 fn display_limits(w: &WidgetConfig) -> (f64, f64) {
-    if let Some(server) = &w.server {
-        if let Some(meta) = &server.metadata {
-            if let Some(display) = &meta.display {
-                return (display.limit_low, display.limit_high);
+    if let Some(epics) = w.epics_pva() {
+        if let Some(server) = &epics.server {
+            if let Some(meta) = &server.metadata {
+                if let Some(display) = &meta.display {
+                    return (display.limit_low, display.limit_high);
+                }
             }
         }
     }
     (0.0, 100.0)
 }
 
-/// Main simulation loop — ticks every 500 ms, updates each simulated PV.
 async fn run_simulation_loop(
     handle: pvxs_sys::ServerHandle,
     mut sim_pvs: Vec<SimPv>,
@@ -169,21 +164,13 @@ async fn run_simulation_loop(
         for pv in sim_pvs.iter_mut() {
             match pv {
                 SimPv::DoubleArray {
-                    pv_name,
-                    buffer,
-                    max_points,
-                    phase,
-                    amplitude,
-                    offset,
+                    pv_name, buffer, max_points, phase, amplitude, offset,
                 } => {
-                    // Generate next point: sine wave + random noise
                     let noise = rng.random_range(-*amplitude * 0.15..=*amplitude * 0.15);
                     let y = *offset + *amplitude * phase.sin() + noise;
                     *phase += 0.15;
 
-                    if buffer.len() >= *max_points {
-                        buffer.pop_front();
-                    }
+                    if buffer.len() >= *max_points { buffer.pop_front(); }
                     buffer.push_back(y);
 
                     let data: Vec<f64> = buffer.iter().copied().collect();
@@ -192,14 +179,8 @@ async fn run_simulation_loop(
                     }
                 }
                 SimPv::ScatterArray {
-                    pv_name,
-                    buffer_x,
-                    buffer_y,
-                    max_points,
-                    phase_x,
-                    phase_y,
-                    amplitude,
-                    offset,
+                    pv_name, buffer_x, buffer_y, max_points,
+                    phase_x, phase_y, amplitude, offset,
                 } => {
                     let noise_x = rng.random_range(-*amplitude * 0.08..=*amplitude * 0.08);
                     let noise_y = rng.random_range(-*amplitude * 0.12..=*amplitude * 0.12);
@@ -213,7 +194,6 @@ async fn run_simulation_loop(
                     buffer_x.push_back(x);
                     buffer_y.push_back(y);
 
-                    // Interleave: [x0, y0, x1, y1, ...]
                     let data: Vec<f64> = buffer_x.iter().zip(buffer_y.iter())
                         .flat_map(|(&xi, &yi)| [xi, yi])
                         .collect();
