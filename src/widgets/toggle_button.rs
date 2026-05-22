@@ -91,7 +91,7 @@ fn render_toggle_html(
                 hx-vals=(format!(r#"{{"value": "{}"}}"#, next_val))
                 hx-target="next .status"
                 hx-swap="innerHTML" {
-                (config.label) " â€” " (state_label)
+                (config.label) ": " (state_label)
             }
             span class="status" {}
             @if let Some(desc) = &config.description {

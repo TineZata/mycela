@@ -14,7 +14,7 @@ pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> 
         let Some(server_config) = &epics.server else { continue };
         if created.insert(epics.pv_name.clone()) {
             create_widget_pv(server, widget, &epics.pv_name, server_config)?;
-            tracing::info!("\u{2713} Added PV: {}", epics.pv_name);
+            tracing::info!("Added PV: {}", epics.pv_name);
         }
 
         // For multi-series line charts, also create PVs for each extra entry in pv_names.
@@ -26,7 +26,7 @@ pub fn setup_server_pvs(server: &pvxs_sys::Server, widgets: &[WidgetConfig]) -> 
                         let meta = build_pv_metadata(server_config);
                         tracing::info!("Creating DOUBLE ARRAY PV (extra series): {} ({} points)", extra_name, max_points);
                         server.create_pv_double_array(extra_name, vec![0.0; max_points], meta)?;
-                        tracing::info!("\u{2713} Added extra series PV: {}", extra_name);
+                        tracing::info!("Added extra series PV: {}", extra_name);
                     }
                 }
             }

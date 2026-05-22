@@ -212,7 +212,7 @@
             "register": 1003,
             "register_type": "holding_register",
             "scale": 1.0,
-            "min_poll_interval_ms": 500
+            "min_poll_interval_ms": 100
           },
           "metadata": {
             "display": { "limit_low": 0, "limit_high": 65535, "description": "Tick counter", "precision": 0, "units": "" },

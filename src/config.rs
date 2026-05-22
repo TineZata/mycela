@@ -128,7 +128,6 @@ pub enum ModbusRegisterType {
     DiscreteInput,
 }
 
-// â”€â”€â”€ Widget configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Individual widget configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -357,8 +356,8 @@ impl ScreenConfig {
         for (idx, widget) in widgets.iter().enumerate() {
             if !seen_ids.insert(widget.id.clone()) {
                 let context = format!(
-                    "âš ï¸  Widget #{} has duplicate ID: '{}'\n\
-                     ðŸ’¡ Each widget must have a unique 'id' field.",
+                    "Widget #{} has duplicate ID: '{}'\n\
+                     Each widget must have a unique 'id' field.",
                     idx + 1, widget.id
                 );
                 let err = serde_json::from_str::<()>("\"duplicate_id\"")
@@ -377,12 +376,12 @@ impl ScreenConfig {
     
     /// Build a helpful error context message
     fn build_error_context(error: &serde_json::Error, content: &str, path: &str) -> String {
-        let mut context = format!("ðŸ“„ File: {}\n", path);
+        let mut context = format!("File: {}\n", path);
         
         // Try to determine what's wrong and where
         let line = error.line();
         if line > 0 {
-            context.push_str(&format!("ðŸ“ Line: {}, Column: {}\n\n", line, error.column()));
+            context.push_str(&format!("Line: {}, Column: {}\n\n", line, error.column()));
             
             // Show the problematic line and surrounding context
             let lines: Vec<&str> = content.lines().collect();
@@ -393,7 +392,7 @@ impl ScreenConfig {
             for (i, line_content) in lines[start..end].iter().enumerate() {
                 let line_num = start + i + 1;
                 if line_num == line {
-                    context.push_str(&format!("  âž¤ {}: {}\n", line_num, line_content));
+                    context.push_str(&format!("  {}: {}\n", line_num, line_content));
                 } else {
                     context.push_str(&format!("    {}: {}\n", line_num, line_content));
                 }
@@ -403,7 +402,7 @@ impl ScreenConfig {
         
         // Add helpful hints based on error message
         let error_msg = error.to_string();
-        context.push_str("âŒ Error: ");
+        context.push_str("Error: ");
         context.push_str(&error_msg);
         context.push_str("\n\n");
         
@@ -459,8 +458,6 @@ impl ScreenConfig {
         Ok(())
     }
 }
-
-// â”€â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests/config.rs"]

@@ -1,4 +1,4 @@
-mod epics_simulator;
+﻿mod epics_simulator;
 mod modbus_simulator;
 
 use axum::{
@@ -343,7 +343,7 @@ async fn start_server(State(state): State<AppState>) -> Response {
             *state.pv_server.lock().unwrap() = Some(server);
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
-                    span { "🟢 Server Running" }
+                    span { "Server Running" }
                 }
             };
             Html(html.into_string()).into_response()
@@ -375,7 +375,7 @@ async fn stop_server(State(state): State<AppState>) -> Response {
                 Ok(Ok(())) => {
                     let html = maud::html! {
                         div class="warning" hx-swap-oob="true" id="server-status" {
-                            span { "🔴 Server Stopped" }
+                            span { "Server Stopped" }
                         }
                     };
                     Html(html.into_string()).into_response()
@@ -399,7 +399,7 @@ async fn server_status(State(state): State<AppState>) -> Html<String> {
     let is_running = state.is_server_running();
     let html = maud::html! {
         div id="server-status" class=(if is_running { "success" } else { "warning" }) {
-            span { @if is_running { "🟢 Server Running" } @else { "🔴 Server Stopped" } }
+            span { @if is_running { "Server Running" } @else { "Server Stopped" } }
         }
     };
     Html(html.into_string())
@@ -409,7 +409,7 @@ async fn modbus_status(State(state): State<AppState>) -> Html<String> {
     let is_running = state.is_modbus_running();
     let html = maud::html! {
         div id="modbus-status" class=(if is_running { "success" } else { "warning" }) {
-            span { @if is_running { "🟢 Modbus TCP Running" } @else { "🔴 Modbus TCP Stopped" } }
+            span { @if is_running { "Modbus TCP Running" } @else { "Modbus TCP Stopped" } }
         }
     };
     Html(html.into_string())
@@ -426,7 +426,7 @@ async fn start_modbus(State(state): State<AppState>) -> Response {
     tracing::info!("Modbus TCP demo simulator restarted on port 5020");
     let html = maud::html! {
         div id="modbus-status" class="success" hx-swap-oob="true" {
-            span { "🟢 Modbus TCP Running" }
+            span { "Modbus TCP Running" }
         }
     };
     Html(html.into_string()).into_response()
@@ -446,7 +446,7 @@ async fn stop_modbus(State(state): State<AppState>) -> Response {
             tracing::info!("Modbus TCP demo simulator stopped");
             let html = maud::html! {
                 div id="modbus-status" class="warning" hx-swap-oob="true" {
-                    span { "🔴 Modbus TCP Stopped" }
+                    span { "Modbus TCP Stopped" }
                 }
             };
             Html(html.into_string()).into_response()
@@ -516,7 +516,7 @@ fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: 
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1.0";
-                title { "Widget Showcase — " (config.title) }
+                title { "Widget Showcase: " (config.title) }
                 script src="/static/htmx.min.js" {}
                 script src="/static/tooltip.js" {}
                 link rel="stylesheet" href="/static/style.css";
@@ -542,9 +542,9 @@ fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: 
                                 }
                             }
                             button class="widget-button" hx-post="/api/server/start" hx-target="#server-status"
-                                style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "▶ Start" }
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "Start" }
                             button class="widget-button" hx-post="/api/server/stop" hx-target="#server-status"
-                                style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "⏹ Stop" }
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "Stop" }
                         }
                         div style="display:flex;align-items:center;gap:1rem;" {
                             span style="min-width:9rem;font-size:0.8rem;color:var(--text-secondary);" { "Modbus TCP" }
@@ -562,9 +562,9 @@ fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: 
                                 }
                             }
                             button class="widget-button" hx-post="/api/modbus/start" hx-target="#modbus-status"
-                                style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "▶ Start" }
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;" { "Start" }
                             button class="widget-button" hx-post="/api/modbus/stop" hx-target="#modbus-status"
-                                style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "⏹ Stop" }
+                                style="padding:0.4rem 0.9rem;font-size:0.85rem;background:#dc3545;" { "Stop" }
                         }
                     }
                 }
@@ -610,7 +610,7 @@ fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: 
                                                 (widgets::render_widget_from_config(lw))
                                             } @else {
                                                 p style="color:var(--text-secondary);font-size:0.8rem;" {
-                                                    "— no light widget configured —"
+                                                    "no light widget configured"
                                                 }
                                             }
                                         }

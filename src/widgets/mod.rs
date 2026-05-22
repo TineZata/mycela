@@ -140,7 +140,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                 header class="screen-header" {
                     h1 { (config.title) }
                     p class="description" { (config.description) }
-                    a href="/" class="back-link" { "â† Back to Home" }
+                    a href="/" class="back-link" { "Back to Home" }
                 }
 
                 main class="screen-container" hx-sse=(format!("connect:/stream/screen/{}", config.id)) {
@@ -155,7 +155,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 
                 footer {
                     p class="screen-footer" {
-                        "Screen: " (config.id) " â€¢ "
+                        "Screen: " (config.id) " | "
                         span class="widget-count" { (config.widgets.len()) " widgets" }
                     }
                 }
@@ -218,7 +218,7 @@ async fn put_pv_epics(
     match result {
         Ok(Ok(())) => {
             tracing::info!("[{}] put_pv EPICS OK", widget_id);
-            html! { span class="put-ok" { "âœ“" } }
+            html! { span class="put-ok" { "OK" } }
         }
         Ok(Err(e)) => {
             tracing::error!("[{}] put_pv EPICS error: {}", widget_id, e);
@@ -248,7 +248,7 @@ async fn put_pv_modbus(
     match crate::modbus_client::modbus_write(&m, physical, &channel_ctx.modbus_pool).await {
         Ok(()) => {
             tracing::info!("[{}] put_pv Modbus OK", widget_id);
-            html! { span class="put-ok" { "âœ“" } }
+            html! { span class="put-ok" { "OK" } }
         }
         Err(e) => {
             tracing::error!("[{}] put_pv Modbus error: {}", widget_id, e);
