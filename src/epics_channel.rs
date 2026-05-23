@@ -19,6 +19,7 @@ use crate::config::{ProtocolConfig, WidgetConfig};
 ///   threads share a `Mutex<HashMap>` state and re-render on every update.
 pub fn epics_stream(
     config: Arc<WidgetConfig>,
+    epics_ctx: Arc<Mutex<Context>>,
 ) -> impl tokio_stream::Stream<Item = ChannelEvent> + Send + 'static {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ChannelEvent>();
 
@@ -35,9 +36,9 @@ pub fn epics_stream(
             .epics_pva()
             .map(|e| e.series_pvs())
             .unwrap_or_default();
-        tokio::task::spawn_blocking(move || run_multi_monitor(all_pvs, config, tx));
+        tokio::task::spawn_blocking(move || run_multi_monitor(all_pvs, config, epics_ctx, tx));
     } else {
-        tokio::task::spawn_blocking(move || run_single_monitor(config, tx));
+        tokio::task::spawn_blocking(move || run_single_monitor(config, epics_ctx, tx));
     }
 
     UnboundedReceiverStream::new(rx)
@@ -45,7 +46,7 @@ pub fn epics_stream(
 
 // ─── Single-PV monitor ────────────────────────────────────────────────────────
 
-fn run_single_monitor(config: Arc<WidgetConfig>, tx: UnboundedSender<ChannelEvent>) {
+fn run_single_monitor(config: Arc<WidgetConfig>, epics_ctx: Arc<Mutex<Context>>, tx: UnboundedSender<ChannelEvent>) {
     let pv_name = match config.protocol.as_ref() {
         Some(ProtocolConfig::EpicsPva(e)) => e.pv_name.clone(),
         _ => {
@@ -56,22 +57,17 @@ fn run_single_monitor(config: Arc<WidgetConfig>, tx: UnboundedSender<ChannelEven
 
     tracing::info!("EPICS monitor starting for: {}", pv_name);
 
-    let mut ctx = match Context::from_env() {
-        Ok(c) => c,
-        Err(e) => {
-            let _ = tx.send(ChannelEvent::Error(e.to_string()));
-            return;
-        }
-    };
-
-    let mut monitor = match ctx
-        .monitor_builder(&pv_name)
-        .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-    {
-        Ok(m) => m,
-        Err(e) => {
-            let _ = tx.send(ChannelEvent::Error(e.to_string()));
-            return;
+    let mut monitor = {
+        let mut ctx = epics_ctx.lock().unwrap();
+        match ctx
+            .monitor_builder(&pv_name)
+            .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
+        {
+            Ok(m) => m,
+            Err(e) => {
+                let _ = tx.send(ChannelEvent::Error(e.to_string()));
+                return;
+            }
         }
     };
 
@@ -120,6 +116,7 @@ fn run_single_monitor(config: Arc<WidgetConfig>, tx: UnboundedSender<ChannelEven
 fn run_multi_monitor(
     all_pvs: Vec<String>,
     config: Arc<WidgetConfig>,
+    epics_ctx: Arc<Mutex<Context>>,
     tx: UnboundedSender<ChannelEvent>,
 ) {
     type State = Arc<Mutex<(HashMap<String, Vec<f64>>, PrimaryMeta)>>;
@@ -135,24 +132,20 @@ fn run_multi_monitor(
             let state = state.clone();
             let tx = tx.clone();
             let is_primary = idx == 0;
+            let epics_ctx = epics_ctx.clone();
 
             std::thread::spawn(move || {
-                let mut ctx = match Context::from_env() {
-                    Ok(c) => c,
-                    Err(e) => {
-                        tracing::error!("Multi-monitor: context failed for {}: {}", pv_name, e);
-                        return;
-                    }
-                };
-
-                let mut monitor = match ctx
-                    .monitor_builder(&pv_name)
-                    .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
-                {
-                    Ok(m) => m,
-                    Err(e) => {
-                        tracing::error!("Multi-monitor: monitor failed for {}: {}", pv_name, e);
-                        return;
+                let mut monitor = {
+                    let mut ctx = epics_ctx.lock().unwrap();
+                    match ctx
+                        .monitor_builder(&pv_name)
+                        .and_then(|b| b.connect_exception(true).disconnect_exception(true).exec())
+                    {
+                        Ok(m) => m,
+                        Err(e) => {
+                            tracing::error!("Multi-monitor: monitor failed for {}: {}", pv_name, e);
+                            return;
+                        }
                     }
                 };
 

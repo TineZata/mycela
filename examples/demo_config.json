@@ -193,7 +193,7 @@
             "min_poll_interval_ms": 500
           },
           "metadata": {
-            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", "precision": 1, "units": "" },
+            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", "precision": 1, "units": "PSIG" },
             "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
             "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
           }
@@ -564,7 +564,8 @@
             "min_poll_interval_ms": 500
           },
           "metadata": {
-            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", "precision": 1, "units": "" },
+            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", 
+              "precision": 1, "units": "PSIG" },
             "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
             "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
           }
@@ -618,7 +619,8 @@
             "min_poll_interval_ms": 500
           },
           "metadata": {
-            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", "precision": 1, "units": "" },
+            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", 
+              "precision": 1, "units": "PSIG" },
             "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
             "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
           }
@@ -656,7 +658,7 @@
             "min_poll_interval_ms": 500
           },
           "metadata": {
-            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Sensor value", "precision": 2, "units": "" },
+            "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Sensor value", "precision": 2, "units": "PSIG" },
             "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.01 },
             "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
           }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 // ─── Unified value type ───────────────────────────────────────────────────────
 
@@ -16,7 +16,7 @@ pub struct ChannelValue {
     pub value_str: String,
     /// Sample array for single-series chart widgets
     pub array_values: Vec<f64>,
-    /// Sample arrays keyed by PV/channel name for multi-series line charts
+    /// Sample arrays for multi-series line charts
     pub named_series: HashMap<String, Vec<f64>>,
     /// Alarm severity  (0 = NO_ALARM, 1 = MINOR, 2 = MAJOR, 3 = INVALID)
     pub alarm_severity: i32,
@@ -34,7 +34,7 @@ pub struct ChannelValue {
     pub control_high: f64,
     /// Number of decimal places for display
     pub precision: i32,
-    /// Alarm/warning band limits (used by Gauge widget for markers)
+    /// Alarm/warning band limits
     pub low_alarm_limit: f64,
     pub low_warn_limit: f64,
     pub high_warn_limit: f64,
@@ -61,7 +61,7 @@ impl Default for ChannelValue {
             display_high: 100.0,
             control_low: 0.0,
             control_high: 100.0,
-            precision: 2,
+            precision: 1,
             low_alarm_limit: 0.0,
             low_warn_limit: 0.0,
             high_warn_limit: 100.0,
@@ -90,7 +90,7 @@ pub struct PrimaryMeta {
 pub enum ChannelEvent {
     /// The channel has successfully connected to its data source.
     Connected,
-    /// The channel has disconnected (e.g. device offline, PV not found).
+    /// The channel has disconnected (e.g. device offline, remote server not found).
     Disconnected(String),
     /// A new value has been received from the data source.
     Value(ChannelValue),
@@ -104,12 +104,34 @@ pub enum ChannelEvent {
 /// Passed through `AppState` and into every SSE handler.
 /// Add new protocol handles here when new protocols are introduced.
 pub struct ChannelContext {
+    #[cfg(feature = "epics")]
+    pub epics_ctx: Arc<Mutex<pvxs_sys::Context>>,
+    #[cfg(feature = "modbus")]
     pub modbus_pool: Arc<crate::modbus_client::ModbusPool>,
 }
 
 impl ChannelContext {
+    #[cfg(all(feature = "epics", feature = "modbus"))]
+    pub fn new(
+        epics_ctx: Arc<Mutex<pvxs_sys::Context>>,
+        modbus_pool: Arc<crate::modbus_client::ModbusPool>,
+    ) -> Arc<Self> {
+        Arc::new(Self { epics_ctx, modbus_pool })
+    }
+
+    #[cfg(all(feature = "epics", not(feature = "modbus")))]
+    pub fn new(epics_ctx: Arc<Mutex<pvxs_sys::Context>>) -> Arc<Self> {
+        Arc::new(Self { epics_ctx })
+    }
+
+    #[cfg(all(not(feature = "epics"), feature = "modbus"))]
     pub fn new(modbus_pool: Arc<crate::modbus_client::ModbusPool>) -> Arc<Self> {
         Arc::new(Self { modbus_pool })
+    }
+
+    #[cfg(all(not(feature = "epics"), not(feature = "modbus")))]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {})
     }
 }
 
@@ -124,12 +146,18 @@ pub fn channel_stream(
     ctx: Arc<ChannelContext>,
 ) -> futures::stream::BoxStream<'static, ChannelEvent> {
     use crate::config::ProtocolConfig;
-    match config.protocol.as_ref() {
-        Some(ProtocolConfig::EpicsPva(_)) | None => {
-            Box::pin(crate::epics_channel::epics_stream(config))
-        }
-        Some(ProtocolConfig::ModbusTcp(_)) => {
-            Box::pin(crate::modbus_client::modbus_stream(config, ctx.modbus_pool.clone()))
-        }
+
+    #[cfg(feature = "epics")]
+    if matches!(config.protocol.as_ref(), Some(ProtocolConfig::EpicsPva(_)) | None) {
+        return Box::pin(crate::epics_channel::epics_stream(config, ctx.epics_ctx.clone()));
     }
+
+    #[cfg(feature = "modbus")]
+    if let Some(ProtocolConfig::ModbusTcp(_)) = config.protocol.as_ref() {
+        return Box::pin(crate::modbus_client::modbus_stream(config, ctx.modbus_pool.clone()));
+    }
+
+    // No protocol configured or no matching feature enabled.
+    let _ = ctx;
+    Box::pin(futures::stream::empty::<ChannelEvent>())
 }

@@ -54,11 +54,14 @@ pub struct ScreenConfig {
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[non_exhaustive]
 pub enum ProtocolConfig {
+    #[cfg(feature = "epics")]
     EpicsPva(EpicsPvaConfig),
+    #[cfg(feature = "modbus")]
     ModbusTcp(ModbusTCPConfig),
 }
 
 /// EPICS Process Variable Access channel configuration.
+#[cfg(feature = "epics")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EpicsPvaConfig {
     /// EPICS PV name (e.g. "demo:double")
@@ -71,6 +74,7 @@ pub struct EpicsPvaConfig {
     pub pv_names: Option<Vec<String>>,
 }
 
+#[cfg(feature = "epics")]
 impl EpicsPvaConfig {
     /// All PV names for this widget (primary + up to 5 extra series for charts).
     pub fn series_pvs(&self) -> Vec<String> {
@@ -83,6 +87,7 @@ impl EpicsPvaConfig {
 }
 
 /// Modbus TCP channel configuration.
+#[cfg(feature = "modbus")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModbusTCPConfig {
     /// Modbus server hostname or IP address
@@ -111,14 +116,21 @@ pub struct ModbusTCPConfig {
     pub word_count: u8,
 }
 
+#[cfg(feature = "modbus")]
 fn default_modbus_port() -> u16 { 502 }
+#[cfg(feature = "modbus")]
 fn default_unit_id() -> u8 { 1 }
+#[cfg(feature = "modbus")]
 fn default_min_poll_interval_ms() -> u64 { 500 }
+#[cfg(feature = "modbus")]
 fn default_scale() -> f64 { 1.0 }
+#[cfg(feature = "modbus")]
 fn default_offset() -> f64 { 0.0 }
+#[cfg(feature = "modbus")]
 fn default_word_count() -> u8 { 1 }
 
 /// Modbus register / coil type.
+#[cfg(feature = "modbus")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ModbusRegisterType {
@@ -185,15 +197,18 @@ impl WidgetConfig {
     /// Returns a human-readable channel address for logging and the `data-ch` DOM attribute.
     pub fn channel_address(&self) -> String {
         match &self.protocol {
+            #[cfg(feature = "epics")]
             Some(ProtocolConfig::EpicsPva(e)) => e.pv_name.clone(),
+            #[cfg(feature = "modbus")]
             Some(ProtocolConfig::ModbusTcp(m)) => {
                 format!("modbus-tcp://{}:{}/reg{}", m.host, m.port, m.register)
             }
-            None => String::new(),
+            _ => String::new(),
         }
     }
 
     /// Returns the `EpicsPvaConfig` if this widget uses the `epics-pva` protocol.
+    #[cfg(feature = "epics")]
     pub fn epics_pva(&self) -> Option<&EpicsPvaConfig> {
         match &self.protocol {
             Some(ProtocolConfig::EpicsPva(e)) => Some(e),
@@ -202,6 +217,7 @@ impl WidgetConfig {
     }
 
     /// Returns the `ModbusTCPConfig` if this widget uses the `modbus-tcp` protocol.
+    #[cfg(feature = "modbus")]
     pub fn modbus_tcp(&self) -> Option<&ModbusTCPConfig> {
         match &self.protocol {
             Some(ProtocolConfig::ModbusTcp(m)) => Some(m),
@@ -211,6 +227,7 @@ impl WidgetConfig {
 }
 
 /// Server configuration for providing an EPICS PV (lives inside `EpicsPvaConfig.server`).
+#[cfg(feature = "epics")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     #[serde(default)]

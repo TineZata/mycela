@@ -10,6 +10,7 @@ path = "test_config_load.rs"
 [[example]]
 name = "demo_server"
 path = "examples/demo_server/main.rs"
+required-features = ["epics", "modbus"]
 
 [dependencies]
 # Web framework
@@ -43,12 +44,17 @@ chrono = "0.4.44"
 # Charting (SVG-only backend, minimal deps)
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
 
-# EPICS
-pvxs-sys = { path = "../pvxs-sys" }
-# pvxs-sys = "0.1.1"
+# EPICS (optional — enable with feature "epics")
+pvxs-sys = { path = "../pvxs-sys", optional = true }
+# pvxs-sys = { version = "0.1.1", optional = true }
 
-# Modbus
-tokio-modbus = { version = "0.17.0", features = ["tcp"] }
+# Modbus (optional — enable with feature "modbus")
+tokio-modbus = { version = "0.17.0", features = ["tcp"], optional = true }
+
+[features]
+default = ["epics", "modbus"]
+epics  = ["dep:pvxs-sys"]
+modbus = ["dep:tokio-modbus"]
 
 [dev-dependencies]
 rand = "0.10.1"

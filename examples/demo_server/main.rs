@@ -29,7 +29,6 @@ use ctrl_sys_widgets::{modbus_client, widgets};
 pub struct AppState {
     pub pv_server:   Arc<Mutex<Option<pvxs_sys::Server>>>,
     pub config:      Arc<ScreenConfig>,
-    pub write_ctx:   Arc<Mutex<pvxs_sys::Context>>,
     pub channel_ctx: Arc<ChannelContext>,
     pub modbus_task: Arc<Mutex<Option<Vec<tokio::task::JoinHandle<()>>>>>,
 }
@@ -59,7 +58,7 @@ async fn write_widget(
     match widget {
         None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
         Some(w) => {
-            Html(widgets::put_pv(w, form.value, state.write_ctx.clone(), state.channel_ctx.clone()).await.into_string()).into_response()
+            Html(widgets::put_pv(w, form.value, state.channel_ctx.clone()).await.into_string()).into_response()
         }
     }
 }
@@ -132,19 +131,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let write_ctx = Arc::new(Mutex::new(pvxs_sys::Context::from_env()?));
+    let epics_ctx = Arc::new(std::sync::Mutex::new(pvxs_sys::Context::from_env()?));
 
     // ── Modbus setup ────────────────────────────────────────────────────────
     let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
     tracing::info!("Modbus TCP demo simulator started on port 5020");
 
     let modbus_pool = modbus_client::ModbusPool::new();
-    let channel_ctx = ChannelContext::new(modbus_pool);
+    let channel_ctx = ChannelContext::new(epics_ctx, modbus_pool);
 
     let state = AppState {
         pv_server,
         config: Arc::new(config),
-        write_ctx,
         channel_ctx,
         modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
     };

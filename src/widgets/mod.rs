@@ -1,7 +1,9 @@
 ﻿use maud::{html, Markup};
 use std::sync::{Arc, Mutex};
 use crate::channel::{ChannelContext, ChannelValue};
-use crate::config::{ModbusTCPConfig, ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
+#[cfg(feature = "modbus")]
+use crate::config::ModbusTCPConfig;
+use crate::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
 
 #[derive(serde::Deserialize)]
 pub struct PutForm {
@@ -168,22 +170,24 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 pub async fn put_pv(
     config: WidgetConfig,
     value_str: String,
-    write_ctx: Arc<Mutex<pvxs_sys::Context>>,
     channel_ctx: Arc<ChannelContext>,
 ) -> Markup {
     tracing::info!("[{}] put_pv: ch={}, data_type={:?}, value='{}'",
         config.id, config.channel_address(), config.data_type, value_str);
     match &config.protocol {
+        #[cfg(feature = "epics")]
         Some(ProtocolConfig::EpicsPva(e)) => {
-            put_pv_epics(&config.id, &e.pv_name, &config.data_type, value_str, write_ctx).await
+            put_pv_epics(&config.id, &e.pv_name, &config.data_type, value_str, channel_ctx.epics_ctx.clone()).await
         }
+        #[cfg(feature = "modbus")]
         Some(ProtocolConfig::ModbusTcp(m)) => {
             put_pv_modbus(&config.id, m.clone(), value_str, channel_ctx).await
         }
-        None => html! { span class="put-err" { "No protocol configured for this widget" } },
+        _ => html! { span class="put-err" { "No protocol configured for this widget" } },
     }
 }
 
+#[cfg(feature = "epics")]
 async fn put_pv_epics(
     widget_id: &str,
     pv_name: &str,
@@ -231,6 +235,7 @@ async fn put_pv_epics(
     }
 }
 
+#[cfg(feature = "modbus")]
 async fn put_pv_modbus(
     widget_id: &str,
     m: ModbusTCPConfig,
@@ -287,9 +292,11 @@ pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelVa
     let mut t = String::new();
 
     let protocol_label = match &config.protocol {
+        #[cfg(feature = "epics")]
         Some(ProtocolConfig::EpicsPva(_))  => "EPICS PVA",
+        #[cfg(feature = "modbus")]
         Some(ProtocolConfig::ModbusTcp(_)) => "Modbus TCP",
-        None                               => "None",
+        _                                  => "None",
     };
     t.push_str(&format!("Protocol: {}\n", protocol_label));
     t.push_str(&format!("Channel: {}\n", config.channel_address()));

@@ -502,9 +502,11 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &ChannelValue) -> String {
     let mut t = String::new();
 
     let protocol_label = match &config.protocol {
+        #[cfg(feature = "epics")]
         Some(ProtocolConfig::EpicsPva(_))  => "EPICS PVA",
+        #[cfg(feature = "modbus")]
         Some(ProtocolConfig::ModbusTcp(_)) => "Modbus TCP",
-        None                               => "None",
+        _                                  => "None",
     };
     t.push_str(&format!("Protocol: {}\n", protocol_label));
 
@@ -527,6 +529,7 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &ChannelValue) -> String {
     match chart_type {
         "scatter" | "scatter_histogram" => {
             // pv_name → X axis, first name in pv_names → Y axis
+            #[cfg(feature = "epics")]
             if let Some(epics) = config.epics_pva() {
                 t.push_str(&format!("X data:  {}\n", epics.pv_name));
                 if let Some(names) = &epics.pv_names {
@@ -537,6 +540,8 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &ChannelValue) -> String {
             } else {
                 t.push_str(&format!("Channel: {}\n", config.channel_address()));
             }
+            #[cfg(not(feature = "epics"))]
+            t.push_str(&format!("Channel: {}\n", config.channel_address()));
         }
         "histogram" => {
             t.push_str(&format!("Data PV: {}\n", config.channel_address()));
@@ -578,6 +583,7 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &ChannelValue) -> String {
 fn collect_series_pvs(config: &WidgetConfig) -> Vec<String> {
     use crate::config::ProtocolConfig;
     match &config.protocol {
+        #[cfg(feature = "epics")]
         Some(ProtocolConfig::EpicsPva(e)) => e.series_pvs(),
         _ => Vec::new(),
     }
