@@ -284,6 +284,11 @@ pub fn channel_value_from_epics(raw: &Value, config: &WidgetConfig) -> ChannelVa
     let description = raw
         .get_field_string("display.description")
         .unwrap_or_default();
+    let description = if description.is_empty() {
+        meta_display.map(|d| d.description.clone()).unwrap_or_default()
+    } else {
+        description
+    };
 
     // Use server alarm severity when the server has alarm monitoring configured
     // (i.e. valueAlarm fields are present in the PV update).

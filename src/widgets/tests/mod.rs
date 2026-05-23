@@ -1,5 +1,6 @@
 use super::*;
-use crate::config::{EpicsPvaConfig, ProtocolConfig, WidgetConfig, WidgetStyle, WidgetType};
+use crate::config::{ControlMetadata, EpicsPvaConfig, ProtocolConfig, PvMetadata, WidgetConfig, WidgetStyle, WidgetType};
+use crate::test_helpers as th;
 
 fn make_widget(style: Option<WidgetStyle>) -> WidgetConfig {
     WidgetConfig {
@@ -167,4 +168,62 @@ fn collect_group_with_no_children_contributes_nothing() {
     let grp = simple_widget("empty_grp", WidgetType::Group);
     let result = collect_data_widgets(&[grp]);
     assert!(result.is_empty());
+}
+
+// ── check_control_limits ───────────────────────────────────────────────
+
+fn widget_with_limits(low: f64, high: f64) -> WidgetConfig {
+    let mut w = th::widget("w", WidgetType::TextEntry);
+    w.metadata = Some(PvMetadata {
+        display: None,
+        control: Some(ControlMetadata { limit_low: low, limit_high: high, min_step: 0.0 }),
+        alarm: None,
+    });
+    w
+}
+
+#[test]
+fn limit_above_high_is_rejected() {
+    let html = check_control_limits(&widget_with_limits(0.0, 100.0), "1300.0")
+        .expect("expected Some(err)")
+        .into_string();
+    assert!(html.contains("write-err"), "got: {html}");
+    assert!(html.contains("1300"), "should include the value, got: {html}");
+}
+
+#[test]
+fn limit_below_low_is_rejected() {
+    let html = check_control_limits(&widget_with_limits(0.0, 100.0), "-5.0")
+        .expect("expected Some(err)")
+        .into_string();
+    assert!(html.contains("write-err"), "got: {html}");
+}
+
+#[test]
+fn limit_within_range_returns_none() {
+    assert!(check_control_limits(&widget_with_limits(0.0, 100.0), "50.0").is_none());
+}
+
+#[test]
+fn limit_at_exact_low_boundary_is_accepted() {
+    assert!(check_control_limits(&widget_with_limits(0.0, 100.0), "0.0").is_none());
+}
+
+#[test]
+fn limit_at_exact_high_boundary_is_accepted() {
+    assert!(check_control_limits(&widget_with_limits(0.0, 100.0), "100.0").is_none());
+}
+
+#[test]
+fn limit_no_metadata_skips_check() {
+    // Widget with no metadata must never reject any value
+    let w = th::widget("w", WidgetType::TextEntry);
+    assert!(check_control_limits(&w, "999999.0").is_none());
+}
+
+#[test]
+fn limit_non_numeric_string_skips_check() {
+    // "true"/"on" style values for bool channels must pass through
+    let html_opt = check_control_limits(&widget_with_limits(0.0, 1.0), "true");
+    assert!(html_opt.is_none(), "non-numeric should bypass limit check");
 }

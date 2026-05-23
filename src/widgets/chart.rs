@@ -508,6 +508,7 @@ fn build_chart_tooltip(config: &WidgetConfig, raw: &ChannelValue) -> String {
         Some(ProtocolConfig::ModbusTcp(_)) => "Modbus TCP",
         _                                  => "None",
     };
+    t.push_str(&format!("ID: {}\n", config.id));
     t.push_str(&format!("Protocol: {}\n", protocol_label));
 
     // Chart type line

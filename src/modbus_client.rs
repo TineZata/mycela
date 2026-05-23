@@ -10,8 +10,6 @@ use tokio_modbus::prelude::*;
 use crate::channel::{ChannelEvent, ChannelValue};
 use crate::config::{ModbusTCPConfig, ModbusRegisterType, ProtocolConfig, WidgetConfig};
 
-// â”€â”€â”€ Device-level request types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 enum DeviceRequest {
     Read {
         register: u16,
@@ -26,8 +24,6 @@ enum DeviceRequest {
         respond: oneshot::Sender<Result<(), String>>,
     },
 }
-
-// â”€â”€â”€ Device handle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A cloneable handle to a per-device connection-manager task.
 ///
@@ -74,8 +70,6 @@ impl DeviceHandle {
         rx.await.map_err(|_| "device task dropped respond channel".to_string())?
     }
 }
-
-// â”€â”€â”€ Connection pool â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Shared Modbus connection pool keyed by `"host:port:unit_id"`.
 /// Use `Arc<ModbusPool>` everywhere so all SSE handlers and the write path
@@ -127,8 +121,6 @@ impl ModbusPool {
         handle
     }
 }
-
-// â”€â”€â”€ Device connection task â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async fn run_device_task(
     host: String,
@@ -303,8 +295,6 @@ fn send_error(req: DeviceRequest, msg: String) {
     }
 }
 
-// â”€â”€â”€ Widget stream â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 /// Create an async stream of `ChannelEvent`s by polling a Modbus register
 /// at the interval specified in `config.protocol.modbus`.
 pub fn modbus_stream(
@@ -406,8 +396,9 @@ pub(crate) fn build_channel_value(physical: f64, m: &ModbusTCPConfig, config: &W
     let meta_control = config.metadata.as_ref().and_then(|md| md.control.as_ref());
     let meta_alarm   = config.metadata.as_ref().and_then(|md| md.alarm.as_ref());
 
-    let precision = meta_display.map(|d| d.precision).unwrap_or(2);
-    let units = meta_display.map(|d| d.units.clone()).unwrap_or_default();
+    let precision    = meta_display.map(|d| d.precision).unwrap_or(2);
+    let units       = meta_display.map(|d| d.units.clone()).unwrap_or_default();
+    let description = meta_display.map(|d| d.description.clone()).unwrap_or_default();
 
     let value_str = match config.data_type.as_deref() {
         Some("bool") | Some("int32") | Some("int") => (physical as i64).to_string(),
@@ -427,7 +418,6 @@ pub(crate) fn build_channel_value(physical: f64, m: &ModbusTCPConfig, config: &W
         raw_value: physical,
         value_str,
         precision,
-        units,
         display_low,
         display_high,
         control_low,
@@ -437,12 +427,19 @@ pub(crate) fn build_channel_value(physical: f64, m: &ModbusTCPConfig, config: &W
         high_warn_limit:  meta_alarm.map(|a| a.high_warning_limit) .unwrap_or(display_high),
         high_alarm_limit: meta_alarm.map(|a| a.high_alarm_limit)   .unwrap_or(display_high),
         alarm_severity,
+        primary_meta: crate::channel::PrimaryMeta {
+            alarm_severity,
+            description,
+            units: units.clone(),
+            limit_lo: display_low,
+            limit_hi: display_high,
+        },
+        units,
         ..ChannelValue::default()
     }
 }
 
-// â”€â”€â”€ Write helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+/// Write a physical value back to a Modbus register, reversing the scale/offset.
 /// Write a physical value back to a Modbus register, reversing the scale/offset.
 pub async fn modbus_write(
     m: &ModbusTCPConfig,
@@ -456,13 +453,14 @@ pub async fn modbus_write(
         let bits = (raw as f32).to_bits();
         vec![(bits >> 16) as u16, (bits & 0xFFFF) as u16]
     } else {
-        vec![raw.clamp(0.0, 65535.0) as u16]
+        // Round before casting — prevents floating-point edge cases where
+        // e.g. (99.1 / 0.1) evaluates to 990.9999... and floors to 990.
+        vec![raw.round().clamp(0.0, 65535.0) as u16]
     };
 
     handle.write(m.register, m.register_type.clone(), words).await
 }
 
-// â”€â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests/modbus_client.rs"]

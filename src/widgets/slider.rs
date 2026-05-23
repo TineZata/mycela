@@ -64,7 +64,12 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
     let display_value = cv.value_str.clone();
     let min = cv.control_low;
     let max = if (cv.control_high - cv.control_low).abs() < f64::EPSILON { cv.control_low + 100.0 } else { cv.control_high };
-    let step = 10f64.powi(-(cv.precision as i32).max(0));
+    let precision_step = 10f64.powi(-(cv.precision as i32).max(0));
+    let step = config.metadata.as_ref()
+        .and_then(|m| m.control.as_ref())
+        .map(|c| c.min_step)
+        .filter(|&s| s > 0.0)
+        .unwrap_or(precision_step);
     render_slider_html(config, cv.raw_value, &display_value, &cv.units, min, max, step,
                         &format!("slider {}", alarm_class), icon, false, &super::build_tooltip(config, cv))
 }

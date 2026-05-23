@@ -65,7 +65,16 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
     let is_double  = matches!(config.data_type.as_deref(), Some("double") | Some("float") | Some("f64") | Some("f32"));
     let is_integer = matches!(config.data_type.as_deref(), Some("integer") | Some("int") | Some("i32") | Some("int32") | Some("bool"));
     let is_string  = !is_double && !is_integer;
-    let min_step = if is_integer { 1.0 } else { 10f64.powi(-(cv.precision as i32).max(0)) };
+    let precision_step = 10f64.powi(-(cv.precision as i32).max(0));
+    let min_step = if is_integer {
+        1.0
+    } else {
+        config.metadata.as_ref()
+            .and_then(|m| m.control.as_ref())
+            .map(|c| c.min_step)
+            .filter(|&s| s > 0.0)
+            .unwrap_or(precision_step)
+    };
     let tooltip = super::build_tooltip(config, cv);
     render_input_html(config, &cv.value_str, &cv.units, min_step, is_string,
                       &format!("text-entry {}", alarm_class), icon, false, &tooltip)

@@ -1462,9 +1462,9 @@ footer {
     border-color: var(--accent);
 }
 
-/* put-ok / put-err feedback */
-.put-ok  { color: var(--alarm-none);  font-size: 1.1rem; }
-.put-err { color: var(--alarm-major); font-size: 0.8rem; }
+/* write-ok / write-err feedback */
+.write-ok  { color: var(--alarm-none);  font-size: 1.1rem; }
+.write-err { color: var(--alarm-major); font-size: 0.8rem; }
 
 .connection-status {
     background: rgba(255, 107, 107, 0.2);

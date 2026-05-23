@@ -6,7 +6,7 @@ use crate::config::ModbusTCPConfig;
 use crate::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
 
 #[derive(serde::Deserialize)]
-pub struct PutForm {
+pub struct WriteForm {
     pub value: String,
 }
 
@@ -166,29 +166,53 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
     }
 }
 
-/// Write a value to a widget channel â€” routes to EPICS or Modbus based on `config.protocol`.
-pub async fn put_pv(
+/// Guard for `write_channel`: returns `Some(error_markup)` when the parsed
+/// value falls outside the widget's configured control limits, `None` otherwise.
+/// Non-numeric strings (booleans, enums) are passed through unchanged.
+pub(crate) fn check_control_limits(config: &WidgetConfig, value_str: &str) -> Option<Markup> {
+    let ctrl = config.metadata.as_ref()?.control.as_ref()?;
+    let v: f64 = value_str.trim().parse().ok()?;
+    if v < ctrl.limit_low || v > ctrl.limit_high {
+        tracing::warn!(
+            "[{}] write rejected: {} outside control limits [{}, {}]",
+            config.id, v, ctrl.limit_low, ctrl.limit_high
+        );
+        Some(html! {
+            span class="write-err" {
+                (v) " outside control range [" (ctrl.limit_low) ", " (ctrl.limit_high) "]"
+            }
+        })
+    } else {
+        None
+    }
+}
+
+/// Write a value to a widget channel — routes to EPICS or Modbus based on `config.protocol`.
+pub async fn write_channel(
     config: WidgetConfig,
     value_str: String,
     channel_ctx: Arc<ChannelContext>,
 ) -> Markup {
-    tracing::info!("[{}] put_pv: ch={}, data_type={:?}, value='{}'",
+    if let Some(err) = check_control_limits(&config, &value_str) {
+        return err;
+    }
+    tracing::info!("[{}] write_channel: ch={}, data_type={:?}, value='{}'",
         config.id, config.channel_address(), config.data_type, value_str);
     match &config.protocol {
         #[cfg(feature = "epics")]
         Some(ProtocolConfig::EpicsPva(e)) => {
-            put_pv_epics(&config.id, &e.pv_name, &config.data_type, value_str, channel_ctx.epics_ctx.clone()).await
+            write_channel_epics(&config.id, &e.pv_name, &config.data_type, value_str, channel_ctx.epics_ctx.clone()).await
         }
         #[cfg(feature = "modbus")]
         Some(ProtocolConfig::ModbusTcp(m)) => {
-            put_pv_modbus(&config.id, m.clone(), value_str, channel_ctx).await
+            write_channel_modbus(&config.id, m.clone(), value_str, channel_ctx).await
         }
-        _ => html! { span class="put-err" { "No protocol configured for this widget" } },
+        _ => html! { span class="write-err" { "No protocol configured for this widget" } },
     }
 }
 
 #[cfg(feature = "epics")]
-async fn put_pv_epics(
+async fn write_channel_epics(
     widget_id: &str,
     pv_name: &str,
     data_type: &Option<String>,
@@ -221,22 +245,22 @@ async fn put_pv_epics(
     .await;
     match result {
         Ok(Ok(())) => {
-            tracing::info!("[{}] put_pv EPICS OK", widget_id);
-            html! { span class="put-ok" { "OK" } }
+            tracing::info!("[{}] write_channel EPICS OK", widget_id);
+            html! { span class="write-ok" { "OK" } }
         }
         Ok(Err(e)) => {
-            tracing::error!("[{}] put_pv EPICS error: {}", widget_id, e);
-            html! { span class="put-err" { "Error: " (e.to_string()) } }
+            tracing::error!("[{}] write_channel EPICS error: {}", widget_id, e);
+            html! { span class="write-err" { "Error: " (e.to_string()) } }
         }
         Err(e) => {
-            tracing::error!("[{}] put_pv task panicked: {}", widget_id, e);
-            html! { span class="put-err" { "Internal error" } }
+            tracing::error!("[{}] write_channel task panicked: {}", widget_id, e);
+            html! { span class="write-err" { "Internal error" } }
         }
     }
 }
 
 #[cfg(feature = "modbus")]
-async fn put_pv_modbus(
+async fn write_channel_modbus(
     widget_id: &str,
     m: ModbusTCPConfig,
     value_str: String,
@@ -247,17 +271,17 @@ async fn put_pv_modbus(
         Err(_) => match value_str.trim().to_lowercase().as_str() {
             "true" | "1" | "on"  => 1.0,
             "false" | "0" | "off" => 0.0,
-            _ => return html! { span class="put-err" { "Invalid value: '" (value_str.trim()) "'" } },
+            _ => return html! { span class="write-err" { "Invalid value: '" (value_str.trim()) "'" } },
         },
     };
     match crate::modbus_client::modbus_write(&m, physical, &channel_ctx.modbus_pool).await {
         Ok(()) => {
-            tracing::info!("[{}] put_pv Modbus OK", widget_id);
-            html! { span class="put-ok" { "OK" } }
+            tracing::info!("[{}] write_channel Modbus OK", widget_id);
+            html! { span class="write-ok" { "OK" } }
         }
         Err(e) => {
-            tracing::error!("[{}] put_pv Modbus error: {}", widget_id, e);
-            html! { span class="put-err" { "Error: " (e) } }
+            tracing::error!("[{}] write_channel Modbus error: {}", widget_id, e);
+            html! { span class="write-err" { "Error: " (e) } }
         }
     }
 }
@@ -298,6 +322,7 @@ pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelVa
         Some(ProtocolConfig::ModbusTcp(_)) => "Modbus TCP",
         _                                  => "None",
     };
+    t.push_str(&format!("ID: {}\n", config.id));
     t.push_str(&format!("Protocol: {}\n", protocol_label));
     t.push_str(&format!("Channel: {}\n", config.channel_address()));
 

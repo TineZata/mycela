@@ -50,15 +50,15 @@ impl AppState {
 async fn write_widget(
     Path(widget_id): Path<String>,
     State(state): State<AppState>,
-    Form(form): Form<widgets::PutForm>,
+    Form(form): Form<widgets::WriteForm>,
 ) -> Response {
     let widget = widgets::collect_data_widgets(&state.config.widgets)
         .into_iter()
         .find(|w| w.id == widget_id);
     match widget {
-        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"put-err\">Widget '{}' not found</span>", widget_id))).into_response(),
+        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"write-err\">Widget '{}' not found</span>", widget_id))).into_response(),
         Some(w) => {
-            Html(widgets::put_pv(w, form.value, state.channel_ctx.clone()).await.into_string()).into_response()
+            Html(widgets::write_channel(w, form.value, state.channel_ctx.clone()).await.into_string()).into_response()
         }
     }
 }
