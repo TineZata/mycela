@@ -169,7 +169,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 /// Guard for `write_channel`: returns `Some(error_markup)` when the parsed
 /// value falls outside the widget's configured control limits, `None` otherwise.
 /// Non-numeric strings (booleans, enums) are passed through unchanged.
-pub(crate) fn check_control_limits(config: &WidgetConfig, value_str: &str) -> Option<Markup> {
+pub fn check_control_limits(config: &WidgetConfig, value_str: &str) -> Option<Markup> {
     let ctrl = config.metadata.as_ref()?.control.as_ref()?;
     let v: f64 = value_str.trim().parse().ok()?;
     if v < ctrl.limit_low || v > ctrl.limit_high {
@@ -297,7 +297,7 @@ pub fn alarm_severity_class(severity: i32) -> &'static str {
 }
 
 /// Map alarm status integer to human-readable string (shared across all widgets)
-pub(super) fn alarm_status_str(status: i32) -> &'static str {
+pub fn alarm_status_str(status: i32) -> &'static str {
     match status {
         0 => "No Alarm",
         1 => "Device",
@@ -360,7 +360,7 @@ pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelVa
 
 /// Build an inline style string from the widget's optional style config (width/height).
 /// Returns `None` when no sizing is configured, so maud's `style=[â€¦]` omits the attribute.
-pub(crate) fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<String> {
+pub fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<String> {
     let mut s = String::new();
     if let Some(style) = &config.style {
         if let Some(w) = &style.width  { s.push_str(&format!("width:{};",  w)); }
@@ -386,7 +386,3 @@ pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
 //     datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 // }
 
-
-#[cfg(test)]
-#[path = "tests/mod.rs"]
-mod tests;

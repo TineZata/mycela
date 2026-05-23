@@ -53,13 +53,13 @@ impl ToggleButton {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     let is_on = cv.raw_value > 0.5;
     let next_val = if is_on { "0" } else { "1" };
     render_toggle_html(config, is_on, next_val, false, &super::build_tooltip(config, cv))
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_toggle_html(config, false, "0", true, "")
 }
 
@@ -113,8 +113,3 @@ pub fn render_toggle_button(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/toggle_button.rs"]
-mod tests;

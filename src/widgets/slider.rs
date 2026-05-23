@@ -53,7 +53,7 @@ impl Slider {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     let alarm_class = super::alarm_severity_class(cv.alarm_severity);
     let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
@@ -74,7 +74,7 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
                         &format!("slider {}", alarm_class), icon, false, &super::build_tooltip(config, cv))
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_slider_html(config, 0.0, "--", "", 0.0, 100.0, 0.1,
                         "slider alarm-disconnected", Some(super::OFFLINE_SVG), true, "")
 }
@@ -139,8 +139,3 @@ pub fn render_slider(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/slider.rs"]
-mod tests;

@@ -8,6 +8,3 @@ pub mod modbus_client;
 #[cfg(feature = "epics")]
 pub mod server_setup;
 pub mod widgets;
-
-#[cfg(test)]
-pub(crate) mod test_helpers;

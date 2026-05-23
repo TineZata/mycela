@@ -53,7 +53,7 @@ impl Led {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
         2 => Some(super::MAJOR_ALARM_SVG),
@@ -64,7 +64,7 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
     render_led_html(config, is_on, icon, false, &super::build_tooltip(config, cv))
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_led_html(config, false, Some(super::OFFLINE_SVG), true, "")
 }
 
@@ -116,8 +116,3 @@ pub fn render_led(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/led.rs"]
-mod tests;

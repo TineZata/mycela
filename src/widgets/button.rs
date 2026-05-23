@@ -53,11 +53,11 @@ impl Button {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     render_button_html(config, false, &super::build_tooltip(config, cv))
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_button_html(config, true, "")
 }
 
@@ -102,8 +102,3 @@ pub fn render_button(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/button.rs"]
-mod tests;

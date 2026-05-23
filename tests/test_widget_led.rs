@@ -1,0 +1,67 @@
+// Copyright 2026 Tine Zata
+// SPDX-License-Identifier: MPL-2.0
+
+mod test_widget_led {
+    use ctrl_sys_widgets::channel::ChannelValue;
+    use ctrl_sys_widgets::config::{WidgetConfig, WidgetType};
+    use ctrl_sys_widgets::widgets::led::{render_inner_connected, render_inner_disconnected};
+    use ctrl_sys_widgets::widgets::{MAJOR_ALARM_SVG, MINOR_ALARM_SVG, OFFLINE_SVG};
+
+    fn w() -> WidgetConfig {
+        WidgetConfig {
+            id: "led".to_string(),
+            widget_type: WidgetType::Led,
+            label: "LED".to_string(),
+            protocol: None,
+            data_type: None,
+            description: None,
+            style: None,
+            options: None,
+            orientation: None,
+            level: None,
+            children: None,
+            max_points: None,
+            chart_type: None,
+            axis_label_x: None,
+            axis_label_y: None,
+            size: None,
+            metadata: None,
+        }
+    }
+
+    #[test]
+    fn test_disconnected_led_shows_offline_status_icon() {
+        let html = render_inner_disconnected(&w()).into_string();
+        assert!(html.contains(OFFLINE_SVG));
+    }
+
+    #[test]
+    fn test_led_with_nonzero_raw_value_renders_on_state() {
+        let cv = ChannelValue { raw_value: 1.0, ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("led-on"));
+        assert!(html.contains("ON"));
+    }
+
+    #[test]
+    fn test_led_with_zero_raw_value_renders_off_state() {
+        let cv = ChannelValue { raw_value: 0.0, ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("led-off"));
+        assert!(html.contains("OFF"));
+    }
+
+    #[test]
+    fn test_led_with_minor_alarm_severity_shows_minor_alarm_icon() {
+        let cv = ChannelValue { alarm_severity: 1, raw_value: 1.0, ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains(MINOR_ALARM_SVG));
+    }
+
+    #[test]
+    fn test_led_with_major_alarm_severity_shows_major_alarm_icon() {
+        let cv = ChannelValue { alarm_severity: 2, ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains(MAJOR_ALARM_SVG));
+    }
+}

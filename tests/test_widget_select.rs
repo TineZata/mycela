@@ -1,0 +1,81 @@
+// Copyright 2026 Tine Zata
+// SPDX-License-Identifier: MPL-2.0
+
+mod test_widget_select {
+    use ctrl_sys_widgets::channel::ChannelValue;
+    use ctrl_sys_widgets::config::{WidgetConfig, WidgetType};
+    use ctrl_sys_widgets::widgets::select::{render_inner_connected, render_inner_disconnected};
+
+    fn w() -> WidgetConfig {
+        WidgetConfig {
+            id: "sel".to_string(),
+            widget_type: WidgetType::Select,
+            label: "Select".to_string(),
+            protocol: None,
+            data_type: None,
+            description: None,
+            style: None,
+            options: None,
+            orientation: None,
+            level: None,
+            children: None,
+            max_points: None,
+            chart_type: None,
+            axis_label_x: None,
+            axis_label_y: None,
+            size: None,
+            metadata: None,
+        }
+    }
+
+    #[test]
+    fn test_disconnected_select_shows_alarm_disconnected_class() {
+        let html = render_inner_disconnected(&w()).into_string();
+        assert!(html.contains("alarm-disconnected"));
+    }
+
+    #[test]
+    fn test_connected_select_with_no_alarm_uses_alarm_none_class() {
+        let cv = ChannelValue { enum_index: 0, enum_choices: vec![], ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("widget-select alarm-none"), "got: {html}");
+    }
+
+    #[test]
+    fn test_connected_select_with_minor_alarm_uses_alarm_minor_class() {
+        let cv = ChannelValue { alarm_severity: 1, ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("widget-select alarm-minor"));
+    }
+
+    #[test]
+    fn test_connected_select_with_major_alarm_uses_alarm_major_class() {
+        let cv = ChannelValue { alarm_severity: 2, ..ChannelValue::default() };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("widget-select alarm-major"));
+    }
+
+    #[test]
+    fn test_enum_choices_in_channel_value_are_rendered_as_select_options() {
+        let cv = ChannelValue {
+            enum_index: 1,
+            enum_choices: vec!["Auto".to_string(), "Manual".to_string(), "Off".to_string()],
+            ..ChannelValue::default()
+        };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("Auto"));
+        assert!(html.contains("Manual"));
+        assert!(html.contains("Off"));
+    }
+
+    #[test]
+    fn test_current_enum_index_option_is_marked_as_selected() {
+        let cv = ChannelValue {
+            enum_index: 2,
+            enum_choices: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            ..ChannelValue::default()
+        };
+        let html = render_inner_connected(&w(), &cv).into_string();
+        assert!(html.contains("selected"));
+    }
+}

@@ -53,7 +53,7 @@ impl Gauge {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     let alarm_class = super::alarm_severity_class(cv.alarm_severity);
     let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
@@ -85,7 +85,7 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
                       low_alarm, low_warn, high_warn, high_alarm, &tooltip)
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_gauge_html(config, "--", "", 0.0, 100.0, 0.0, "gauge alarm-disconnected", Some(super::OFFLINE_SVG),
                       None, None, None, None, "")
 }
@@ -217,8 +217,3 @@ pub fn render_gauge(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/gauge.rs"]
-mod tests;

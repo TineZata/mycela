@@ -360,7 +360,7 @@ impl ScreenConfig {
     }
     
     /// Validate that the configuration has all required data
-    pub(crate) fn validate_config(config: &ScreenConfig) -> Result<(), ConfigError> {
+    pub fn validate_config(config: &ScreenConfig) -> Result<(), ConfigError> {
         let mut seen_ids = std::collections::HashSet::new();
         Self::validate_widgets(&config.widgets, &mut seen_ids)
     }
@@ -475,7 +475,3 @@ impl ScreenConfig {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "tests/config.rs"]
-mod tests;

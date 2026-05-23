@@ -54,7 +54,7 @@ impl TextEntry {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     let alarm_class = super::alarm_severity_class(cv.alarm_severity);
     let icon: Option<&str> = match cv.alarm_severity {
         0 => None,
@@ -80,7 +80,7 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
                       &format!("text-entry {}", alarm_class), icon, false, &tooltip)
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
     let is_string = config.data_type.as_deref() == Some("string");
     render_input_html(config, "--", "", 0.01, is_string,
                       "text-entry alarm-disconnected", Some(super::OFFLINE_SVG), true, "")
@@ -161,8 +161,3 @@ pub fn render_text_entry(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/text_entry.rs"]
-mod tests;

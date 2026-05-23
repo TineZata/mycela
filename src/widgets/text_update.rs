@@ -53,7 +53,7 @@ impl TextUpdate {
     }
 }
 
-pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
+pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Markup {
     let alarm_class = super::alarm_severity_class(cv.alarm_severity);
     let icon: Option<&str> = match cv.alarm_severity {
         1 => Some(super::MINOR_ALARM_SVG),
@@ -65,7 +65,7 @@ pub(crate) fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -
     render_display_html(config, &cv.value_str, &cv.units, &format!("text-update {}", alarm_class), icon, &tooltip)
 }
 
-pub(crate) fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
+pub fn render_inner_disconnected(config: &WidgetConfig, _reason: &str) -> Markup {
     render_display_html(config, "--", "", "text-update alarm-disconnected", Some(super::OFFLINE_SVG), "")
 }
 
@@ -118,8 +118,3 @@ pub fn render_text_update(widget: &WidgetConfig) -> Markup {
         }
     }
 }
-
-
-#[cfg(test)]
-#[path = "tests/text_update.rs"]
-mod tests;

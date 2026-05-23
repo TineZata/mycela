@@ -391,7 +391,7 @@ fn decode_words(words: &[u16], word_count: u8) -> f64 {
     }
 }
 
-pub(crate) fn build_channel_value(physical: f64, m: &ModbusTCPConfig, config: &WidgetConfig) -> ChannelValue {
+pub fn build_channel_value(physical: f64, m: &ModbusTCPConfig, config: &WidgetConfig) -> ChannelValue {
     let meta_display = config.metadata.as_ref().and_then(|md| md.display.as_ref());
     let meta_control = config.metadata.as_ref().and_then(|md| md.control.as_ref());
     let meta_alarm   = config.metadata.as_ref().and_then(|md| md.alarm.as_ref());
@@ -462,6 +462,3 @@ pub async fn modbus_write(
 }
 
 
-#[cfg(test)]
-#[path = "tests/modbus_client.rs"]
-mod tests;
