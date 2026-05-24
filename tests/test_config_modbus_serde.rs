@@ -24,8 +24,8 @@ mod test_config_modbus_serde {
         assert_eq!(m.unit_id, 1);
         assert_eq!(m.min_poll_interval_ms, 500);
         assert_eq!(m.word_count, 1);
-        assert!((m.scale - 1.0).abs() < f64::EPSILON);
-        assert!((m.offset - 0.0).abs() < f64::EPSILON);
+        assert_eq!(m.scale, 1.0);
+        assert_eq!(m.offset, 0.0);
     }
 
     #[test]

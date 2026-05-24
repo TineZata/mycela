@@ -89,7 +89,7 @@ mod test_modbus_build_channel_value {
     fn test_display_range_is_derived_from_register_when_no_metadata() {
         // scale=1, offset=0 → display_low = 0*1+0 = 0, display_high = 65535*1+0 = 65535
         let cv = build_channel_value(50.0, &modbus_channel(1.0, 0.0), &widget("w", WidgetType::Gauge));
-        assert!((cv.display_low - 0.0).abs() < f64::EPSILON);
+        assert_eq!(cv.display_low, 0.0);
         assert!(cv.display_high > 0.0);
     }
 
@@ -110,7 +110,7 @@ mod test_modbus_build_channel_value {
         let cv = build_channel_value(100.0, &modbus_channel(1.0, 0.0), &w);
         assert_eq!(cv.units, "bar");
         assert_eq!(cv.precision, 1);
-        assert!((cv.display_high - 200.0).abs() < f64::EPSILON);
+        assert_eq!(cv.display_high, 200.0);
         assert_eq!(cv.value_str, "100.0");
     }
 
@@ -129,8 +129,8 @@ mod test_modbus_build_channel_value {
             alarm: None,
         });
         let cv = build_channel_value(50.0, &modbus_channel(1.0, 0.0), &w);
-        assert!((cv.control_low - 10.0).abs() < f64::EPSILON);
-        assert!((cv.control_high - 90.0).abs() < f64::EPSILON);
+        assert_eq!(cv.control_low, 10.0);
+        assert_eq!(cv.control_high, 90.0);
     }
 
     #[test]
@@ -148,8 +148,8 @@ mod test_modbus_build_channel_value {
             alarm: None,
         });
         let cv = build_channel_value(50.0, &modbus_channel(1.0, 0.0), &w);
-        assert!((cv.control_low - cv.display_low).abs() < f64::EPSILON);
-        assert!((cv.control_high - cv.display_high).abs() < f64::EPSILON);
+        assert_eq!(cv.control_low, cv.display_low);
+        assert_eq!(cv.control_high, cv.display_high);
     }
 
     #[test]
@@ -203,16 +203,16 @@ mod test_modbus_build_channel_value {
         let mut w = widget("w", WidgetType::Gauge);
         w.metadata = Some(PvMetadata { display: None, control: None, alarm: Some(alarm_limits()) });
         let cv = build_channel_value(50.0, &modbus_channel(1.0, 0.0), &w);
-        assert!((cv.low_alarm_limit - 10.0).abs() < f64::EPSILON);
-        assert!((cv.low_warn_limit - 20.0).abs() < f64::EPSILON);
-        assert!((cv.high_warn_limit - 80.0).abs() < f64::EPSILON);
-        assert!((cv.high_alarm_limit - 90.0).abs() < f64::EPSILON);
+        assert_eq!(cv.low_alarm_limit, 10.0);
+        assert_eq!(cv.low_warn_limit, 20.0);
+        assert_eq!(cv.high_warn_limit, 80.0);
+        assert_eq!(cv.high_alarm_limit, 90.0);
     }
 
     #[test]
     fn test_raw_value_field_matches_the_physical_input() {
         let cv = build_channel_value(37.5, &modbus_channel(1.0, 0.0), &widget("w", WidgetType::Gauge));
-        assert!((cv.raw_value - 37.5).abs() < f64::EPSILON);
+        assert_eq!(cv.raw_value, 37.5);
     }
 }
 
