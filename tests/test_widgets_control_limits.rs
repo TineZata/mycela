@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widgets_control_limits {
-    use ctrl_sys_widgets::config::{ControlMetadata, PvMetadata, WidgetConfig, WidgetType};
-    use ctrl_sys_widgets::widgets::check_control_limits;
+    use mycelo::config::{ControlMetadata, PvMetadata, WidgetConfig, WidgetType};
+    use mycelo::widgets::check_control_limits;
 
     fn widget_with_limits(low: f64, high: f64) -> WidgetConfig {
         WidgetConfig {

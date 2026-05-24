@@ -1,4 +1,4 @@
-﻿use std::net::SocketAddr;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -148,7 +148,7 @@ async fn run_device_task(
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "Modbus connect failed for {}:{}: {} â€” retrying in 2 s",
+                        "Modbus connect failed for {}:{}: {} — retrying in 2 s",
                         host,
                         port,
                         e
@@ -173,7 +173,7 @@ async fn run_device_task(
             let success = handle_request(&mut ctx, req).await;
             if !success {
                 tracing::warn!(
-                    "Modbus connection to {}:{} lost, reconnectingâ€¦",
+                    "Modbus connection to {}:{} lost, reconnecting…",
                     host,
                     port
                 );
@@ -346,7 +346,7 @@ async fn run_modbus_poll(
                 let physical = raw * m.scale + m.offset;
                 let cv = build_channel_value(physical, &m, &config);
 
-                // Only push an update when the value actually changed â€” this
+                // Only push an update when the value actually changed — this
                 // matches EPICS monitor semantics and prevents the SSE stream
                 // from overwriting an in-progress text-entry on every tick.
                 if last_value_str.as_deref() != Some(&cv.value_str) {
@@ -377,8 +377,8 @@ async fn run_modbus_poll(
 }
 
 /// Decode one or two u16 register words into an f64.
-/// * `word_count == 1` â†’ treat as unsigned 16-bit integer.
-/// * `word_count == 2` â†’ treat as IEEE 754 single-precision float (big-endian
+/// * `word_count == 1` → treat as unsigned 16-bit integer.
+/// * `word_count == 2` → treat as IEEE 754 single-precision float (big-endian
 ///   word order: high word first).
 fn decode_words(words: &[u16], word_count: u8) -> f64 {
     match (word_count, words) {
@@ -453,7 +453,7 @@ pub async fn modbus_write(
         let bits = (raw as f32).to_bits();
         vec![(bits >> 16) as u16, (bits & 0xFFFF) as u16]
     } else {
-        // Round before casting — prevents floating-point edge cases where
+        // Round before casting � prevents floating-point edge cases where
         // e.g. (99.1 / 0.1) evaluates to 990.9999... and floors to 990.
         vec![raw.round().clamp(0.0, 65535.0) as u16]
     };

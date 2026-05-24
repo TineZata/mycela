@@ -1,6 +1,6 @@
 # Configuration Error Handling
 
-This document describes the improved error handling for configuration file loading in ctrl-sys-widgets.
+This document describes the improved error handling for configuration file loading in mycelo.
 
 ## Overview
 

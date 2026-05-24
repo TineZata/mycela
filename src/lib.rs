@@ -1,4 +1,4 @@
-// Library exports for ctrl-sys-widgets
+// Library exports for mycelo
 pub mod channel;
 pub mod config;
 #[cfg(feature = "epics")]

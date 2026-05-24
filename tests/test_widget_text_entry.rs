@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widget_text_entry {
-    use ctrl_sys_widgets::channel::ChannelValue;
-    use ctrl_sys_widgets::config::{WidgetConfig, WidgetType};
-    use ctrl_sys_widgets::widgets::text_entry::{render_inner_connected, render_inner_disconnected};
+    use mycelo::channel::ChannelValue;
+    use mycelo::config::{WidgetConfig, WidgetType};
+    use mycelo::widgets::text_entry::{render_inner_connected, render_inner_disconnected};
 
     fn w() -> WidgetConfig {
         WidgetConfig {

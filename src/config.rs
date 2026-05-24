@@ -1,4 +1,4 @@
-﻿use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fmt;
 
@@ -37,7 +37,7 @@ pub struct ScreenConfig {
     pub widgets: Vec<WidgetConfig>,
 }
 
-// â”€â”€â”€ Protocol configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Protocol configuration ───────────────────────────────────────────────────
 
 /// Protocol-specific channel configuration.
 ///
@@ -425,15 +425,15 @@ impl ScreenConfig {
         
         if error_msg.contains("missing field") {
             if let Some(field_name) = Self::extract_field_name(&error_msg) {
-                context.push_str("ðŸ’¡ Hint: ");
+                context.push_str("💡 Hint: ");
                 context.push_str(&Self::get_field_hint(&field_name));
                 context.push_str("\n");
             }
         } else if error_msg.contains("unknown variant") || error_msg.contains("unknown field") {
-            context.push_str("ðŸ’¡ Hint: Check for typos in field names or enum values.\n");
+            context.push_str("💡 Hint: Check for typos in field names or enum values.\n");
             context.push_str("   Valid widget types: text_entry, text_update, gauge, led, button, slider, chart, select, toggle_button, group\n");
         } else if error_msg.contains("invalid type") {
-            context.push_str("ðŸ’¡ Hint: Check that the field has the correct data type (string, number, boolean, etc.)\n");
+            context.push_str("💡 Hint: Check that the field has the correct data type (string, number, boolean, etc.)\n");
         }
         
         context

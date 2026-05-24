@@ -5,8 +5,8 @@ use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use ctrl_sys_widgets::config::{WidgetConfig, WidgetType};
-use ctrl_sys_widgets::widgets::collect_data_widgets;
+use mycelo::config::{WidgetConfig, WidgetType};
+use mycelo::widgets::collect_data_widgets;
 
 /// Per-chart simulation state. The simulator only drives chart array PVs;
 /// scalar PVs (double, int32, etc.) are left for external EPICS clients.

@@ -1,7 +1,7 @@
 // Quick test to verify config loading with improved error messages
 // Run with: cargo run --bin test-config-load examples/test_missing_label.json
 
-use ctrl_sys_widgets::config::ScreenConfig;
+use mycelo::config::ScreenConfig;
 use std::env;
 
 fn main() {

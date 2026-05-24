@@ -1,4 +1,4 @@
-﻿use maud::{html, Markup};
+use maud::{html, Markup};
 use std::sync::{Arc, Mutex};
 use crate::channel::{ChannelContext, ChannelValue};
 #[cfg(feature = "modbus")]
@@ -23,14 +23,14 @@ pub const INFO_SVG_LIGHT: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0
 
 pub const INFO_SVG_DARK: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PHJlY3QgeD0iMTEiIHk9IjEwIiB3aWR0aD0iMiIgaGVpZ2h0PSI3IiBmaWxsPSJ3aGl0ZSIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iMSIgZmlsbD0id2hpdGUiLz48L3N2Zz4=";
 
-// Material Design status icons (new â€” do not replace the alarm icons above)
-/// MD check_circle â€” green, 20 px â€” server running / PV connected OK
+// Material Design status icons (new — do not replace the alarm icons above)
+/// MD check_circle — green, 20 px — server running / PV connected OK
 pub const CHECK_CIRCLE_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsPSIjMDBjYzY2IiBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTIgMTVsLTUtNSAxLjQxLTEuNDFMMTAgMTQuMTdsNy41OS03LjU5TDE5IDhsLTkgOXoiLz48L3N2Zz4=";
 
-/// MD cancel â€” red, 20 px â€” server stopped / error
+/// MD cancel — red, 20 px — server stopped / error
 pub const CANCEL_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIj48cGF0aCBmaWxsPSIjZmYzMzMzIiBkPSJNMTIgMkM2LjQ3IDIgMiA2LjQ3IDIgMTJzNC40NyAxMCAxMCAxMCAxMC00LjQ3IDEwLTEwUzE3LjUzIDIgMTIgMnptNSAxMy41OUwxNS41OSAxNyAxMiAxMy40MSA4LjQxIDE3IDcgMTUuNTkgMTAuNTkgMTIgNyA4LjQxIDguNDEgNyAxMiAxMC41OSAxNS41OSA3IDE3IDguNDEgMTMuNDEgMTIgMTcgMTUuNTl6Ii8+PC9zdmc+";
 
-/// MD bolt â€” white fill, 16 px â€” button widget action indicator
+/// MD bolt — white fill, 16 px — button widget action indicator
 // pub const BOLT_SVG: &str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2Ij48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTcgMnYxMWgzdjlsNy0xMmgtNGw0LTh6Ii8+PC9zdmc+";
 
 // Widget type modules
@@ -104,11 +104,11 @@ pub async fn run_widget_monitor_async(
         WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor_async(config, ctx, inner_tx).await,
         WidgetType::Chart        => chart::Chart::run_monitor_async(config, ctx, inner_tx).await,
         WidgetType::Select       => select::Select::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Group        => {} // Groups have no channel â€” nothing to monitor
+        WidgetType::Group        => {} // Groups have no channel — nothing to monitor
     }
 }
 
-/// Render widget from config â€” each widget's outer div contains its own SSE connection.
+/// Render widget from config — each widget's outer div contains its own SSE connection.
 pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
     match widget.widget_type {
         WidgetType::TextEntry  => render_text_entry(widget),
@@ -187,7 +187,7 @@ pub fn check_control_limits(config: &WidgetConfig, value_str: &str) -> Option<Ma
     }
 }
 
-/// Write a value to a widget channel — routes to EPICS or Modbus based on `config.protocol`.
+/// Write a value to a widget channel � routes to EPICS or Modbus based on `config.protocol`.
 pub async fn write_channel(
     config: WidgetConfig,
     value_str: String,
@@ -310,7 +310,7 @@ pub fn alarm_status_str(status: i32) -> &'static str {
     }
 }
 
-/// Build a tooltip string from a `ChannelValue` â€” shared by all widgets.
+/// Build a tooltip string from a `ChannelValue` — shared by all widgets.
 pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelValue) -> String {
     use crate::config::ProtocolConfig;
     let mut t = String::new();
@@ -359,7 +359,7 @@ pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelVa
 }
 
 /// Build an inline style string from the widget's optional style config (width/height).
-/// Returns `None` when no sizing is configured, so maud's `style=[â€¦]` omits the attribute.
+/// Returns `None` when no sizing is configured, so maud's `style=[…]` omits the attribute.
 pub fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<String> {
     let mut s = String::new();
     if let Some(style) = &config.style {
@@ -369,7 +369,7 @@ pub fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<St
     if s.is_empty() { None } else { Some(s) }
 }
 
-/// Render an info button â€” two icon variants let CSS pick the right one per theme.
+/// Render an info button — two icon variants let CSS pick the right one per theme.
 pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
     html! {
         button class="widget-info-btn" data-tooltip=(tooltip) type="button" {

@@ -1,4 +1,4 @@
-﻿mod epics_simulator;
+mod epics_simulator;
 mod modbus_simulator;
 
 use axum::{
@@ -18,12 +18,12 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use maud::{html, Markup};
 
-use ctrl_sys_widgets::channel::ChannelContext;
-use ctrl_sys_widgets::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
-use ctrl_sys_widgets::server_setup::setup_server_pvs;
-use ctrl_sys_widgets::{modbus_client, widgets};
+use mycelo::channel::ChannelContext;
+use mycelo::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
+use mycelo::server_setup::setup_server_pvs;
+use mycelo::{modbus_client, widgets};
 
-// ─── Application state ───────────────────────────────────────────────────────
+// --- Application state -------------------------------------------------------
 
 #[derive(Clone)]
 pub struct AppState {
@@ -45,7 +45,7 @@ impl AppState {
     }
 }
 
-// ─── Widget write endpoint ───────────────────────────────────────────────────
+// --- Widget write endpoint ---------------------------------------------------
 
 async fn write_widget(
     Path(widget_id): Path<String>,
@@ -63,14 +63,14 @@ async fn write_widget(
     }
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
+// --- Entry point -------------------------------------------------------------
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "ctrl_demo_server=debug,ctrl_sys_widgets=debug,tower_http=debug,axum=trace".into()),
+                .unwrap_or_else(|_| "mycelo_demo_server=debug,mycelo=debug,tower_http=debug,axum=trace".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Working directory: {}", cwd.display());
 
     let config_paths = [
-        // Compile-time absolute path to the workspace root — always correct with `cargo run`
+        // Compile-time absolute path to the workspace root � always correct with `cargo run`
         concat!(env!("CARGO_MANIFEST_DIR"), "/examples/demo_config.json"),
         "examples/demo_config.json",
         "demo_config.json",
@@ -133,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let epics_ctx = Arc::new(std::sync::Mutex::new(pvxs_sys::Context::from_env()?));
 
-    // ── Modbus setup ────────────────────────────────────────────────────────
+    // -- Modbus setup --------------------------------------------------------
     let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
     tracing::info!("Modbus TCP demo simulator started on port 5020");
 
@@ -168,14 +168,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "127.0.0.1:3000";
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::info!("🚀 Server running at http://{}", addr);
-    tracing::info!("📊 Open your browser to see the control interface");
+    tracing::info!("?? Server running at http://{}", addr);
+    tracing::info!("?? Open your browser to see the control interface");
 
     axum::serve(listener, app).await?;
     Ok(())
 }
 
-// ─── Page handlers ────────────────────────────────────────────────────────────
+// --- Page handlers ------------------------------------------------------------
 
 async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
     tracing::info!("Rendering widget showcase");
@@ -193,7 +193,7 @@ async fn render_screen(Path(screen_id): Path<String>) -> Result<Html<String>, St
     Ok(Html(widgets::render_screen(&config).into_string()))
 }
 
-// ─── SSE handlers ─────────────────────────────────────────────────────────────
+// --- SSE handlers -------------------------------------------------------------
 
 type SseStream = std::pin::Pin<Box<dyn tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send>>;
 
@@ -252,7 +252,7 @@ async fn stream_all_widgets(State(state): State<AppState>) -> impl IntoResponse 
         struct SseDropGuard;
         impl Drop for SseDropGuard {
             fn drop(&mut self) {
-                tracing::warn!("SSE stream DROPPED — browser disconnected or connection lost");
+                tracing::warn!("SSE stream DROPPED � browser disconnected or connection lost");
             }
         }
         let _guard = SseDropGuard;
@@ -318,7 +318,7 @@ async fn stream_screen_widgets(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-// ─── API handlers ─────────────────────────────────────────────────────────────
+// --- API handlers -------------------------------------------------------------
 
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
@@ -452,7 +452,7 @@ async fn stop_modbus(State(state): State<AppState>) -> Response {
     }
 }
 
-// ─── Showcase page ────────────────────────────────────────────────────────────
+// --- Showcase page ------------------------------------------------------------
 
 fn widget_type_name(wt: &WidgetType) -> &'static str {
     match wt {

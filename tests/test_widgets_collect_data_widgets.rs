@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widgets_collect_data_widgets {
-    use ctrl_sys_widgets::config::{WidgetConfig, WidgetType};
-    use ctrl_sys_widgets::widgets::collect_data_widgets;
+    use mycelo::config::{WidgetConfig, WidgetType};
+    use mycelo::widgets::collect_data_widgets;
 
     fn simple_widget(id: &str, wtype: WidgetType) -> WidgetConfig {
         WidgetConfig {

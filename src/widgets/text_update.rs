@@ -1,4 +1,4 @@
-﻿use maud::{html, Markup};
+use maud::{html, Markup};
 use std::sync::Arc;
 use futures::StreamExt;
 use crate::channel::{ChannelContext, ChannelEvent, ChannelValue};

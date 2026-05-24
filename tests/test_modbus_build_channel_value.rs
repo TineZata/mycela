@@ -4,11 +4,11 @@
 #![cfg(feature = "modbus")]
 
 mod test_modbus_build_channel_value {
-    use ctrl_sys_widgets::config::{
+    use mycelo::config::{
         AlarmMetadata, ControlMetadata, DisplayMetadata, ModbusTCPConfig, ModbusRegisterType,
         PvMetadata, WidgetConfig, WidgetType,
     };
-    use ctrl_sys_widgets::modbus_client::build_channel_value;
+    use mycelo::modbus_client::build_channel_value;
 
     fn widget(id: &str, widget_type: WidgetType) -> WidgetConfig {
         WidgetConfig {

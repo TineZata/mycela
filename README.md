@@ -50,7 +50,7 @@ Server starts at: **http://127.0.0.1:3000**
 ## Project Structure
 
 ```
-ctrl-sys-widgets/
+mycelo/
 ├── src/
 │   ├── main.rs           # Axum server, routes, handlers
 │   ├── widgets.rs        # Maud HTML templates for widgets
