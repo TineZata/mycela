@@ -1,4 +1,5 @@
 // Library exports for mycela
+pub mod app;
 pub mod channel;
 pub mod config;
 pub mod logging;
@@ -9,3 +10,17 @@ pub mod modbus_client;
 #[cfg(feature = "epics")]
 pub mod server_setup;
 pub mod widgets;
+
+// Re-export framework crates so downstream apps only need `mycela` as a
+// dependency and can import everything via `mycela::<crate>::...`.
+pub use axum;
+pub use maud;
+pub use tower_http;
+pub use tokio_stream;
+pub use async_stream;
+#[cfg(feature = "epics")]
+pub use pvxs_sys;
+#[cfg(feature = "desktop")]
+pub use winit;
+#[cfg(feature = "desktop")]
+pub use wry;

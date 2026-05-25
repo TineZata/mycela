@@ -157,6 +157,28 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     font-size: 1.1rem;
 }
 
+.nav-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    padding: 0.45rem 1.1rem;
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+}
+
+.nav-button:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* keep legacy class working */
 .back-link {
     display: inline-block;
     margin-top: 1rem;

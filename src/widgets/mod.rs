@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::channel::{ChannelContext, ChannelValue};
 #[cfg(feature = "modbus")]
 use crate::config::ModbusTCPConfig;
-use crate::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
+use crate::config::{ActionConfig, ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
 
 #[derive(serde::Deserialize)]
 pub struct WriteForm {
@@ -142,7 +142,15 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                 header class="screen-header" {
                     h1 { (config.title) }
                     p class="description" { (config.description) }
-                    a href="/" class="back-link" { "Back to Home" }
+                    nav class="screen-actions" {
+                        @if let Some(actions) = &config.actions {
+                            @for action in actions {
+                                (render_action(action))
+                            }
+                        } @else {
+                            a href="/" class="back-link" { "← Home" }
+                        }
+                    }
                 }
 
                 main class="screen-container" hx-sse=(format!("connect:/stream/screen/{}", config.id)) {
@@ -163,6 +171,31 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                 }
             }
         }
+    }
+}
+
+fn render_action(action: &ActionConfig) -> Markup {
+    match action {
+        ActionConfig::Navigate { label, to } => html! {
+            button class="nav-button" onclick=(format!("window.location='/screen/{}'", to)) { (label) }
+        },
+        ActionConfig::Back { label } => html! {
+            button class="nav-button" onclick="window.location='/'" { (label) }
+        },
+        ActionConfig::Popup { label, to } => html! {
+            button class="nav-button" onclick=(format!("window.open('/screen/{}','_blank')", to)) { (label) }
+        },
+        ActionConfig::Window { label, to } => html! {
+            button class="nav-button" onclick=(format!("window.open('/screen/{}','_blank','width=1200,height=800,resizable=yes,scrollbars=yes')", to)) { (label) }
+        },
+        ActionConfig::Api { label, method, path } => match method.to_lowercase().as_str() {
+            "post" => html! {
+                button class="widget-button" hx-post=(path) { (label) }
+            },
+            _ => html! {
+                button class="widget-button" hx-get=(path) { (label) }
+            },
+        },
     }
 }
 
