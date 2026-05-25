@@ -126,6 +126,15 @@ pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
 
 /// Render a complete screen from configuration
 pub fn render_screen(config: &ScreenConfig) -> Markup {
+    let has_server_controls = config.actions.as_ref().map(|actions| {
+        actions.iter().any(|action| matches!(action,
+            ActionConfig::Api { path, .. } if path.starts_with("/api/server/")))
+    }).unwrap_or(false);
+    let has_modbus_controls = config.actions.as_ref().map(|actions| {
+        actions.iter().any(|action| matches!(action,
+            ActionConfig::Api { path, .. } if path.starts_with("/api/modbus/")))
+    }).unwrap_or(false);
+
     html! {
         (maud::DOCTYPE)
         html lang="en" {
@@ -150,6 +159,27 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                         } @else {
                             a href="/" class="back-link" { "← Home" }
                         }
+                    }
+                    @if has_server_controls || has_modbus_controls {
+                        div class="screen-status-strip" {
+                            @if has_server_controls {
+                                div id="server-status" class="warning screen-status-pill"
+                                    hx-get="/api/server/status"
+                                    hx-trigger="load"
+                                    hx-swap="outerHTML" {
+                                    span { "EPICS Server Status" }
+                                }
+                            }
+                            @if has_modbus_controls {
+                                div id="modbus-status" class="warning screen-status-pill"
+                                    hx-get="/api/modbus/status"
+                                    hx-trigger="load"
+                                    hx-swap="outerHTML" {
+                                    span { "Modbus Status" }
+                                }
+                            }
+                        }
+                        div id="screen-action-feedback" class="screen-action-feedback" {}
                     }
                 }
 
@@ -190,10 +220,22 @@ fn render_action(action: &ActionConfig) -> Markup {
         },
         ActionConfig::Api { label, method, path } => match method.to_lowercase().as_str() {
             "post" => html! {
-                button class="widget-button" hx-post=(path) { (label) }
+                button class="nav-button"
+                    type="button"
+                    hx-post=(path)
+                    hx-target="#screen-action-feedback"
+                    hx-swap="innerHTML" {
+                    (label)
+                }
             },
             _ => html! {
-                button class="widget-button" hx-get=(path) { (label) }
+                button class="nav-button"
+                    type="button"
+                    hx-get=(path)
+                    hx-target="#screen-action-feedback"
+                    hx-swap="innerHTML" {
+                    (label)
+                }
             },
         },
     }
@@ -411,11 +453,4 @@ pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
         }
     }
 }
-
-
-// /// Convert timestamp to human-readable string
-// pub fn to_human_time_string(timestamp: i64) -> String {
-//     let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(timestamp, 0).unwrap_or_default();
-//     datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string()
-// }
 

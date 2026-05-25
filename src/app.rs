@@ -145,12 +145,12 @@ async fn stop_server_impl(state: AppState) -> Response {
     let server = state.pv_server.lock().unwrap().take();
     match server {
         None => (StatusCode::BAD_REQUEST, Html(
-            maud::html! { div class="warning" { "Server is not running" } }.into_string()
+            maud::html! { div class="warning" { "EPICS Server is not running" } }.into_string()
         )).into_response(),
         Some(server) => match tokio::task::spawn_blocking(move || server.stop_drop()).await {
             Ok(Ok(())) => Html(maud::html! {
                 div class="warning" hx-swap-oob="true" id="server-status" {
-                    span { "Server Stopped" }
+                    span { "EPICS Server Stopped" }
                 }
             }.into_string()).into_response(),
             Ok(Err(e)) => {
@@ -178,7 +178,7 @@ pub async fn server_status(State(state): State<AppState>) -> Html<String> {
     let is_running = state.is_server_running();
     Html(maud::html! {
         div id="server-status" class=(if is_running { "success" } else { "warning" }) {
-            span { @if is_running { "Server Running" } @else { "Server Stopped" } }
+            span { @if is_running { "EPICS Server Running" } @else { "EPICS Server Stopped" } }
         }
     }.into_string())
 }

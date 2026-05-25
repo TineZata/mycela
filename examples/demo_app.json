@@ -8,7 +8,9 @@
       "description": "Live EPICS PVA widget showcase",
       "actions": [
         { "type": "navigate", "label": "Modbus Widgets >", "to": "modbus" },
-        { "type": "window",   "label": "Open Modbus in new window", "to": "modbus" }
+        { "type": "window",   "label": "Open Modbus in new window", "to": "modbus" },
+        { "type": "api", "label": "Start EPICS Sim",  "method": "post", "path": "/api/server/start" },
+        { "type": "api", "label": "Stop EPICS Sim",   "method": "post", "path": "/api/server/stop" }
       ],
       "widgets": [
         {
@@ -43,7 +45,12 @@
               "data_type": "double",
               "description": "Read-only live value display",
               "style": { "width": "100%", "height": "auto" },
-              "protocol": { "type": "epics-pva", "pv_name": "demo:double" }
+              "protocol": { "type": "epics-pva", "pv_name": "demo:double" },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Horizontal stage position", "precision": 3, "units": "mm" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 85.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
             },
             {
               "id": "gauge_dark",
@@ -53,7 +60,12 @@
               "description": "Analogue bar gauge with alarm zones",
               "orientation": "horizontal",
               "style": { "width": "100%", "height": "auto" },
-              "protocol": { "type": "epics-pva", "pv_name": "demo:double" }
+              "protocol": { "type": "epics-pva", "pv_name": "demo:double" },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Horizontal stage position", "precision": 3, "units": "mm" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 85.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
             }
           ]
         },
@@ -245,7 +257,9 @@
       "description": "Live Modbus TCP widget showcase — simulator on port 5020",
       "actions": [
         { "type": "navigate", "label": "< EPICS Widgets", "to": "epics" },
-        { "type": "window",   "label": "Open EPICS in new window", "to": "epics" }
+        { "type": "window",   "label": "Open EPICS in new window", "to": "epics" },
+        { "type": "api", "label": "Start Modbus Sim", "method": "post", "path": "/api/modbus/start" },
+        { "type": "api", "label": "Stop Modbus Sim",  "method": "post", "path": "/api/modbus/stop" }
       ],
       "widgets": [
         {

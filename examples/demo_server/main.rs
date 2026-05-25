@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
     if state.is_server_running() {
-        let html = maud::html! { div class="warning" { "Server is already running" } };
+        let html = maud::html! { div class="warning" { "EPICS Server is already running" } };
         return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
     }
 
@@ -90,7 +90,7 @@ async fn start_server(State(state): State<AppState>) -> Response {
             *state.pv_server.lock().unwrap() = Some(server);
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
-                    span { "Server Running" }
+                    span { "EPICS Server Running" }
                 }
             };
             Html(html.into_string()).into_response()

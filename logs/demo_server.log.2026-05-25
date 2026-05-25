@@ -205,3 +205,58 @@
 2026-05-25T15:35:34.524157+01:00  INFO mycela::epics_channel: EPICS monitor stopped for: demo:noise:sensor
 2026-05-25T15:35:34.524776+01:00  INFO mycela::epics_channel: EPICS monitor stopped for: demo:scatter:xy
 2026-05-25T15:35:38.635112+01:00  WARN mycela::app: Screen 'modbus' SSE stream DROPPED
+2026-05-25T16:43:46.757929+01:00  INFO demo_server: Starting Mycela Demo Server
+2026-05-25T16:43:46.779057+01:00  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T16:43:46.779465+01:00  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T16:43:46.779626+01:00  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T16:43:46.779882+01:00  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T16:43:46.780022+01:00  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T16:43:46.780301+01:00  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T16:43:46.780459+01:00  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T16:43:46.780896+01:00  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T16:43:46.782702+01:00  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T16:43:46.784372+01:00  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T16:43:46.784700+01:00  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T16:43:46.785286+01:00  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T16:43:46.785512+01:00  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T16:43:46.786206+01:00  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T16:43:46.786526+01:00  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T16:43:46.787065+01:00  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T16:43:46.787262+01:00  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T16:43:46.787657+01:00  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T16:43:46.787838+01:00  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T16:43:46.788178+01:00  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T16:43:46.788476+01:00  INFO demo_server::epics_simulator: Demo simulator: starting with 6 simulated PVs
+2026-05-25T16:43:46.788849+01:00  INFO demo_server::epics_simulator: Demo simulator: no server-backed PVs found, skipping
+2026-05-25T16:43:46.791919+01:00  INFO demo_server: Modbus TCP demo simulator started on port 5020
+2026-05-25T16:43:46.793115+01:00 ERROR demo_server::modbus_simulator: Failed to start Modbus simulator on 127.0.0.1:5020: Only one usage of each socket address (protocol/network address/port) is normally permitted. (os error 10048)
+2026-05-25T16:43:46.793310+01:00  INFO demo_server: Server running at http://127.0.0.1:3000
+2026-05-25T16:43:52.152514+01:00  INFO mycela::app: Multiplexed SSE stream requested for all widgets
+2026-05-25T16:43:52.156377+01:00  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T16:43:52.156878+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T16:43:52.157682+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T16:43:52.161635+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T16:43:52.162822+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T16:43:52.163286+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T16:43:52.163736+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T16:43:52.164122+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T16:43:52.168132+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T16:43:52.168758+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T16:43:52.169517+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T16:43:52.169739+01:00  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T16:43:52.207825+01:00  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T16:43:52.212789+01:00  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T16:43:52.213592+01:00  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T16:43:52.214001+01:00  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T16:43:52.222416+01:00  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T16:43:52.223869+01:00  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T16:43:52.226367+01:00  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T16:43:52.226707+01:00  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T16:43:52.227223+01:00  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T16:43:52.227852+01:00  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T16:43:52.228307+01:00  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T16:43:52.230195+01:00  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T16:43:52.238257+01:00  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T16:43:52.238764+01:00  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T16:44:14.355646+01:00  INFO mycela::app: Rendering screen: demo
+2026-05-25T16:44:14.355940+01:00 ERROR mycela::app: Screen 'demo' not found in AppConfig

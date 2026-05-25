@@ -3,9 +3,30 @@
 
 mod test_config_widget_config {
     use mycela::config::{
-        EpicsPvaConfig, ModbusTCPConfig, ModbusRegisterType, ProtocolConfig,
-        WidgetConfig, WidgetType,
+        AppConfig, EpicsPvaConfig, ModbusTCPConfig, ModbusRegisterType,
+        ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType,
     };
+
+    fn find_widget<'a>(widgets: &'a [WidgetConfig], id: &str) -> Option<&'a WidgetConfig> {
+        for widget in widgets {
+            if widget.id == id {
+                return Some(widget);
+            }
+            if let Some(children) = &widget.children {
+                if let Some(found) = find_widget(children, id) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    fn find_widget_in_screens<'a>(config: &'a AppConfig, id: &str) -> Option<&'a WidgetConfig> {
+        config
+            .screens
+            .iter()
+            .find_map(|screen| find_widget(&screen.widgets, id))
+    }
 
     fn widget(id: &str, widget_type: WidgetType) -> WidgetConfig {
         WidgetConfig {
@@ -120,5 +141,37 @@ mod test_config_widget_config {
             pv_names: Some((0..10).map(|i| format!("extra:{i}")).collect()),
         };
         assert_eq!(e.series_pvs().len(), 6);
+    }
+
+    #[test]
+    fn test_demo_text_update_dark_retains_display_and_alarm_metadata() {
+        let config = ScreenConfig::load("examples/demo_config.json").unwrap();
+        let widget = find_widget(&config.widgets, "text_update_dark").unwrap();
+
+        let metadata = widget.metadata.as_ref().unwrap();
+        let display = metadata.display.as_ref().unwrap();
+        let alarm = metadata.alarm.as_ref().unwrap();
+
+        assert_eq!(widget.widget_type, WidgetType::TextUpdate);
+        assert_eq!(display.units, "mm");
+        assert_eq!(display.precision, 3);
+        assert_eq!(alarm.low_alarm_limit, 5.0);
+        assert_eq!(alarm.high_alarm_limit, 95.0);
+    }
+
+    #[test]
+    fn test_demo_app_text_update_dark_retains_display_and_alarm_metadata() {
+        let config = AppConfig::load("examples/demo_app.json").unwrap();
+        let widget = find_widget_in_screens(&config, "text_update_dark").unwrap();
+
+        let metadata = widget.metadata.as_ref().unwrap();
+        let display = metadata.display.as_ref().unwrap();
+        let alarm = metadata.alarm.as_ref().unwrap();
+
+        assert_eq!(widget.widget_type, WidgetType::TextUpdate);
+        assert_eq!(display.units, "mm");
+        assert_eq!(display.precision, 3);
+        assert_eq!(alarm.low_alarm_limit, 5.0);
+        assert_eq!(alarm.high_alarm_limit, 95.0);
     }
 }
