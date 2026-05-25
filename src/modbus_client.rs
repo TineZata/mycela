@@ -52,6 +52,13 @@ impl DeviceHandle {
         rx.await.map_err(|_| "device task dropped respond channel".to_string())?
     }
 
+    /// Returns `true` when the backing device task has exited and this handle
+    /// can no longer send requests.  The caller should re-fetch a fresh handle
+    /// from the pool (which will spawn a new device task).
+    pub fn is_closed(&self) -> bool {
+        self.tx.is_closed()
+    }
+
     pub async fn write(
         &self,
         register: u16,
@@ -148,7 +155,7 @@ async fn run_device_task(
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "Modbus connect failed for {}:{}: {} — retrying in 2 s",
+                        "Modbus connect failed for {}:{}: {} -- retrying in 2 s",
                         host,
                         port,
                         e
@@ -173,7 +180,7 @@ async fn run_device_task(
             let success = handle_request(&mut ctx, req).await;
             if !success {
                 tracing::warn!(
-                    "Modbus connection to {}:{} lost, reconnecting…",
+                    "Modbus connection to {}:{} lost, reconnecting...",
                     host,
                     port
                 );
@@ -324,7 +331,7 @@ async fn run_modbus_poll(
     pool: Arc<ModbusPool>,
     tx: tokio::sync::mpsc::UnboundedSender<ChannelEvent>,
 ) {
-    let handle = pool.get_or_create(&m.host, m.port, m.unit_id);
+    let mut handle = pool.get_or_create(&m.host, m.port, m.unit_id);
     let mut interval =
         tokio::time::interval(Duration::from_millis(m.min_poll_interval_ms.max(50)));
     let mut was_connected = false;
@@ -332,6 +339,14 @@ async fn run_modbus_poll(
 
     loop {
         interval.tick().await;
+
+        // If the device task was killed (e.g. after a Disconnect/Connect cycle) re-acquire
+        // a fresh handle so the pool can spawn a new connection task.
+        if handle.is_closed() {
+            handle = pool.get_or_create(&m.host, m.port, m.unit_id);
+            was_connected = false;
+            last_value_str = None;
+        }
 
         match handle
             .read(m.register, m.register_type.clone(), m.word_count)
@@ -346,7 +361,7 @@ async fn run_modbus_poll(
                 let physical = raw * m.scale + m.offset;
                 let cv = build_channel_value(physical, &m, &config);
 
-                // Only push an update when the value actually changed — this
+                // Only push an update when the value actually changed -- this
                 // matches EPICS monitor semantics and prevents the SSE stream
                 // from overwriting an in-progress text-entry on every tick.
                 if last_value_str.as_deref() != Some(&cv.value_str) {
@@ -377,8 +392,8 @@ async fn run_modbus_poll(
 }
 
 /// Decode one or two u16 register words into an f64.
-/// * `word_count == 1` → treat as unsigned 16-bit integer.
-/// * `word_count == 2` → treat as IEEE 754 single-precision float (big-endian
+/// * `word_count == 1` -> treat as unsigned 16-bit integer.
+/// * `word_count == 2` -> treat as IEEE 754 single-precision float (big-endian
 ///   word order: high word first).
 fn decode_words(words: &[u16], word_count: u8) -> f64 {
     match (word_count, words) {
@@ -453,7 +468,7 @@ pub async fn modbus_write(
         let bits = (raw as f32).to_bits();
         vec![(bits >> 16) as u16, (bits & 0xFFFF) as u16]
     } else {
-        // Round before casting � prevents floating-point edge cases where
+        // Round before casting -- prevents floating-point edge cases where
         // e.g. (99.1 / 0.1) evaluates to 990.9999... and floors to 990.
         vec![raw.round().clamp(0.0, 65535.0) as u16]
     };

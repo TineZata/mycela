@@ -187,7 +187,7 @@ pub fn check_control_limits(config: &WidgetConfig, value_str: &str) -> Option<Ma
     }
 }
 
-/// Write a value to a widget channel — routes to EPICS or Modbus based on `config.protocol`.
+/// Write a value to a widget channel routes to EPICS or Modbus based on `config.protocol`.
 pub async fn write_channel(
     config: WidgetConfig,
     value_str: String,

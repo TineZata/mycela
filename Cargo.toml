@@ -14,24 +14,24 @@ required-features = ["epics", "modbus"]
 
 [dependencies]
 # Web framework
-axum = "0.8.8"
-tokio = { version = "1.51.1", features = ["full"] }
+axum = "0.8.9"
+tokio = { version = "1.52.3", features = ["full"] }
 tower = "0.5.3"
-tower-http = { version = "0.6.8", features = ["fs", "trace", "cors"] }
+tower-http = { version = "0.6.11", features = ["fs", "trace", "cors"] }
 
 # HTML templating
 maud = { version = "0.27.0", features = ["axum"] }
 
 # Data handling
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 
 # Logging
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 # Concurrent caching
-dashmap = "6"
+dashmap = "6.2.1"
 
 # Async streams (for SSE)
 tokio-stream = "0.1.18"

@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Working directory: {}", cwd.display());
 
     let config_paths = [
-        // Compile-time absolute path to the workspace root — always correct with `cargo run`
+        // Compile-time absolute path to the workspace root should always be correct with `cargo run`
         concat!(env!("CARGO_MANIFEST_DIR"), "/examples/demo_config.json"),
         "examples/demo_config.json",
         "demo_config.json",
@@ -252,7 +252,7 @@ async fn stream_all_widgets(State(state): State<AppState>) -> impl IntoResponse 
         struct SseDropGuard;
         impl Drop for SseDropGuard {
             fn drop(&mut self) {
-                tracing::warn!("SSE stream DROPPED — browser disconnected or connection lost");
+                tracing::warn!("SSE stream DROPPED browser disconnected or connection lost");
             }
         }
         let _guard = SseDropGuard;
