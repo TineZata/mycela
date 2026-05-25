@@ -1,0 +1,859 @@
+2026-05-25T12:01:06.301333Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:01:06.302077Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:01:06.305076Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:01:06.305421Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:01:06.305532Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:01:06.305853Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:01:06.305980Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:01:06.313522Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:01:06.313660Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:01:06.314253Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:01:06.314914Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:01:06.315530Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:01:06.315614Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:01:06.315858Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:01:06.315988Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:01:06.316256Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:01:06.316429Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:01:06.316814Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:01:06.316919Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:01:06.317146Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:01:06.317332Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:01:06.317568Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:01:06.912494Z TRACE axum::serve: connection 127.0.0.1:54782 accepted
+2026-05-25T12:01:06.914104Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:01:06.914820Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:01:06.916652Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:01:06.922906Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:01:06.923379Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:01:06.923438Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:01:06.923543Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:01:06.924394Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:01:06.925278Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:01:06.925413Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:01:06.925546Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:01:06.925643Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:01:06.925992Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:01:06.926420Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:01:06.926677Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter2:xy
+2026-05-25T12:01:06.926912Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:01:06.927230Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:01:06.927742Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:01:06.927942Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T12:01:06.928245Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T12:01:06.928382Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:01:06.928828Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:01:06.929040Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T12:01:07.028263Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:01:07.028263Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:01:07.028263Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:01:07.028629Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:01:07.028639Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:01:07.028674Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:01:07.028863Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:01:07.029614Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:01:07.030199Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:01:07.030284Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:01:07.030627Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:01:07.032666Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:01:07.032807Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033013Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033020Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033095Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033105Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033158Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033171Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033220Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033236Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033282Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:01:07.033299Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:01:36.432672Z TRACE axum::serve: failed to serve connection: connection closed before message completed
+2026-05-25T12:01:36.880745Z  INFO mycela::epics_channel: Multi-monitor stopped for: demo:flow:sensor
+2026-05-25T12:01:37.339212Z  INFO mycela::epics_channel: Multi-monitor stopped for: demo:pressure:sensor
+2026-05-25T12:01:37.339382Z  INFO mycela::epics_channel: Multi-monitor stopped for: demo:vibration:sensor
+2026-05-25T12:01:37.843028Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:temp:sensor
+2026-05-25T12:01:37.843814Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:scatter:xy
+2026-05-25T12:01:37.845043Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:noise:sensor
+2026-05-25T12:01:37.857659Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:scatter2:xy
+2026-05-25T12:03:24.014257Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:03:24.014722Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:03:24.014844Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:03:24.015069Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:03:24.015251Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:03:24.015515Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:03:24.015590Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:03:24.015782Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:03:24.015848Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:03:24.016084Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:03:24.016135Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:03:24.016412Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:03:24.016594Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:03:24.016834Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:03:24.017013Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:03:24.017212Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:03:24.017313Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:03:24.017533Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:03:24.017598Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:03:24.017786Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:03:24.017844Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:03:24.018033Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:03:24.554052Z TRACE axum::serve: connection 127.0.0.1:54188 accepted
+2026-05-25T12:03:24.564189Z TRACE axum::serve: connection 127.0.0.1:58564 accepted
+2026-05-25T12:03:24.572812Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.574167Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:24.588124Z DEBUG request{method=GET uri=/static/htmx.min.js version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.588395Z DEBUG request{method=GET uri=/static/htmx.min.js version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:24.588919Z TRACE axum::serve: connection 127.0.0.1:52304 accepted
+2026-05-25T12:03:24.588957Z DEBUG request{method=GET uri=/static/tooltip.js version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.590175Z DEBUG request{method=GET uri=/static/tooltip.js version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:24.590455Z DEBUG request{method=GET uri=/static/style.css version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.590604Z DEBUG request{method=GET uri=/static/style.css version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:24.668201Z TRACE axum::serve: connection 127.0.0.1:62803 accepted
+2026-05-25T12:03:24.669492Z TRACE axum::serve: connection 127.0.0.1:64464 accepted
+2026-05-25T12:03:24.669734Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.670118Z TRACE axum::serve: connection 127.0.0.1:54857 accepted
+2026-05-25T12:03:24.670200Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:24.670241Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.670523Z TRACE axum::serve: connection 127.0.0.1:60337 accepted
+2026-05-25T12:03:24.670742Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.670919Z TRACE axum::serve: connection 127.0.0.1:65221 accepted
+2026-05-25T12:03:24.671023Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.671195Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:24.672408Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:24.673488Z TRACE axum::serve: connection 127.0.0.1:58220 accepted
+2026-05-25T12:03:24.673656Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.673709Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.673942Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:03:24.679722Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.684825Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.691193Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=17 ms status=200
+2026-05-25T12:03:24.691764Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=18 ms status=200
+2026-05-25T12:03:24.692335Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=12 ms status=200
+2026-05-25T12:03:24.692986Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=8 ms status=200
+2026-05-25T12:03:24.693952Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:03:24.696031Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:03:24.705014Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:03:24.706480Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:03:24.707030Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:03:24.714201Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:03:24.724804Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:03:24.726021Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:03:24.726252Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T12:03:24.726523Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:03:24.728365Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:03:24.728507Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T12:03:24.728623Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter2:xy
+2026-05-25T12:03:24.728985Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:03:24.729275Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T12:03:24.729838Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:03:24.732586Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:03:24.732718Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:03:24.732858Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:03:24.732993Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:03:24.733197Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:03:24.740112Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.740367Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:24.740910Z DEBUG request{method=GET uri=/favicon.ico version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:24.741257Z DEBUG request{method=GET uri=/favicon.ico version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=404
+2026-05-25T12:03:24.775544Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:03:24.775651Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:03:24.777315Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:03:24.779149Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:03:24.779269Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:03:24.779312Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:03:24.779551Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:03:24.780061Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:03:24.781080Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:03:24.782620Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:03:24.782718Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:03:24.783790Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:03:24.783867Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:03:24.783915Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:03:24.784574Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:03:24.784684Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:03:24.784747Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:03:24.784769Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:03:24.785639Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:03:24.785776Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:03:24.785785Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:03:24.785877Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:03:24.785943Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:03:26.676670Z TRACE axum::serve: connection 127.0.0.1:63514 accepted
+2026-05-25T12:03:26.678120Z TRACE axum::serve: connection 127.0.0.1:49881 accepted
+2026-05-25T12:03:26.678418Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:26.679489Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:26.679806Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:26.679898Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:28.692758Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:28.693225Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:28.694105Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:28.696221Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:03:30.695606Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:30.695685Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:30.696361Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:30.711318Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=15 ms status=200
+2026-05-25T12:03:32.706442Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:32.707350Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:32.713943Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=7 ms status=200
+2026-05-25T12:03:32.717785Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=10 ms status=200
+2026-05-25T12:03:34.702612Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:34.702827Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:34.703133Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:34.703292Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:36.707119Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:36.707119Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:36.713725Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=6 ms status=200
+2026-05-25T12:03:36.728755Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=21 ms status=200
+2026-05-25T12:03:38.711675Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:38.712113Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:38.713594Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:38.716637Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:03:40.711107Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:40.715619Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:40.720937Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=9 ms status=200
+2026-05-25T12:03:40.721078Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=5 ms status=200
+2026-05-25T12:03:41.491071Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:41.492162Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:42.713912Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:42.714449Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:43.553466Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:03:44.725154Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:44.726036Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:46.726781Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:46.727205Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:47.600562Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:03:48.728423Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:48.728789Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:49.556983Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:49.557575Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=400
+2026-05-25T12:03:50.734747Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:50.735422Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:51.098062Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:51.098857Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:51.152158Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:03:52.748233Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:52.749162Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:03:54.753271Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:54.753681Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:56.756584Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:56.757039Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:57.034449Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:57.035304Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:58.761423Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:03:58.761902Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:03:59.139892Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:00.766239Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:00.766607Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:02.775242Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:02.775675Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:03.208777Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:04.788564Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:04.789202Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:06.800455Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:06.801172Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:07.280877Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:08.813358Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:08.813781Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:10.829473Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:10.829950Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:11.338225Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:12.840508Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:12.840898Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:14.853824Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:14.854175Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:15.377936Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:16.857373Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:16.857929Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:16.953960Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:16.954634Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=400
+2026-05-25T12:04:18.856997Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:18.857349Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:19.417290Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:19.530687Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:19.531324Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=400
+2026-05-25T12:04:20.578872Z DEBUG request{method=POST uri=/api/server/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:20.581565Z DEBUG request{method=POST uri=/api/server/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:04:20.581902Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.583391Z  WARN mycela::epics_channel: demo:scatter:xy: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.583421Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.584362Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.586505Z  WARN mycela::epics_channel: Multi-monitor demo:flow:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.587993Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.590007Z  WARN mycela::epics_channel: Multi-monitor demo:pressure:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.593053Z  WARN mycela::epics_channel: demo:noise:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.603806Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.607283Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.608336Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.608336Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.608379Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.609895Z  WARN mycela::epics_channel: Multi-monitor demo:vibration:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.613865Z  WARN mycela::epics_channel: demo:mode:select: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.617377Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.617383Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.623910Z  WARN mycela::epics_channel: demo:scatter2:xy: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.623910Z  WARN mycela::epics_channel: demo:temp:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.624900Z  WARN mycela::epics_channel: demo:slider: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.625884Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.625891Z  WARN mycela::epics_channel: demo:slider: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:20.626370Z  WARN mycela::epics_channel: demo:mode:select: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:04:23.477462Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:23.978285Z DEBUG request{method=POST uri=/api/server/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:23.979048Z DEBUG request{method=POST uri=/api/server/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=400
+2026-05-25T12:04:25.618109Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:25.618835Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=400
+2026-05-25T12:04:27.523870Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:31.575802Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:33.146487Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:33.147233Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:33.588632Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:04:34.273928Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:34.281245Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:04:34.281889Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:04:34.282207Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:04:34.282575Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:04:34.282849Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:04:34.283268Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:04:34.283570Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:04:34.284024Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:04:34.284246Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:04:34.284734Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:04:34.285113Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:04:34.285571Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:04:34.285879Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:04:34.286773Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:04:34.287290Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:04:34.288021Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:04:34.288390Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:04:34.288954Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:04:34.289327Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:04:34.289794Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:04:34.290038Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:04:34.290465Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:04:34.291381Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=17 ms status=200
+2026-05-25T12:04:34.715858Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717422Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717539Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717606Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717728Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717803Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717862Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717919Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:04:34.717976Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:04:34.718033Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:04:34.718539Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:04:34.720199Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:04:34.727526Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:04:34.727760Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:04:34.727836Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:04:34.732167Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:04:34.733160Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:04:34.733225Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:04:34.733871Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:04:34.742912Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:04:34.743608Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:04:34.743931Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:04:34.743979Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:04:49.802529Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:04:49.803341Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:04:51.940237Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:04:53.205405Z TRACE axum::serve: failed to serve connection: connection closed before message completed
+2026-05-25T12:09:58.335612Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:09:58.336206Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:09:58.336370Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:09:58.336676Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:09:58.336772Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:09:58.337016Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:09:58.337091Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:09:58.337345Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:09:58.337456Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:09:58.337659Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:09:58.337798Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:09:58.338075Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:09:58.338147Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:09:58.338368Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:09:58.338479Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:09:58.338706Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:09:58.338801Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:09:58.339123Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:09:58.339668Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:09:58.339887Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:09:58.339988Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:09:58.340205Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:10:08.513602Z TRACE axum::serve: connection 127.0.0.1:60740 accepted
+2026-05-25T12:10:08.515126Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:08.517525Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:10:08.579374Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:08.579924Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:08.580971Z TRACE axum::serve: connection 127.0.0.1:60741 accepted
+2026-05-25T12:10:08.581808Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:08.582187Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:08.584483Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:08.585253Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:08.586544Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:10:08.586555Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:10:08.586801Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:10:08.586819Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:10:08.587049Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:10:08.587666Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T12:10:08.587731Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:10:08.587763Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:10:08.588019Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:10:08.588052Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:10:08.588334Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:10:08.588617Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:10:08.588916Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T12:10:08.589048Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:10:08.589180Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:10:08.589306Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:10:08.589920Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:10:08.590188Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T12:10:08.590305Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter2:xy
+2026-05-25T12:10:08.590367Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:10:08.590415Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:10:08.638489Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:10:08.639257Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:10:08.639272Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:10:08.639306Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:10:08.639765Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:10:08.639705Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:10:08.640728Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:10:08.640812Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641247Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641274Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641345Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641355Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641410Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641750Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:10:08.641883Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642057Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642206Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642289Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642394Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642403Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642526Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:10:08.642936Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:10:08.643031Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:10:10.438559Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:10.439056Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:10.574442Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:10.575822Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:10:12.552396Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:10:12.590312Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:12.590723Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:14.608998Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:14.609414Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:16.615314Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:10:16.626504Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:16.626860Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:18.627239Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:18.627674Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:20.630011Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:20.630434Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:20.673886Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:10:22.648808Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:22.649235Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:24.660986Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:24.661290Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:10:24.713738Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:10:26.670416Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:10:26.670821Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:11.719638Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:13:11.721082Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:13:11.722074Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:13:11.725367Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:13:11.730164Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:13:11.734475Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:13:11.750690Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:13:11.763152Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:13:11.765050Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:13:11.767293Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:13:11.769067Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:13:11.769654Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:13:11.769913Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:13:11.771544Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:13:11.771673Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:13:11.771947Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:13:11.772037Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:13:11.772250Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:13:11.772310Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:13:11.772521Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:13:11.772583Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:13:11.772789Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:13:11.802533Z TRACE axum::serve: connection 127.0.0.1:60079 accepted
+2026-05-25T12:13:11.804173Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:11.804650Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:11.805721Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:13:11.806410Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:11.806425Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:11.806454Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T12:13:11.806573Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:11.806927Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:11.807094Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T12:13:11.807243Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter2:xy
+2026-05-25T12:13:11.807832Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:13:11.808362Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:13:11.808849Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:11.809095Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:11.809303Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:13:11.809499Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:13:11.809608Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T12:13:11.809752Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:11.809898Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:11.810025Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:11.810771Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:11.811767Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:11.811835Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:11.857284Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:11.857284Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:11.857510Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:11.857548Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:11.857761Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:13:11.860926Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:11.861052Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:13:11.861109Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:13:11.861156Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:13:11.861202Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:11.861248Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:11.863789Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:11.863957Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:11.864017Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:11.864023Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:11.864066Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:11.864080Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:11.864164Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:11.868951Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:11.869055Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:13:11.869120Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:13:11.869832Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:11.869928Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:12.048816Z TRACE axum::serve: connection 127.0.0.1:60078 accepted
+2026-05-25T12:13:12.049722Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:12.050012Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:12.061474Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:12.062620Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:13:13.552503Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:13.553860Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:13:15.565872Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:15.566247Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:16.201116Z TRACE axum::serve: failed to serve connection: connection closed before message completed
+2026-05-25T12:13:16.204695Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:16.206703Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:13:16.236443Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:16.236763Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:16.237792Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:16.239026Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:13:16.239718Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:16.239788Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:16.240154Z TRACE axum::serve: connection 127.0.0.1:60082 accepted
+2026-05-25T12:13:16.240301Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:16.241455Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:16.241456Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:16.241457Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:16.241502Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:13:16.241557Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:16.241479Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:13:16.241598Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T12:13:16.241662Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:13:16.241711Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:16.241784Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter2:xy
+2026-05-25T12:13:16.241738Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T12:13:16.242161Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:16.242719Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:16.243766Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T12:13:16.244663Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:13:16.245568Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:16.245893Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:13:16.246102Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=4 ms status=200
+2026-05-25T12:13:16.246609Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:16.246753Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:13:16.247643Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:13:16.290519Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:16.290899Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:16.291391Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:16.292475Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:16.293617Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:16.294404Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:13:16.295971Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:13:16.296469Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:13:16.296495Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:16.296604Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:16.297024Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:13:16.297064Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:16.297855Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:16.298579Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:16.298688Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:13:16.298816Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:16.298905Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:16.298985Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:16.299600Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:13:16.299791Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:13:16.299996Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:13:16.787788Z  INFO mycela::epics_channel: Multi-monitor stopped for: demo:pressure:sensor
+2026-05-25T12:13:16.817162Z  INFO mycela::epics_channel: Multi-monitor stopped for: demo:flow:sensor
+2026-05-25T12:13:16.820487Z  INFO mycela::epics_channel: Multi-monitor stopped for: demo:vibration:sensor
+2026-05-25T12:13:17.290798Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:scatter:xy
+2026-05-25T12:13:17.324813Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:temp:sensor
+2026-05-25T12:13:17.327955Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:scatter2:xy
+2026-05-25T12:13:17.328242Z  INFO mycela::epics_channel: EPICS monitor stopped for: demo:noise:sensor
+2026-05-25T12:13:18.251723Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:18.256262Z TRACE axum::serve: connection 127.0.0.1:60083 accepted
+2026-05-25T12:13:18.259948Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=8 ms status=200
+2026-05-25T12:13:18.272618Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:18.273192Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:20.263898Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:20.266047Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:20.267609Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=3 ms status=200
+2026-05-25T12:13:20.270880Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=4 ms status=200
+2026-05-25T12:13:20.371748Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:20.372516Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:22.272273Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:22.272693Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:22.500726Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:13:24.287309Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:24.288006Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:24.814435Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:24.815121Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:25.032057Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:13:26.290293Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:26.305761Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=15 ms status=200
+2026-05-25T12:13:28.289646Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:28.290038Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:30.291990Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:30.296500Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=4 ms status=200
+2026-05-25T12:13:32.293248Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:32.296689Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=3 ms status=200
+2026-05-25T12:13:34.305329Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:34.308322Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=3 ms status=200
+2026-05-25T12:13:36.308432Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:36.313672Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=5 ms status=200
+2026-05-25T12:13:38.317882Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:38.319621Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:13:40.319095Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:40.319437Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:41.100284Z DEBUG request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:41.101629Z  INFO request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: mycela::widgets: [mb_setpoint_entry] write_channel: ch=modbus-tcp://127.0.0.1:5020/reg1002, data_type=Some("double"), value='51.5'
+2026-05-25T12:13:41.103208Z  INFO request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: mycela::widgets: [mb_setpoint_entry] write_channel Modbus OK
+2026-05-25T12:13:41.103745Z DEBUG request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=3 ms status=200
+2026-05-25T12:13:42.322819Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:42.327796Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=5 ms status=200
+2026-05-25T12:13:44.324829Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:44.325439Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:46.325819Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:46.326446Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:13:48.350545Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:48.375288Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=24 ms status=200
+2026-05-25T12:13:50.345745Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:13:50.346774Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:14:06.458526Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:14:06.458895Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:14:06.459011Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:14:06.459149Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:14:06.459258Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:14:06.459436Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:14:06.459522Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:14:06.459693Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:14:06.459772Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:14:06.460031Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:14:06.460111Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:14:06.460310Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:14:06.460393Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:14:06.460584Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:14:06.460657Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:14:06.460912Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:14:06.460979Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:14:06.461170Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:14:06.461244Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:14:06.461443Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:14:06.461522Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:14:06.461714Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:14:06.816036Z TRACE axum::serve: connection 127.0.0.1:55530 accepted
+2026-05-25T12:14:06.822036Z TRACE axum::serve: connection 127.0.0.1:52235 accepted
+2026-05-25T12:14:06.824458Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.825690Z DEBUG request{method=GET uri=/ version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:14:06.841124Z DEBUG request{method=GET uri=/static/htmx.min.js version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.841507Z DEBUG request{method=GET uri=/static/htmx.min.js version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.842080Z TRACE axum::serve: connection 127.0.0.1:59950 accepted
+2026-05-25T12:14:06.842150Z DEBUG request{method=GET uri=/static/tooltip.js version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.842736Z DEBUG request{method=GET uri=/static/style.css version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.842822Z DEBUG request{method=GET uri=/static/tooltip.js version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.843051Z DEBUG request{method=GET uri=/static/style.css version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.856383Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.856670Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.857243Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.857455Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.919214Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.919614Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.920290Z TRACE axum::serve: connection 127.0.0.1:56165 accepted
+2026-05-25T12:14:06.920314Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.920433Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.920609Z TRACE axum::serve: connection 127.0.0.1:60931 accepted
+2026-05-25T12:14:06.920666Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.920812Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.920905Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.920981Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Regular.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.921259Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.921636Z DEBUG request{method=GET uri=/static/fonts/ibm-plex-mono/IBMPlexMono-Bold.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.925229Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.925752Z DEBUG request{method=GET uri=/stream/all version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.926975Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:14:06.928310Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:14:06.928318Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:14:06.928409Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:14:06.928517Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:14:06.928713Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:14:06.928830Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:double
+2026-05-25T12:14:06.929017Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:14:06.929257Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:slider
+2026-05-25T12:14:06.929632Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:14:06.929808Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:mode:select
+2026-05-25T12:14:06.929922Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:14:06.930085Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:14:06.930216Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:14:06.930321Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:14:06.930540Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:14:06.930803Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:heater:cmd
+2026-05-25T12:14:06.931017Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter:xy
+2026-05-25T12:14:06.931351Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:temp:sensor
+2026-05-25T12:14:06.931561Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:noise:sensor
+2026-05-25T12:14:06.931732Z  INFO mycela::epics_channel: EPICS monitor starting for: demo:scatter2:xy
+2026-05-25T12:14:06.963576Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.963896Z DEBUG request{method=GET uri=/static/fonts/inter/Inter-Medium.woff2 version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:06.974501Z DEBUG request{method=GET uri=/favicon.ico version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:06.974693Z DEBUG request{method=GET uri=/favicon.ico version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=404
+2026-05-25T12:14:06.979499Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:06.979499Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:06.979499Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:06.979499Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:06.979894Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:06.980360Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:14:06.980396Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:06.980935Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:14:06.980957Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:14:06.980961Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:06.981108Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:14:06.981612Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:06.981682Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982071Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982145Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982188Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982443Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982449Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982591Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982594Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982594Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982598Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:06.982626Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:14:08.868186Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:08.869754Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:14:08.870543Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:08.872319Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:14:10.872466Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:10.873002Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:10.873924Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:10.875613Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:14:12.874234Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:12.874597Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:12.875498Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:12.875776Z DEBUG request{method=GET uri=/api/modbus/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:13.363443Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:13.363941Z DEBUG request{method=POST uri=/api/modbus/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:14.877583Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:14.878247Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:15.439819Z  WARN mycela::modbus_client: Modbus connect failed for 127.0.0.1:5020: No connection could be made because the target machine actively refused it. (os error 10061) -- retrying in 2 s
+2026-05-25T12:14:16.893696Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:16.894664Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:14:17.786949Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:17.787476Z DEBUG request{method=POST uri=/api/modbus/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:17.968245Z  INFO mycela::modbus_client: Modbus connected to 127.0.0.1:5020 unit 1
+2026-05-25T12:14:18.904856Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:18.905278Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:20.913647Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:20.914457Z DEBUG request{method=GET uri=/api/server/status version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=200
+2026-05-25T12:14:22.514415Z DEBUG request{method=POST uri=/api/server/stop version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:22.517136Z DEBUG request{method=POST uri=/api/server/stop version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:14:22.519541Z  WARN mycela::epics_channel: demo:mode:select: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.523522Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524117Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524125Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524122Z  WARN mycela::epics_channel: demo:mode:select: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524122Z  WARN mycela::epics_channel: demo:slider: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524122Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524167Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524199Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524363Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.524667Z  WARN mycela::epics_channel: Multi-monitor demo:pressure:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.525628Z  WARN mycela::epics_channel: demo:temp:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.525688Z  WARN mycela::epics_channel: demo:slider: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.525735Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.527344Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.527350Z  WARN mycela::epics_channel: demo:scatter2:xy: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.527352Z  WARN mycela::epics_channel: demo:heater:cmd: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.527895Z  WARN mycela::epics_channel: demo:noise:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.528887Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.528930Z  WARN mycela::epics_channel: demo:double: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.530839Z  WARN mycela::epics_channel: Multi-monitor demo:flow:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.532328Z  WARN mycela::epics_channel: Multi-monitor demo:vibration:sensor: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:22.538819Z  WARN mycela::epics_channel: demo:scatter:xy: disconnected — Monitor disconnected: Disconnected
+2026-05-25T12:14:25.034987Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:25.042453Z  INFO mycela::server_setup: Creating DOUBLE PV: demo:double
+2026-05-25T12:14:25.042908Z  INFO mycela::server_setup: Added PV: demo:double
+2026-05-25T12:14:25.043117Z  INFO mycela::server_setup: Creating INT32 PV: demo:slider
+2026-05-25T12:14:25.043459Z  INFO mycela::server_setup: Added PV: demo:slider
+2026-05-25T12:14:25.043966Z  INFO mycela::server_setup: Creating ENUM PV: demo:mode:select
+2026-05-25T12:14:25.044640Z  INFO mycela::server_setup: Added PV: demo:mode:select
+2026-05-25T12:14:25.044895Z  INFO mycela::server_setup: Creating INT32 PV: demo:heater:cmd
+2026-05-25T12:14:25.045329Z  INFO mycela::server_setup: Added PV: demo:heater:cmd
+2026-05-25T12:14:25.045705Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:temp:sensor (100 points)
+2026-05-25T12:14:25.046400Z  INFO mycela::server_setup: Added PV: demo:temp:sensor
+2026-05-25T12:14:25.046638Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:pressure:sensor (100 points)
+2026-05-25T12:14:25.047101Z  INFO mycela::server_setup: Added PV: demo:pressure:sensor
+2026-05-25T12:14:25.047320Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:flow:sensor (100 points)
+2026-05-25T12:14:25.047708Z  INFO mycela::server_setup: Added extra series PV: demo:flow:sensor
+2026-05-25T12:14:25.047915Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV (extra series): demo:vibration:sensor (100 points)
+2026-05-25T12:14:25.048279Z  INFO mycela::server_setup: Added extra series PV: demo:vibration:sensor
+2026-05-25T12:14:25.048506Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:noise:sensor (200 points)
+2026-05-25T12:14:25.048924Z  INFO mycela::server_setup: Added PV: demo:noise:sensor
+2026-05-25T12:14:25.049164Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter:xy (80 points)
+2026-05-25T12:14:25.049520Z  INFO mycela::server_setup: Added PV: demo:scatter:xy
+2026-05-25T12:14:25.049773Z  INFO mycela::server_setup: Creating DOUBLE ARRAY PV: demo:scatter2:xy (80 points)
+2026-05-25T12:14:25.050215Z  INFO mycela::server_setup: Added PV: demo:scatter2:xy
+2026-05-25T12:14:25.051053Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=16 ms status=200
+2026-05-25T12:14:27.955711Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:27.956369Z DEBUG request{method=POST uri=/api/server/start version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=0 ms status=400
+2026-05-25T12:14:33.657342Z  INFO mycela::epics_channel: Multi-monitor demo:pressure:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:33.657574Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:14:33.687557Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:33.687755Z  INFO mycela::epics_channel: demo:noise:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:33.687821Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:33.687856Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:33.687944Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:33.687982Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688279Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688315Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688346Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688378Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688412Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688445Z  INFO mycela::epics_channel: Multi-monitor demo:vibration:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688479Z  INFO mycela::epics_channel: demo:scatter:xy: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688534Z  INFO mycela::epics_channel: Multi-monitor demo:flow:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688615Z  INFO mycela::epics_channel: demo:slider: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688648Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688677Z  INFO mycela::epics_channel: demo:scatter2:xy: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688704Z  INFO mycela::epics_channel: demo:heater:cmd: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688730Z  INFO mycela::epics_channel: demo:temp:sensor: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688871Z  INFO mycela::epics_channel: demo:double: connected — Monitor connected: Connected
+2026-05-25T12:14:33.688871Z  INFO mycela::epics_channel: demo:mode:select: connected — Monitor connected: Connected
+2026-05-25T12:14:40.525026Z DEBUG request{method=POST uri=/api/widget/text_entry_dark/set version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:40.525784Z  INFO request{method=POST uri=/api/widget/text_entry_dark/set version=HTTP/1.1}: mycela::widgets: [text_entry_dark] write_channel: ch=demo:double, data_type=Some("double"), value='2'
+2026-05-25T12:14:40.527771Z  INFO request{method=POST uri=/api/widget/text_entry_dark/set version=HTTP/1.1}: mycela::widgets: [text_entry_dark] write_channel EPICS OK
+2026-05-25T12:14:40.528242Z DEBUG request{method=POST uri=/api/widget/text_entry_dark/set version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=3 ms status=200
+2026-05-25T12:14:59.308374Z DEBUG request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:14:59.309102Z  INFO request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: mycela::widgets: [mb_setpoint_entry] write_channel: ch=modbus-tcp://127.0.0.1:5020/reg1002, data_type=Some("double"), value='52.5'
+2026-05-25T12:14:59.310322Z  INFO request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: mycela::widgets: [mb_setpoint_entry] write_channel Modbus OK
+2026-05-25T12:14:59.310912Z DEBUG request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=2 ms status=200
+2026-05-25T12:15:38.796050Z TRACE axum::serve: connection 127.0.0.1:65086 accepted
+2026-05-25T12:15:38.797059Z DEBUG request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: tower_http::trace::on_request: started processing request
+2026-05-25T12:15:38.797572Z  INFO request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: mycela::widgets: [mb_setpoint_entry] write_channel: ch=modbus-tcp://127.0.0.1:5020/reg1002, data_type=Some("double"), value='53'
+2026-05-25T12:15:38.798206Z  INFO request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: mycela::widgets: [mb_setpoint_entry] write_channel Modbus OK
+2026-05-25T12:15:38.798475Z DEBUG request{method=POST uri=/api/widget/mb_setpoint_entry/set version=HTTP/1.1}: tower_http::trace::on_response: finished processing request latency=1 ms status=200
+2026-05-25T12:16:21.291984Z TRACE axum::serve: failed to serve connection: connection closed before message completed

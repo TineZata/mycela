@@ -1,20 +1,28 @@
+#[path = "../demo_server/epics_simulator.rs"]
 mod epics_simulator;
+#[path = "../demo_server/modbus_simulator.rs"]
 mod modbus_simulator;
+mod assets;
 
 use axum::{
     Router,
     routing::{get, post},
     extract::{Path, State, Form},
     response::{Html, IntoResponse, Response, sse::{Event, KeepAlive, Sse}},
-    http::StatusCode,
+    http::{StatusCode, header},
 };
 use std::sync::{Arc, Mutex};
 use tower_http::{
-    services::ServeDir,
     trace::TraceLayer,
     cors::CorsLayer,
 };
 use maud::{html, Markup};
+
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::window::{Window, WindowId};
+use wry::WebViewBuilder;
 
 use mycela::channel::ChannelContext;
 use mycela::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
@@ -24,11 +32,11 @@ use mycela::{modbus_client, widgets};
 // --- Application state -------------------------------------------------------
 
 #[derive(Clone)]
-pub struct AppState {
-    pub pv_server:   Arc<Mutex<Option<pvxs_sys::Server>>>,
-    pub config:      Arc<ScreenConfig>,
-    pub channel_ctx: Arc<ChannelContext>,
-    pub modbus_task: Arc<Mutex<Option<Vec<tokio::task::JoinHandle<()>>>>>,
+struct AppState {
+    pv_server:   Arc<Mutex<Option<pvxs_sys::Server>>>,
+    config:      Arc<ScreenConfig>,
+    channel_ctx: Arc<ChannelContext>,
+    modbus_task: Arc<Mutex<Option<Vec<tokio::task::JoinHandle<()>>>>>,
 }
 
 impl AppState {
@@ -43,6 +51,17 @@ impl AppState {
     }
 }
 
+// --- Static file handler (embedded assets) -----------------------------------
+
+async fn static_file_handler(Path(path): Path<String>) -> impl IntoResponse {
+    match assets::get_asset(&path) {
+        Some((bytes, content_type)) => {
+            ([(header::CONTENT_TYPE, content_type)], bytes).into_response()
+        }
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 // --- Widget write endpoint ---------------------------------------------------
 
 async fn write_widget(
@@ -54,140 +73,34 @@ async fn write_widget(
         .into_iter()
         .find(|w| w.id == widget_id);
     match widget {
-        None => (StatusCode::NOT_FOUND, Html(format!("<span class=\"write-err\">Widget '{}' not found</span>", widget_id))).into_response(),
-        Some(w) => {
-            Html(widgets::write_channel(w, form.value, state.channel_ctx.clone()).await.into_string()).into_response()
-        }
+        None => (StatusCode::NOT_FOUND, Html(format!(
+            "<span class=\"write-err\">Widget '{}' not found</span>", widget_id
+        ))).into_response(),
+        Some(w) => Html(
+            widgets::write_channel(w, form.value, state.channel_ctx.clone())
+                .await
+                .into_string(),
+        ).into_response(),
     }
 }
 
-// --- Entry point -------------------------------------------------------------
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let _log_guard = mycela::logging::init_logging(Some(std::path::Path::new("logs")));
-
-    tracing::info!("Starting EPICS Web UI Server");
-
-    let cwd = std::env::current_dir().unwrap_or_default();
-    tracing::info!("Working directory: {}", cwd.display());
-
-    let config_paths = [
-        // Compile-time absolute path to the workspace root should always be correct with `cargo run`
-        concat!(env!("CARGO_MANIFEST_DIR"), "/examples/demo_config.json"),
-        "examples/demo_config.json",
-        "demo_config.json",
-        "../demo_config.json",
-    ];
-
-    let config = config_paths
-        .iter()
-        .find_map(|path| match ScreenConfig::load(path) {
-            Ok(cfg) => {
-                tracing::info!(" Loaded configuration from: {}", path);
-                Some(cfg)
-            }
-            Err(e) => {
-                tracing::debug!("Could not load config from {}: {}", path, e);
-                None
-            }
-        })
-        .expect("Failed to load demo_config.json from any expected location. Try running from project root.");
-
-    tracing::info!(" Loaded configuration: {} ({} widgets)", config.title, config.widgets.len());
-    let data_widgets = widgets::collect_data_widgets(&config.widgets);
-    for (idx, widget) in data_widgets.iter().enumerate() {
-        tracing::info!(
-            "  Widget {}: id={}, type={:?}, label='{}', ch={}",
-            idx, widget.id, widget.widget_type, widget.label, widget.channel_address()
-        );
-    }
-
-    let pv_server = {
-        let widgets_with_server: Vec<_> = data_widgets
-            .iter()
-            .filter(|w| w.epics_pva().and_then(|e| e.server.as_ref()).is_some())
-            .collect();
-        if widgets_with_server.is_empty() {
-            tracing::info!("No server PVs configured, running in client-only mode");
-            Arc::new(Mutex::new(None))
-        } else {
-            tracing::info!("Found {} widgets with server configuration", widgets_with_server.len());
-            let server = pvxs_sys::Server::start_from_env()?;
-            setup_server_pvs(&server, &config.widgets)?;
-            tracing::info!(" PVXS server started successfully");
-
-            epics_simulator::start_demo_simulator(server.handle(), &config.widgets);
-
-            Arc::new(Mutex::new(Some(server)))
-        }
-    };
-
-    let epics_ctx = Arc::new(std::sync::Mutex::new(pvxs_sys::Context::from_env()?));
-
-    // -- Modbus setup --------------------------------------------------------
-    let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
-    tracing::info!("Modbus TCP demo simulator started on port 5020");
-
-    let modbus_pool = modbus_client::ModbusPool::new();
-    let channel_ctx = ChannelContext::new(epics_ctx, modbus_pool);
-
-    let state = AppState {
-        pv_server,
-        config: Arc::new(config),
-        channel_ctx,
-        modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
-    };
-
-    // Build the application router
-    let app = Router::new()
-        .route("/",                              get(render_demo_screen))
-        .route("/screen/{screen_id}",            get(render_screen))
-        .route("/api/server/start",              post(start_server))
-        .route("/api/server/stop",               post(stop_server))
-        .route("/api/server/status",             get(server_status))
-        .route("/api/modbus/start",              post(start_modbus))
-        .route("/api/modbus/stop",               post(stop_modbus))
-        .route("/api/modbus/status",             get(modbus_status))
-        .route("/api/widget/{widget_id}/set",    post(write_widget))
-        .route("/stream/widget/{name}",          get(stream_widget))
-        .route("/stream/all",                    get(stream_all_widgets))
-        .route("/stream/screen/{screen_id}",     get(stream_screen_widgets))
-        .nest_service("/static",                 ServeDir::new("static"))
-        .with_state(state)
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive());
-
-    let addr = "127.0.0.1:3000";
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::info!("?? Server running at http://{}", addr);
-    tracing::info!("?? Open your browser to see the control interface");
-
-    axum::serve(listener, app).await?;
-    Ok(())
-}
-
-// --- Page handlers ------------------------------------------------------------
+// --- Page handler ------------------------------------------------------------
 
 async fn render_demo_screen(State(state): State<AppState>) -> Html<String> {
     tracing::info!("Rendering widget showcase");
-    let markup = render_showcase(&state.config, state.is_server_running(), state.is_modbus_running());
+    let markup = render_showcase(
+        &state.config,
+        state.is_server_running(),
+        state.is_modbus_running(),
+    );
     Html(markup.into_string())
 }
 
-async fn render_screen(Path(screen_id): Path<String>) -> Result<Html<String>, StatusCode> {
-    tracing::info!("Rendering screen: {}", screen_id);
-    let config_path = format!("examples/{}_config.json", screen_id);
-    let config = ScreenConfig::load(&config_path).map_err(|e| {
-        tracing::error!("Failed to load screen config: {}", e);
-        StatusCode::NOT_FOUND
-    })?;
-    Ok(Html(widgets::render_screen(&config).into_string()))
-}
+// --- SSE handlers ------------------------------------------------------------
 
-// --- SSE handlers -------------------------------------------------------------
-
-type SseStream = std::pin::Pin<Box<dyn tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send>>;
+type SseStream = std::pin::Pin<
+    Box<dyn tokio_stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send>,
+>;
 
 async fn stream_widget(
     Path(widget_id): Path<String>,
@@ -244,7 +157,7 @@ async fn stream_all_widgets(State(state): State<AppState>) -> impl IntoResponse 
         struct SseDropGuard;
         impl Drop for SseDropGuard {
             fn drop(&mut self) {
-                tracing::warn!("SSE stream DROPPED browser disconnected or connection lost");
+                tracing::warn!("SSE stream DROPPED — browser disconnected or connection lost");
             }
         }
         let _guard = SseDropGuard;
@@ -258,59 +171,7 @@ async fn stream_all_widgets(State(state): State<AppState>) -> impl IntoResponse 
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-async fn stream_screen_widgets(
-    Path(screen_id): Path<String>,
-    State(state): State<AppState>,
-) -> impl IntoResponse {
-    tracing::info!("SSE stream requested for screen: {}", screen_id);
-
-    let config_path = format!("examples/{}_config.json", screen_id);
-    let config = match ScreenConfig::load(&config_path) {
-        Ok(c) => c,
-        Err(e) => {
-            tracing::error!("Failed to load screen config for SSE: {}", e);
-            let stream: SseStream = Box::pin(async_stream::stream! {
-                yield Ok(Event::default().data("<!-- screen config not found -->"));
-            });
-            return Sse::new(stream).keep_alive(KeepAlive::default());
-        }
-    };
-
-    if let Some(server) = state.pv_server.lock().unwrap().as_ref() {
-        if let Err(e) = setup_server_pvs(server, &config.widgets) {
-            tracing::warn!("Failed to setup server PVs for screen {}: {}", screen_id, e);
-        }
-    }
-
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(String, String)>();
-
-    let data_widgets = widgets::collect_data_widgets(&config.widgets);
-    for widget_config in data_widgets {
-        let tx        = tx.clone();
-        let widget_id = widget_config.id.clone();
-        let ctx       = state.channel_ctx.clone();
-        tokio::spawn(widgets::run_widget_monitor_async(widget_config, widget_id, ctx, tx));
-    }
-    drop(tx);
-
-    let stream: SseStream = Box::pin(async_stream::stream! {
-        struct SseDropGuard(String);
-        impl Drop for SseDropGuard {
-            fn drop(&mut self) {
-                tracing::warn!("Screen '{}' SSE stream DROPPED", self.0);
-            }
-        }
-        let _guard = SseDropGuard(screen_id);
-
-        while let Some((widget_id, html)) = rx.recv().await {
-            yield Ok(Event::default().event(widget_id).data(html));
-        }
-    });
-
-    Sse::new(stream).keep_alive(KeepAlive::default())
-}
-
-// --- API handlers -------------------------------------------------------------
+// --- API handlers ------------------------------------------------------------
 
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
@@ -444,7 +305,7 @@ async fn stop_modbus(State(state): State<AppState>) -> Response {
     }
 }
 
-// --- Showcase page ------------------------------------------------------------
+// --- Showcase page -----------------------------------------------------------
 
 fn widget_type_name(wt: &WidgetType) -> &'static str {
     match wt {
@@ -470,8 +331,6 @@ fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: 
         }
     }
 
-    let mut pairs: Vec<(String, WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
-
     fn collect_refs<'a>(widgets: &'a [WidgetConfig], out: &mut Vec<&'a WidgetConfig>) {
         for w in widgets {
             if w.widget_type == WidgetType::Group {
@@ -483,9 +342,11 @@ fn render_showcase(config: &ScreenConfig, server_running: bool, modbus_running: 
             }
         }
     }
+
     let mut data_widgets: Vec<&WidgetConfig> = Vec::new();
     collect_refs(&config.widgets, &mut data_widgets);
 
+    let mut pairs: Vec<(String, WidgetType, &WidgetConfig, Option<&WidgetConfig>)> = Vec::new();
     for widget in data_widgets {
         let key = match widget.widget_type {
             WidgetType::Chart => format!("Chart_{}", widget.id),
@@ -625,4 +486,133 @@ function highlightTheme(t) {
             }
         }
     }
+}
+
+// --- Desktop window ----------------------------------------------------------
+
+struct DesktopApp {
+    url:     String,
+    window:  Option<Window>,
+    webview: Option<wry::WebView>,
+}
+
+impl ApplicationHandler for DesktopApp {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_some() {
+            return;
+        }
+        let window = event_loop
+            .create_window(Window::default_attributes().with_title("Mycela"))
+            .expect("failed to create window");
+        let webview = WebViewBuilder::new()
+            .with_url(&self.url)
+            .build(&window)
+            .expect("failed to create webview");
+        self.window  = Some(window);
+        self.webview = Some(webview);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _id: WindowId,
+        event: WindowEvent,
+    ) {
+        if matches!(event, WindowEvent::CloseRequested) {
+            event_loop.exit();
+        }
+    }
+}
+
+// --- Entry point -------------------------------------------------------------
+
+fn main() {
+    let _log_guard = mycela::logging::init_logging(Some(std::path::Path::new("logs")));
+    tracing::info!("Starting Mycela Desktop");
+
+    let config: ScreenConfig = serde_json::from_str(
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/demo_config.json")),
+    )
+    .expect("embedded demo_config.json is invalid");
+
+    // Channel: background server thread sends the bound port to the main thread.
+    let (port_tx, port_rx) = std::sync::mpsc::channel::<u16>();
+
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
+        runtime.block_on(async move {
+            // EPICS / PVXS setup
+            let data_widgets = widgets::collect_data_widgets(&config.widgets);
+            let pv_server = {
+                let server_widgets: Vec<_> = data_widgets
+                    .iter()
+                    .filter(|w| w.epics_pva().and_then(|e| e.server.as_ref()).is_some())
+                    .collect();
+                if server_widgets.is_empty() {
+                    tracing::info!("No server PVs configured, running in client-only mode");
+                    Arc::new(Mutex::new(None))
+                } else {
+                    let server = pvxs_sys::Server::start_from_env()
+                        .expect("PVXS server start");
+                    setup_server_pvs(&server, &config.widgets).expect("PVXS setup");
+                    tracing::info!("PVXS server started");
+                    epics_simulator::start_demo_simulator(server.handle(), &config.widgets);
+                    Arc::new(Mutex::new(Some(server)))
+                }
+            };
+
+            let epics_ctx = Arc::new(Mutex::new(
+                pvxs_sys::Context::from_env().expect("PVXS context"),
+            ));
+
+            // Modbus setup
+            let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
+            tracing::info!("Modbus TCP simulator started on port 5020");
+            let modbus_pool = modbus_client::ModbusPool::new();
+            let channel_ctx = ChannelContext::new(epics_ctx, modbus_pool);
+
+            let state = AppState {
+                pv_server,
+                config: Arc::new(config),
+                channel_ctx,
+                modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
+            };
+
+            // Bind to an OS-assigned port so nothing is hardcoded.
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
+                .expect("TCP bind");
+            let port = listener.local_addr().unwrap().port();
+            port_tx.send(port).unwrap();
+            tracing::info!("Axum server bound on port {}", port);
+
+            let app = Router::new()
+                .route("/",                              get(render_demo_screen))
+                .route("/api/server/start",              post(start_server))
+                .route("/api/server/stop",               post(stop_server))
+                .route("/api/server/status",             get(server_status))
+                .route("/api/modbus/start",              post(start_modbus))
+                .route("/api/modbus/stop",               post(stop_modbus))
+                .route("/api/modbus/status",             get(modbus_status))
+                .route("/api/widget/{widget_id}/set",    post(write_widget))
+                .route("/stream/widget/{name}",          get(stream_widget))
+                .route("/stream/all",                    get(stream_all_widgets))
+                .route("/static/{*path}",                get(static_file_handler))
+                .with_state(state)
+                .layer(TraceLayer::new_for_http())
+                .layer(CorsLayer::permissive());
+
+            axum::serve(listener, app).await.expect("axum serve");
+        });
+    });
+
+    // Block briefly until the server is ready and has sent its port.
+    let port = port_rx.recv().expect("server thread exited before sending port");
+    let url  = format!("http://127.0.0.1:{}/", port);
+    tracing::info!("Desktop window opening {}", url);
+
+    // winit owns the main thread for the duration of the app.
+    let event_loop = EventLoop::new().unwrap();
+    let mut app = DesktopApp { url, window: None, webview: None };
+    event_loop.run_app(&mut app).unwrap();
 }
