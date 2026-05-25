@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widget_toggle_button {
-    use mycelo::channel::ChannelValue;
-    use mycelo::config::{WidgetConfig, WidgetType};
-    use mycelo::widgets::toggle_button::{
+    use mycela::channel::ChannelValue;
+    use mycela::config::{WidgetConfig, WidgetType};
+    use mycela::widgets::toggle_button::{
         render_inner_connected, render_inner_disconnected,
     };
 

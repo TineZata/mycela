@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widgets_container_style {
-    use mycelo::config::{EpicsPvaConfig, ProtocolConfig, WidgetConfig, WidgetStyle, WidgetType};
-    use mycelo::widgets::{render_gauge, widget_container_style};
+    use mycela::config::{EpicsPvaConfig, ProtocolConfig, WidgetConfig, WidgetStyle, WidgetType};
+    use mycela::widgets::{render_gauge, widget_container_style};
 
     fn make_widget(style: Option<WidgetStyle>) -> WidgetConfig {
         WidgetConfig {

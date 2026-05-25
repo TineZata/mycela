@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widget_gauge {
-    use mycelo::channel::ChannelValue;
-    use mycelo::config::{WidgetConfig, WidgetType};
-    use mycelo::widgets::gauge::{render_inner_connected, render_inner_disconnected};
-    use mycelo::widgets::{render_gauge, MAJOR_ALARM_SVG, MINOR_ALARM_SVG};
+    use mycela::channel::ChannelValue;
+    use mycela::config::{WidgetConfig, WidgetType};
+    use mycela::widgets::gauge::{render_inner_connected, render_inner_disconnected};
+    use mycela::widgets::{render_gauge, MAJOR_ALARM_SVG, MINOR_ALARM_SVG};
 
     fn gauge_widget() -> WidgetConfig {
         WidgetConfig {

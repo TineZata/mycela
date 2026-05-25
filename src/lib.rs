@@ -1,4 +1,4 @@
-// Library exports for mycelo
+// Library exports for mycela
 pub mod channel;
 pub mod config;
 #[cfg(feature = "epics")]

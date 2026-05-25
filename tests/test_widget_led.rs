@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widget_led {
-    use mycelo::channel::ChannelValue;
-    use mycelo::config::{WidgetConfig, WidgetType};
-    use mycelo::widgets::led::{render_inner_connected, render_inner_disconnected};
-    use mycelo::widgets::{MAJOR_ALARM_SVG, MINOR_ALARM_SVG, OFFLINE_SVG};
+    use mycela::channel::ChannelValue;
+    use mycela::config::{WidgetConfig, WidgetType};
+    use mycela::widgets::led::{render_inner_connected, render_inner_disconnected};
+    use mycela::widgets::{MAJOR_ALARM_SVG, MINOR_ALARM_SVG, OFFLINE_SVG};
 
     fn w() -> WidgetConfig {
         WidgetConfig {

@@ -1,48 +1,46 @@
-# EPICS Control System Web UI
+# mycela
 
-**Rust + Axum + HTMX + pvxs-sys** - A modern, lightweight web interface for EPICS control systems.
+*Named for mycelium — the vast, silent network that binds an ecosystem together.*
+
+mycela grows where your devices live. Like the hyphal threads that connect every root in a forest, it weaves EPICS, Modbus, and future protocols into a single, coherent control fabric. No protocol is a second-class citizen. Built in Rust — because speed and memory safety are not optional in systems that matter.
 
 ## Architecture
 
 ```
-Browser (HTMX 14KB)
-    ↓ HTML over HTTP  
+Browser (HTMX, self-hosted)
+    ↓ HTML over HTTP / SSE
 Axum Server (Rust)
-    ↓ PVXS Monitors
-pvxs-sys (EPICS PVAccess)
-    ↓ Real-time updates
-EPICS IOCs
+    ├─ pvxs-sys (EPICS PVAccess)  [feature: epics]
+    └─ tokio-modbus (Modbus TCP)  [feature: modbus]
 ```
 
 ### Key Benefits
 
-- ✅ **Simple & Fast** - Only 14KB HTMX, no complex JavaScript frameworks
-- ✅ **Real-time Monitoring** - Persistent PVXS monitors with connection status tracking
-- ✅ **Direct Integration** - FFI to pvxs-sys, no gRPC/protobuf overhead
-- ✅ **Connection Aware** - Shows timeout/disconnected status for unavailable PVs
-- ✅ **Single Binary** - Easy deployment, all assets self-hosted (airgapped ready)
-- ✅ **~80% less code** - Compared to previous gRPC+WASM approach (~850 LOC vs ~3000 LOC)
+- **Simple & Fast** — No JavaScript frameworks; HTMX + SSE for real-time updates
+- **Multi-protocol** — EPICS PVAccess and Modbus TCP supported out of the box
+- **Alarm aware** — Full alarm severity display (MAJOR / MINOR / INVALID / OFFLINE)
+- **Airgap ready** — All assets (HTMX, fonts, CSS) are self-hosted
+- **Library-first** — Import `mycela` as a crate and build your own server
 
 ## Quick Start
 
 ### Prerequisites
 
 - Rust 1.75+ (`rustup update`)
-- pvxs-sys library (Rust FFI bindings to PVXS C++ library)
-- EPICS IOC with PVs to monitor (optional for testing - will show disconnected status)
+- For EPICS: `pvxs-sys` library built alongside this crate (`../pvxs-sys`)
+- For Modbus: no extra system dependencies
 
-### Build and Run
+### Build and Run the Demo Server
 
 ```bash
-# Build the server
-cargo build --release
+# Both protocols (default)
+cargo run --example demo_server
 
-# Run the server
-./target/release/ctrl-demo-server.exe
+# EPICS only
+cargo run --example demo_server --no-default-features --features epics
 
-# Or for development with hot reload
-cargo install cargo-watch
-cargo watch -x run
+# Modbus only
+cargo run --example demo_server --no-default-features --features modbus
 ```
 
 Server starts at: **http://127.0.0.1:3000**
@@ -50,180 +48,142 @@ Server starts at: **http://127.0.0.1:3000**
 ## Project Structure
 
 ```
-mycelo/
+mycela/
 ├── src/
-│   ├── main.rs           # Axum server, routes, handlers
-│   ├── widgets.rs        # Maud HTML templates for widgets
-│   ├── pv_monitor.rs     # PVXS monitor manager with connection tracking
-│   └── config.rs         # JSON configuration loader
-├── static/
-│   ├── htmx.min.js       # Self-hosted HTMX (14KB)
-│   ├── htmx-sse.js       # Server-Sent Events extension
-│   └── style.css         # Modern EPICS UI styling
+│   ├── lib.rs            # Crate root and feature gates
+│   ├── channel.rs        # Protocol-independent ChannelValue type
+│   ├── config.rs         # JSON config types (ScreenConfig, WidgetConfig, ProtocolConfig)
+│   ├── epics_channel.rs  # PVXS monitor integration   [feature: epics]
+│   ├── modbus_client.rs  # Modbus TCP connection pool  [feature: modbus]
+│   ├── server_setup.rs   # Embedded PVXS server setup  [feature: epics]
+│   └── widgets/          # Maud HTML widget renderers
+│       ├── mod.rs
+│       ├── button.rs
+│       ├── chart.rs
+│       ├── gauge.rs
+│       ├── group.rs
+│       ├── led.rs
+│       ├── select.rs
+│       ├── slider.rs
+│       ├── text_entry.rs
+│       ├── text_update.rs
+│       └── toggle_button.rs
 ├── examples/
-│   └── demo_config.json  # Widget configuration
-├── archive/              # Old gRPC+WASM implementation (archived)
+│   ├── demo_config.json       # Widget screen configuration
+│   └── demo_server/
+│       ├── main.rs            # Axum routes and handlers
+│       ├── epics_simulator.rs # Simulated EPICS PV data
+│       └── modbus_simulator.rs
+├── static/
+│   ├── htmx.min.js
+│   ├── style.css
+│   ├── tooltip.js
+│   └── fonts/             # Self-hosted Inter + IBM Plex Mono
+├── tests/                 # Unit test suite
 └── Cargo.toml
 ```
 
-## Features
+## Widgets
 
-### Widget Types
+| Widget | Description |
+|--------|-------------|
+| `text_entry` | Editable numeric/string field with write-back |
+| `text_update` | Read-only live value display |
+| `gauge` | SVG arc gauge with alarm bands |
+| `led` | Binary status indicator |
+| `slider` | Range control with configurable limits |
+| `button` | Momentary command button |
+| `toggle_button` | Latching on/off control |
+| `select` | Enum drop-down |
+| `chart` | Multi-series SVG line chart (up to 6 series) |
+| `group` | Layout container for nested widgets |
 
-- **Text Entry** - Editable numeric fields with readback
-- **Slider** - Range-based control
-- **Gauge** - Visual numeric display
-- **LED** - Binary status indicator
-- **Button** - Command execution (future)
+## Connection Status
 
-### Real-time Monitoring
+All widgets reflect channel state through border colour and status icons:
 
-The server creates persistent PVXS monitors for each PV, providing:
-
-- **Automatic reconnection** when PVs come online
-- **Connection status tracking** (Connected/Disconnected/Timeout/Error)
-- **Live value updates** pushed from EPICS
-- **Visual feedback** with colored borders and status messages
-
-### Connection Status UI
-
-Widgets display connection state:
-- **Cyan boarder** Disabled inputs when not connected
-- **Green border** - Connected and updating
-- **Orange border** - Warning alarm for Hi and Lo limits reached
-- **Red border** - Alarm for HiHi or LoLo limits reached
-- **Status messages** showing specific errors
+| State | Indicator |
+|-------|-----------|
+| Connected, no alarm | Green border |
+| Minor alarm (Hi / Lo) | Orange border + warning icon |
+| Major alarm (HiHi / LoLo) | Red border + alarm icon |
+| Disconnected / offline | Cyan border, input disabled |
+| Invalid / unknown | Grey icon |
 
 ## Configuration
 
-Widget configuration in `examples/demo_config.json`:
+Screen layout is defined in a JSON file (`examples/demo_config.json`):
 
 ```json
 {
   "id": "demo",
   "title": "Demo Control Screen",
+  "description": "...",
   "widgets": [
     {
-      "id": "motor_x_pos",
-      "pv_name": "demo:motor:x",
+      "id": "motor_x",
       "type": "text_entry",
-      "label": "Motor X Position"
+      "label": "Motor X Position",
+      "data_type": "double",
+      "protocol": {
+        "type": "epics-pva",
+        "pv_name": "demo:double"
+      },
+      "metadata": {
+        "display": { "limit_low": 0.0, "limit_high": 100.0, "units": "mm", "precision": 3 },
+        "alarm": { "low_alarm_limit": 5.0, "high_alarm_limit": 95.0 }
+      }
+    },
+    {
+      "id": "pump_speed",
+      "type": "slider",
+      "label": "Pump Speed",
+      "data_type": "double",
+      "protocol": {
+        "type": "modbus-tcp",
+        "host": "192.168.1.10",
+        "port": 502,
+        "register": 1000,
+        "register_type": "holding",
+        "scale": 0.1
+      }
     }
   ]
 }
 ```
 
-## 🔧 Development
+## Technical Stack
 
-### Hot Reload
+| Component | Version |
+|-----------|---------|
+| Axum | 0.8.8 |
+| Maud (HTML templating) | 0.27.0 |
+| Tokio | 1.51 |
+| tokio-modbus | 0.17 |
+| pvxs-sys | local path |
+| DashMap | 6 |
+| plotters (SVG) | 0.3 |
 
-```bash
-cargo watch -x run
-```
-
-### Debug Logging
-
-```bash
-RUST_LOG=debug cargo run
-```
-
-### Testing Without IOCs
-
-The UI gracefully handles missing PVs by showing timeout status. No IOC required to test the interface.
-
-## Technical Details
-
-### Stack
-
-- **Axum 0.7** - Fast, ergonomic web framework
-- **Maud 0.25** - Compile-time HTML templating (type-safe)
-- **HTMX 1.9.10** - Declarative AJAX with HTML attributes
-- **pvxs-sys** - Rust FFI to PVXS C++ library
-- **Tokio** - Async runtime
-- **DashMap** - Concurrent hashmap for PV value caching
-
-### Monitor Architecture
-
-Each PV gets a dedicated monitor thread that:
-
-1. Creates PVXS monitor with connection/disconnection event handlers
-2. Runs in `spawn_blocking` thread (blocking PVXS calls)
-3. Pushes updates to shared `DashMap` cache
-4. Handles `MonitorEvent::Connected`, `Disconnected`, `Timeout`, etc.
-5. Updates connection status for UI feedback
-
-### HTMX Polling
-
-Widgets poll for updates every second using HTMX:
-
-```html
-<div class="widget" hx-get="/poll/widget/motor_x" hx-trigger="every 1s">
-  <!-- Widget content auto-updates -->
-</div>
-```
-
-Server returns fresh HTML fragments with current values and connection status.
-
-## Deployment
-
-### Build Release Binary
+## Development
 
 ```bash
-cargo build --release
+# Debug logging
+$env:RUST_LOG="info"; cargo run --example demo_server
+
+# Run tests
+cargo test
+
+# Build release
+cargo build --release --example demo_server
 ```
 
-Binary location: `target/release/ctrl-demo-server.exe`
-
-### Required Files
-
-```
-deployment/
-├── ctrl-demo-server.exe    # Binary
-└── static/                 # Static assets
-    ├── htmx.min.js
-    ├── htmx-sse.js
-    └── style.css
-```
-
-### Environment Variables
+### Environment Variables (EPICS)
 
 ```bash
-# EPICS environment (required for pvxs-sys)
 EPICS_PVA_ADDR_LIST=192.168.1.100
 EPICS_PVA_AUTO_ADDR_LIST=YES
 ```
 
-## Archived Code
-
-The previous gRPC-Web + WASM implementation is archived in `archive/old_grpc/` for reference. Key differences:
-
-| Metric | Old (gRPC+WASM) | New (Axum+HTMX) |
-|--------|----------------|-----------------|
-| Lines of Code | ~3000 | ~850 (73% reduction) |
-| Browser Assets | 2MB+ WASM | 14KB HTMX |
-| Build Time | 2-3 min | 30 sec |
-| Dependencies | 80+ crates | 20 crates |
-| Complexity | High | Low |
-
 ## License
 
 See [LICENSE](LICENSE) file.
-
-## Contributing
-
-This is a demonstration project showing Rust+HTMX for EPICS control systems. For production use, consider adding:
-
-- Authentication/authorization
-- Alarm severity handling and colors
-- Metadata extraction (units, ranges, precision)
-- Archive integration for historical data
-- Configuration UI for creating widgets
-- Multi-screen navigation
-- WebSocket/SSE for sub-second updates
-
-## Related Projects
-
-- [pvxs-sys](https://github.com/your-org/pvxs-sys) - Rust FFI bindings to PVXS
-- [EPICS](https://epics-controls.org/) - Experimental Physics and Industrial Control System
-- [HTMX](https://htmx.org/) - High power tools for HTML
-- [Axum](https://github.com/tokio-rs/axum) - Web framework for Rust

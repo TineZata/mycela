@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_config_widget_config {
-    use mycelo::config::{
+    use mycela::config::{
         EpicsPvaConfig, ModbusTCPConfig, ModbusRegisterType, ProtocolConfig,
         WidgetConfig, WidgetType,
     };

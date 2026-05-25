@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_config_alarm_metadata {
-    use mycelo::config::AlarmMetadata;
+    use mycela::config::AlarmMetadata;
 
     /// Alarm band used by all severity tests.
     ///   low alarm  < 10  → MAJOR (2)

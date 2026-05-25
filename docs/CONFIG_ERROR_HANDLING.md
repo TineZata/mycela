@@ -1,6 +1,6 @@
 # Configuration Error Handling
 
-This document describes the improved error handling for configuration file loading in mycelo.
+This document describes the improved error handling for configuration file loading in mycela.
 
 ## Overview
 

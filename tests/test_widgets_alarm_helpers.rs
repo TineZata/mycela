@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_widgets_alarm_helpers {
-    use mycelo::widgets::{alarm_severity_class, alarm_status_str};
+    use mycela::widgets::{alarm_severity_class, alarm_status_str};
 
     #[test]
     fn test_alarm_severity_zero_maps_to_alarm_none_class() {

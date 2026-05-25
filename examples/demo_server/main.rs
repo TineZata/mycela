@@ -18,10 +18,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use maud::{html, Markup};
 
-use mycelo::channel::ChannelContext;
-use mycelo::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
-use mycelo::server_setup::setup_server_pvs;
-use mycelo::{modbus_client, widgets};
+use mycela::channel::ChannelContext;
+use mycela::config::{ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType};
+use mycela::server_setup::setup_server_pvs;
+use mycela::{modbus_client, widgets};
 
 // --- Application state -------------------------------------------------------
 
@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "mycelo_demo_server=debug,mycelo=debug,tower_http=debug,axum=trace".into()),
+                .unwrap_or_else(|_| "mycela_demo_server=debug,mycela=debug,tower_http=debug,axum=trace".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();

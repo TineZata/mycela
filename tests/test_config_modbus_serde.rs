@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 mod test_config_modbus_serde {
-    use mycelo::config::{ModbusTCPConfig, ModbusRegisterType, ScreenConfig};
+    use mycela::config::{ModbusTCPConfig, ModbusRegisterType, ScreenConfig};
 
     #[test]
     fn test_modbus_config_poll_interval_ms_alias_is_accepted() {
