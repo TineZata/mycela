@@ -1,6 +1,6 @@
 # mycela
 
-*Named for mycelium — the vast, silent network that binds an ecosystem together.*
+*Named from mycelium — the vast, silent network that binds an ecosystem together.*
 
 mycela grows where your devices live. Like the hyphal threads that connect every root in a forest, it weaves EPICS, Modbus, and future protocols into a single, coherent control fabric. No protocol is a second-class citizen. Built in Rust — because speed and memory safety are not optional in systems that matter.
 
