@@ -51,8 +51,8 @@ chrono = "0.4.44"
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "line_series"] }
 
 # EPICS (optional — enable with feature "epics")
-pvxs-sys = { path = "../pvxs-sys", optional = true }
-# pvxs-sys = { version = "0.1.1", optional = true }
+# pvxs-sys = { path = "../pvxs-sys", optional = true }
+pvxs-sys = { version = "0.1.2", optional = true }
 
 # Modbus (optional — enable with feature "modbus")
 tokio-modbus = { version = "0.17.0", features = ["tcp"], optional = true }
