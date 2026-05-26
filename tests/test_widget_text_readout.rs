@@ -31,7 +31,7 @@ mod test_widget_text_readout {
     #[test]
     fn test_disconnected_text_update_shows_alarm_disconnected_class_and_placeholder() {
         let html = render_inner_disconnected(&w(), "reason").into_string();
-        assert!(html.contains("alarm-disconnected"));
+        assert!(html.contains("alarm-disconnected"), "alarm-disconnected must be in HTML, got: {html}");
         assert!(html.contains("--"));
     }
 
@@ -39,7 +39,7 @@ mod test_widget_text_readout {
     fn test_connected_text_update_with_no_alarm_uses_alarm_none_class_and_displays_value() {
         let cv = ChannelValue { value_str: "42.0".to_string(), ..ChannelValue::default() };
         let html = render_inner_connected(&w(), &cv).into_string();
-        assert!(html.contains("alarm-none"), "got: {html}");
+        assert!(html.contains("alarm-none"), "alarm-none must be in HTML, got: {html}");
         assert!(html.contains("42.0"));
     }
 
@@ -51,14 +51,14 @@ mod test_widget_text_readout {
             ..ChannelValue::default()
         };
         let html = render_inner_connected(&w(), &cv).into_string();
-        assert!(html.contains("alarm-minor"));
+        assert!(html.contains("alarm-minor"), "alarm-minor must be in HTML, got: {html}");
     }
 
     #[test]
     fn test_connected_text_update_with_major_alarm_uses_alarm_major_class() {
         let cv = ChannelValue { alarm_severity: 2, ..ChannelValue::default() };
         let html = render_inner_connected(&w(), &cv).into_string();
-        assert!(html.contains("alarm-major"));
+        assert!(html.contains("alarm-major"), "alarm-major must be in HTML, got: {html}");
     }
 
     #[test]
@@ -71,5 +71,15 @@ mod test_widget_text_readout {
         let html = render_inner_connected(&w(), &cv).into_string();
         assert!(html.contains("99.9"));
         assert!(html.contains("degC"));
+    }
+
+    #[test]
+    fn test_alarm_only_change_produces_different_html() {
+        let cv_no_alarm = ChannelValue { value_str: "42.0".to_string(), alarm_severity: 0, ..ChannelValue::default() };
+        let cv_alarm    = ChannelValue { value_str: "42.0".to_string(), alarm_severity: 1, ..ChannelValue::default() };
+        let html_none  = render_inner_connected(&w(), &cv_no_alarm).into_string();
+        let html_alarm = render_inner_connected(&w(), &cv_alarm).into_string();
+        assert_ne!(html_none, html_alarm, "alarm change with same value must produce different HTML");
+        assert!(html_alarm.contains("alarm-minor"));
     }
 }

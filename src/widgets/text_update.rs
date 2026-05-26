@@ -73,7 +73,7 @@ fn render_display_html(
     config: &WidgetConfig,
     current_value: &str,
     units: &str,
-    input_class: &str,
+    alarm_class: &str,
     icon: Option<&str>,
     tooltip: &str,
 ) -> Markup {
@@ -91,7 +91,7 @@ fn render_display_html(
                     img class="text-update-icon" src=(src) alt="status";
                 }
                 input type=(input_type)
-                    class=(input_class)
+                    class=(alarm_class)
                     name="value"
                     value=(current_value)
                     readonly;

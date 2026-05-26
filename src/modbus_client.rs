@@ -340,12 +340,18 @@ async fn run_modbus_poll(
     loop {
         interval.tick().await;
 
-        // If the device task was killed (e.g. after a Disconnect/Connect cycle) re-acquire
-        // a fresh handle so the pool can spawn a new connection task.
+        // If the device task was killed (e.g. after a Stop/Start cycle) signal
+        // disconnection to the widget first, then re-acquire a fresh handle so
+        // the pool can spawn a new connection task and reconnect automatically.
         if handle.is_closed() {
+            if was_connected {
+                was_connected = false;
+                last_value_str = None;
+                if tx.send(ChannelEvent::Disconnected("connection closed".to_string())).is_err() {
+                    break;
+                }
+            }
             handle = pool.get_or_create(&m.host, m.port, m.unit_id);
-            was_connected = false;
-            last_value_str = None;
         }
 
         match handle

@@ -12,6 +12,11 @@ name = "demo_server"
 path = "examples/demo_server/main.rs"
 required-features = ["epics", "modbus"]
 
+[[example]]
+name = "demo_desktop"
+path = "examples/demo_desktop/main.rs"
+required-features = ["epics", "modbus", "desktop"]
+
 [dependencies]
 # Web framework
 axum = "0.8.9"
@@ -29,6 +34,7 @@ serde_json = "1.0.150"
 # Logging
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-appender = "0.2"
 
 # Concurrent caching
 dashmap = "6.2.1"
@@ -51,10 +57,15 @@ pvxs-sys = { path = "../pvxs-sys", optional = true }
 # Modbus (optional — enable with feature "modbus")
 tokio-modbus = { version = "0.17.0", features = ["tcp"], optional = true }
 
+# Desktop (optional — enable with feature "desktop")
+wry   = { version = "0.55", optional = true }
+winit = { version = "0.30", optional = true }
+
 [features]
 default = ["epics", "modbus"]
-epics  = ["dep:pvxs-sys"]
-modbus = ["dep:tokio-modbus"]
+epics   = ["dep:pvxs-sys"]
+modbus  = ["dep:tokio-modbus"]
+desktop = ["dep:wry", "dep:winit"]
 
 [dev-dependencies]
 rand = "0.10.1"

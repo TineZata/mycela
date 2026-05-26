@@ -28,12 +28,80 @@ impl From<std::io::Error> for ConfigError {
     }
 }
 
+/// Navigation / action button attached to a screen header.
+///
+/// Each action renders as a button or link in the screen's nav bar.
+/// JSON uses an internally-tagged enum: `{ "type": "navigate", ... }`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum ActionConfig {
+    /// Button that navigates to another screen in the same tab.
+    Navigate { label: String, to: String },
+    /// Button that goes back to the home screen.
+    Back { label: String },
+    /// Button that opens another screen in a new browser tab.
+    Popup { label: String, to: String },
+    /// Button that opens another screen in a new browser window.
+    Window { label: String, to: String },
+    /// HTMX button that calls a custom API endpoint.
+    Api { label: String, method: String, path: String },
+}
+
+/// Application configuration — the top-level `app.json` format.
+///
+/// Wraps one or more [`ScreenConfig`]s.  Load with [`AppConfig::load`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppConfig {
+    pub title: String,
+    /// Screen `id` to render at `/`. Defaults to the first screen.
+    #[serde(default)]
+    pub home_screen: Option<String>,
+    pub screens: Vec<ScreenConfig>,
+}
+
+impl AppConfig {
+    /// Load application configuration from a JSON file.
+    pub fn load(path: &str) -> Result<Self, ConfigError> {
+        let content = fs::read_to_string(path)?;
+        match serde_json::from_str::<AppConfig>(&content) {
+            Ok(config) => {
+                Self::validate_app_config(&config)?;
+                Ok(config)
+            }
+            Err(e) => {
+                let context = ScreenConfig::build_error_context(&e, &content, path);
+                Err(ConfigError::JsonError { source: e, context })
+            }
+        }
+    }
+
+    fn validate_app_config(config: &AppConfig) -> Result<(), ConfigError> {
+        let mut seen_screen_ids = std::collections::HashSet::new();
+        let mut seen_widget_ids = std::collections::HashSet::new();
+        for screen in &config.screens {
+            if !seen_screen_ids.insert(screen.id.clone()) {
+                let context = format!(
+                    "Duplicate screen ID: '{}'\nEach screen must have a unique 'id'.",
+                    screen.id
+                );
+                let err = serde_json::from_str::<()>("\"duplicate_screen_id\"").unwrap_err();
+                return Err(ConfigError::JsonError { source: err, context });
+            }
+            ScreenConfig::validate_widgets(&screen.widgets, &mut seen_widget_ids)?;
+        }
+        Ok(())
+    }
+}
+
 /// Screen configuration loaded from JSON
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScreenConfig {
     pub id: String,
     pub title: String,
     pub description: String,
+    /// Navigation / action buttons shown in the screen header.
+    #[serde(default)]
+    pub actions: Option<Vec<ActionConfig>>,
     pub widgets: Vec<WidgetConfig>,
 }
 

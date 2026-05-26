@@ -71,12 +71,12 @@ pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Marku
         .filter(|&s| s > 0.0)
         .unwrap_or(precision_step);
     render_slider_html(config, cv.raw_value, &display_value, &cv.units, min, max, step,
-                        &format!("slider {}", alarm_class), icon, false, &super::build_tooltip(config, cv))
+                        alarm_class, icon, false, &super::build_tooltip(config, cv))
 }
 
 pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {
     render_slider_html(config, 0.0, "--", "", 0.0, 100.0, 0.1,
-                        "slider alarm-disconnected", Some(super::OFFLINE_SVG), true, "")
+                        "alarm-disconnected", Some(super::OFFLINE_SVG), true, "")
 }
 
 fn render_slider_html(
@@ -87,11 +87,24 @@ fn render_slider_html(
     min: f64,
     max: f64,
     step: f64,
-    _alarm_class: &str,
+    alarm_class: &str,
     icon: Option<&str>,
     disabled: bool,
     tooltip: &str,
 ) -> Markup {
+    // Slider drag, update number input (display only, no submit)
+    let slider_oninput = "this.nextElementSibling.value=this.value";
+    // Enter on slider, update number input value then fire keyup so HTMX picks it up
+    let slider_onkeyup = "if(event.key==='Enter'){let ni=this.nextElementSibling;ni.value=this.value;ni.dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',bubbles:true}));}";
+    // Typing in number input, update slider position
+    let numentry_oninput = "let r=this.previousElementSibling;let v=parseFloat(this.value);if(!isNaN(v)&&Number(v)>=Number(r.min)&&Number(v)<=Number(r.max))r.value=v";
+    // When focus leaves the container, reset both controls to the last confirmed value
+    let container_focusout = "setTimeout((c=>()=>{if(!c.contains(document.activeElement)){let ni=c.querySelector('.slider-text-entry');let v=ni.dataset.confirmed;ni.value=v;c.querySelector('input[type=range]').value=v;}})(this),0)";
+    // After a successful post, store the new confirmed value and sync the slider
+    let after_request = "this.dataset.confirmed=this.value;this.previousElementSibling.value=this.value";
+    // Before posting, reject non-finite values and reset to confirmed
+    let before_request = "if(isNaN(parseFloat(this.value))||!isFinite(this.value)){this.value=this.dataset.confirmed;this.previousElementSibling.value=this.dataset.confirmed;event.preventDefault();return false;}";
+
     html! {
         div class="widget-inner" {
             label class="widget-label" {
@@ -103,7 +116,7 @@ fn render_slider_html(
                     (super::render_info_btn(tooltip))
                 }
             }
-            div class="slider-container" {
+            div class="slider-container" onfocusout=(container_focusout) {
                 input type="range"
                     class="widget-slider"
                     name="value"
@@ -112,14 +125,29 @@ fn render_slider_html(
                     step=(format!("{}", step))
                     value=(format!("{}", current_value))
                     disabled[disabled]
+                    oninput=(slider_oninput)
+                    onkeyup=(slider_onkeyup);
+                input type="number"
+                    class=(format!("slider-text-entry {}", alarm_class))
+                    name="value"
+                    min=(format!("{}", min))
+                    max=(format!("{}", max))
+                    step=(format!("{}", step))
+                    value=(display_value)
+                    data-confirmed=(display_value)
+                    disabled[disabled]
                     hx-post={"/api/widget/" (config.id) "/set"}
-                    hx-trigger="change"
-                    hx-target="next .slider-value";
-                span class="slider-value" {
-                    (display_value)
-                    @if !units.is_empty() { " " (units) }
+                    hx-trigger="keyup[key=='Enter']"
+                    hx-target="next .status"
+                    hx-swap="innerHTML"
+                    hx-on--before-request=(before_request)
+                    hx-on--after-request=(after_request)
+                    oninput=(numentry_oninput);
+                @if !units.is_empty() {
+                    span class="slider-units" { (units) }
                 }
             }
+            span class="status" {}
             @if let Some(desc) = &config.description {
                 @if !desc.is_empty() {
                     p class="widget-description" { (desc) }

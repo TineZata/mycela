@@ -157,6 +157,65 @@ textarea, input, button, select { font-family: inherit; font-size: inherit; }
     font-size: 1.1rem;
 }
 
+.nav-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1rem;
+    padding: 0.45rem 1.1rem;
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.18s, color 0.18s;
+}
+
+.nav-button:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.screen-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.screen-actions .nav-button,
+.screen-actions .back-link {
+    margin-top: 1rem;
+}
+
+.screen-status-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.screen-status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.screen-action-feedback {
+    min-height: 1.5rem;
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+}
+
+/* keep legacy class working */
 .back-link {
     display: inline-block;
     margin-top: 1rem;
@@ -901,10 +960,10 @@ input[type="number"] {
 
 /* Slider widget */
 .slider-container {
-    max-width: 300px;
     display: flex;
+    flex: 1;
     align-items: center;
-    gap: 1rem;
+    gap: 0.6rem;
 }
 
 .widget-slider {
@@ -941,14 +1000,45 @@ input[type="number"] {
     border: none;
 }
 
-.slider-value {
-    font-size: 1.2rem;
+.slider-text-entry {
+    width: 8ch;
+    font-size: 1rem;
     font-weight: bold;
     color: var(--accent);
-    max-width: 120px;
-    text-align: right;
     font-family: var(--font-monospace);
     font-variant-numeric: tabular-nums slashed-zero;
+    background: var(--bg-secondary);
+    border: 1px solid var(--input-border);
+    border-radius: var(--widget-border-radius);
+    padding: 0.3rem 0.4rem;
+    text-align: right;
+    -moz-appearance: textfield;
+}
+.slider-text-entry::-webkit-outer-spin-button,
+.slider-text-entry::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.slider-text-entry:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.25);
+}
+.slider-text-entry:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.slider-text-entry.alarm-none        { border-left: 3px solid var(--alarm-none); }
+.slider-text-entry.alarm-minor       { border-left: 3px solid var(--alarm-minor); }
+.slider-text-entry.alarm-major       { border-left: 3px solid var(--alarm-major); }
+.slider-text-entry.alarm-invalid     { border-left: 3px solid var(--alarm-invalid); }
+.slider-text-entry.alarm-disconnected { border-left: 3px solid var(--alarm-disconnected); }
+
+.slider-units {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* Chart widget */
@@ -1199,7 +1289,7 @@ footer {
     background: var(--text-secondary);
 }
 
-[data-theme="light"] .slider-container .slider-value {
+[data-theme="light"] .slider-container .slider-text-entry {
     color: var(--accent);
 }
 

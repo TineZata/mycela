@@ -30,7 +30,7 @@ Axum Server (Rust)
 - For EPICS: `pvxs-sys` library built alongside this crate (`../pvxs-sys`)
 - For Modbus: no extra system dependencies
 
-### Build and Run the Demo Server
+### Demo Server (browser-based)
 
 ```bash
 # Both protocols (default)
@@ -45,6 +45,18 @@ cargo run --example demo_server --no-default-features --features modbus
 
 Server starts at: **http://127.0.0.1:3000**
 
+### Demo Desktop (self-contained executable)
+
+The desktop app embeds all static assets and config at compile time. A native
+window opens automatically — no browser needed.
+
+```bash
+cargo run --example demo_desktop --features desktop
+```
+
+Axum binds to a random port on `127.0.0.1`; the WebView window opens pointed at
+that URL. Logs are written to `logs/mycela.log.<date>` alongside the binary.
+
 ## Project Structure
 
 ```
@@ -53,6 +65,7 @@ mycela/
 │   ├── lib.rs            # Crate root and feature gates
 │   ├── channel.rs        # Protocol-independent ChannelValue type
 │   ├── config.rs         # JSON config types (ScreenConfig, WidgetConfig, ProtocolConfig)
+│   ├── logging.rs        # Shared logging init (stdout + daily rolling file)
 │   ├── epics_channel.rs  # PVXS monitor integration   [feature: epics]
 │   ├── modbus_client.rs  # Modbus TCP connection pool  [feature: modbus]
 │   ├── server_setup.rs   # Embedded PVXS server setup  [feature: epics]
@@ -70,10 +83,13 @@ mycela/
 │       └── toggle_button.rs
 ├── examples/
 │   ├── demo_config.json       # Widget screen configuration
-│   └── demo_server/
-│       ├── main.rs            # Axum routes and handlers
-│       ├── epics_simulator.rs # Simulated EPICS PV data
-│       └── modbus_simulator.rs
+│   ├── demo_server/
+│   │   ├── main.rs            # Axum routes and handlers
+│   │   ├── epics_simulator.rs # Simulated EPICS PV data
+│   │   └── modbus_simulator.rs
+│   └── demo_desktop/
+│       ├── main.rs            # Desktop entry point (winit + wry)
+│       └── assets.rs          # Static files embedded via include_bytes!
 ├── static/
 │   ├── htmx.min.js
 │   ├── style.css
@@ -156,13 +172,16 @@ Screen layout is defined in a JSON file (`examples/demo_config.json`):
 
 | Component | Version |
 |-----------|---------|
-| Axum | 0.8.8 |
+| Axum | 0.8.9 |
 | Maud (HTML templating) | 0.27.0 |
-| Tokio | 1.51 |
+| Tokio | 1.52 |
 | tokio-modbus | 0.17 |
 | pvxs-sys | local path |
 | DashMap | 6 |
 | plotters (SVG) | 0.3 |
+| tracing-appender | 0.2 |
+| wry (desktop) | 0.55 |
+| winit (desktop) | 0.30 |
 
 ## Development
 
@@ -173,8 +192,11 @@ $env:RUST_LOG="info"; cargo run --example demo_server
 # Run tests
 cargo test
 
-# Build release
+# Build release (server)
 cargo build --release --example demo_server
+
+# Build release (desktop)
+cargo build --release --example demo_desktop --features desktop
 ```
 
 ### Environment Variables (EPICS)

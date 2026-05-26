@@ -1,0 +1,457 @@
+{
+  "title": "Mycela Demo",
+  "home_screen": "epics",
+  "screens": [
+    {
+      "id": "epics",
+      "title": "EPICS Widgets",
+      "description": "Live EPICS PVA widget showcase",
+      "actions": [
+        { "type": "navigate", "label": "Modbus Widgets >", "to": "modbus" },
+        { "type": "window",   "label": "Open Modbus in new window", "to": "modbus" },
+        { "type": "api", "label": "Start EPICS Sim",  "method": "post", "path": "/api/server/start" },
+        { "type": "api", "label": "Stop EPICS Sim",   "method": "post", "path": "/api/server/stop" }
+      ],
+      "widgets": [
+        {
+          "id": "motor_group",
+          "type": "group",
+          "label": "Motor Control",
+          "level": 1,
+          "description": "Position entry, readback and gauge",
+          "children": [
+            {
+              "id": "text_entry_dark",
+              "type": "text_entry",
+              "label": "Motor X Position",
+              "data_type": "double",
+              "description": "Editable numeric field with live alarm feedback",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:double",
+                "server": { "alarm_serverity": "NONE", "alarm_status": "NO_ALARM" }
+              },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Horizontal stage position", "precision": 3, "units": "mm" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 85.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            },
+            {
+              "id": "text_update_dark",
+              "type": "text_update",
+              "label": "Motor X Readback",
+              "data_type": "double",
+              "description": "Read-only live value display",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": { "type": "epics-pva", "pv_name": "demo:double" },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Horizontal stage position", "precision": 3, "units": "mm" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 85.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            },
+            {
+              "id": "gauge_dark",
+              "type": "gauge",
+              "label": "Motor X Position",
+              "data_type": "double",
+              "description": "Analogue bar gauge with alarm zones",
+              "orientation": "horizontal",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": { "type": "epics-pva", "pv_name": "demo:double" },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Horizontal stage position", "precision": 3, "units": "mm" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 85.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            }
+          ]
+        },
+        {
+          "id": "flow_group",
+          "type": "group",
+          "label": "Flow Control",
+          "level": 1,
+          "description": "Slider and select controls",
+          "children": [
+            {
+              "id": "slider_dark",
+              "type": "slider",
+              "label": "Valve Position",
+              "data_type": "int32",
+              "description": "Drag range control with live setpoint",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:slider",
+                "server": { "alarm_serverity": "NONE", "alarm_status": "NO_ALARM" }
+              },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Flow control valve aperture", "precision": 0, "units": "%" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 1.0 },
+                "alarm": { "low_alarm_limit": 10.0, "low_warning_limit": 25.0, "high_warning_limit": 75.0, "high_alarm_limit": 90.0, "low_alarm_severity": "MINOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 0 }
+              }
+            },
+            {
+              "id": "select_dark",
+              "type": "select",
+              "label": "Operating Mode",
+              "data_type": "enum",
+              "description": "Enum dropdown backed by NTEnum PV",
+              "style": { "width": "100%", "height": "30px" },
+              "options": ["Off", "Manual", "Auto", "Remote"],
+              "protocol": { "type": "epics-pva", "pv_name": "demo:mode:select", "server": { "alarm_serverity": "NONE", "alarm_status": "NO_ALARM" } }
+            }
+          ]
+        },
+        {
+          "id": "interlock_group",
+          "type": "group",
+          "label": "Interlock System",
+          "level": 1,
+          "description": "Button, toggle, and LED controls",
+          "children": [
+            {
+              "id": "button_dark",
+              "type": "button",
+              "label": "Heater On",
+              "data_type": "bool",
+              "description": "Momentary action button — sends value 1 on click",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:heater:cmd",
+                "server": { "alarm_serverity": "NONE", "alarm_status": "NO_ALARM" }
+              }
+            },
+            {
+              "id": "led_dark",
+              "type": "led",
+              "label": "Heater Status",
+              "data_type": "bool",
+              "description": "Binary on/off indicator with glow effect",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": { "type": "epics-pva", "pv_name": "demo:heater:cmd" }
+            },
+            {
+              "id": "toggle_button_dark",
+              "type": "toggle_button",
+              "label": "Heater",
+              "data_type": "bool",
+              "description": "Toggle button — reflects live PV state, sends opposite value on click",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": { "type": "epics-pva", "pv_name": "demo:heater:cmd" }
+            }
+          ]
+        },
+        {
+          "id": "monitoring_group",
+          "type": "group",
+          "label": "Monitoring",
+          "level": 1,
+          "description": "Time-series charts, histograms, and scatter plots",
+          "size": { "width": "1000px", "height": "1000px" },
+          "children": [
+            {
+              "id": "chart_line_single",
+              "type": "chart",
+              "label": "Temperature History",
+              "data_type": "double_array",
+              "chart_type": "line",
+              "max_points": 100,
+              "axis_label_x": "Sample",
+              "axis_label_y": "Temperature (°C)",
+              "description": "Single-series rolling line chart",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:temp:sensor",
+                "server": {
+                  "alarm_serverity": "NONE",
+                  "alarm_status": "NO_ALARM",
+                  "metadata": {
+                    "display": { "limit_low": 15.0, "limit_high": 35.0, "description": "Ambient temperature sensor", "precision": 2, "units": "°C" }
+                  }
+                }
+              }
+            },
+            {
+              "id": "chart_line_multi",
+              "type": "chart",
+              "label": "Multi-PV Line Chart",
+              "data_type": "double_array",
+              "chart_type": "line",
+              "max_points": 100,
+              "axis_label_x": "Sample",
+              "axis_label_y": "Value",
+              "description": "Up to 6 PVs on one line chart",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:pressure:sensor",
+                "pv_names": ["demo:flow:sensor", "demo:vibration:sensor"],
+                "server": {
+                  "alarm_serverity": "NONE",
+                  "alarm_status": "NO_ALARM",
+                  "metadata": {
+                    "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Process pressure", "precision": 2, "units": "bar" }
+                  }
+                }
+              }
+            },
+            {
+              "id": "chart_histogram",
+              "type": "chart",
+              "label": "Signal Distribution",
+              "data_type": "double_array",
+              "chart_type": "histogram",
+              "max_points": 200,
+              "axis_label_x": "Amplitude",
+              "axis_label_y": "Count",
+              "description": "Histogram of noise signal distribution",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:noise:sensor",
+                "server": {
+                  "alarm_serverity": "NONE",
+                  "alarm_status": "NO_ALARM",
+                  "metadata": {
+                    "display": { "limit_low": -5.0, "limit_high": 5.0, "description": "ADC noise signal", "precision": 3, "units": "V" }
+                  }
+                }
+              }
+            },
+            {
+              "id": "chart_scatter",
+              "type": "chart",
+              "label": "X vs Y Scatter",
+              "data_type": "double_array",
+              "chart_type": "scatter",
+              "max_points": 80,
+              "axis_label_x": "X Position (mm)",
+              "axis_label_y": "Y Position (mm)",
+              "description": "Scatter plot — interleaved [x0,y0, x1,y1, …] array",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "epics-pva",
+                "pv_name": "demo:scatter:xy",
+                "server": {
+                  "alarm_serverity": "NONE",
+                  "alarm_status": "NO_ALARM",
+                  "metadata": {
+                    "display": { "limit_low": -10.0, "limit_high": 10.0, "description": "2D beam position", "precision": 3, "units": "mm" }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "modbus",
+      "title": "Modbus Widgets",
+      "description": "Live Modbus TCP widget showcase — simulator on port 5020",
+      "actions": [
+        { "type": "navigate", "label": "< EPICS Widgets", "to": "epics" },
+        { "type": "window",   "label": "Open EPICS in new window", "to": "epics" },
+        { "type": "api", "label": "Start Modbus Sim", "method": "post", "path": "/api/modbus/start" },
+        { "type": "api", "label": "Stop Modbus Sim",  "method": "post", "path": "/api/modbus/stop" }
+      ],
+      "widgets": [
+        {
+          "id": "modbus_group",
+          "type": "group",
+          "label": "Modbus TCP — Full Widget Tour",
+          "level": 1,
+          "description": "Every widget type communicating via Modbus TCP to the built-in simulator",
+          "children": [
+            {
+              "id": "modbus_temp",
+              "type": "text_update",
+              "label": "Modbus Temperature",
+              "data_type": "double",
+              "description": "Holding register 1000 × 0.01 — sine 20–30 °C",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1000,
+                "register_type": "holding_register",
+                "scale": 0.01,
+                "min_poll_interval_ms": 500
+              },
+              "metadata": {
+                "display": { "limit_low": 20.0, "limit_high": 30.0, "description": "Device temperature", "precision": 2, "units": "°C" },
+                "control": { "limit_low": 20.0, "limit_high": 30.0, "min_step": 0.01 },
+                "alarm": { "low_alarm_limit": 21.0, "low_warning_limit": 22.0, "high_warning_limit": 28.0, "high_alarm_limit": 29.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            },
+            {
+              "id": "modbus_gauge",
+              "type": "gauge",
+              "label": "Modbus Pressure",
+              "data_type": "double",
+              "description": "Holding register 1001 × 0.1 — sine 900–1100 hPa",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1001,
+                "register_type": "holding_register",
+                "scale": 0.1,
+                "min_poll_interval_ms": 500
+              },
+              "metadata": {
+                "display": { "limit_low": 900.0, "limit_high": 1100.0, "description": "Process pressure", "precision": 1, "units": "hPa" },
+                "control": { "limit_low": 900.0, "limit_high": 1100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 920.0, "low_warning_limit": 950.0, "high_warning_limit": 1050.0, "high_alarm_limit": 1080.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 5 }
+              }
+            },
+            {
+              "id": "modbus_slider",
+              "type": "slider",
+              "label": "Modbus Setpoint",
+              "data_type": "double",
+              "description": "Holding register 1002 × 0.1 — writable setpoint",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1002,
+                "register_type": "holding_register",
+                "scale": 0.1,
+                "min_poll_interval_ms": 500
+              },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", "precision": 1, "units": "PSIG" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.1 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            },
+            {
+              "id": "modbus_led",
+              "type": "led",
+              "label": "Modbus Status LED",
+              "data_type": "bool",
+              "description": "Coil 0 — toggles every 2 s in simulator",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 0,
+                "register_type": "coil",
+                "min_poll_interval_ms": 500
+              }
+            },
+            {
+              "id": "modbus_toggle",
+              "type": "toggle_button",
+              "label": "Modbus Output Coil",
+              "data_type": "bool",
+              "description": "Coil 1 — writable, persists in simulator",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1,
+                "register_type": "coil",
+                "min_poll_interval_ms": 500
+              }
+            },
+            {
+              "id": "modbus_setpoint_entry",
+              "type": "text_entry",
+              "label": "Modbus Setpoint Entry",
+              "data_type": "double",
+              "description": "Numeric entry for Holding register 1002 (scale 0.1) — same register as slider",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1002,
+                "register_type": "holding_register",
+                "scale": 0.1,
+                "min_poll_interval_ms": 500
+              },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Setpoint", "precision": 1, "units": "PSIG" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.2 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            },
+            {
+              "id": "modbus_button_coil",
+              "type": "button",
+              "label": "Trigger Output (Modbus)",
+              "data_type": "bool",
+              "description": "Momentary write of 1 to Coil 1",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1,
+                "register_type": "coil",
+                "min_poll_interval_ms": 500
+              }
+            },
+            {
+              "id": "modbus_sensor_ir",
+              "type": "text_update",
+              "label": "Sensor (IR 2000)",
+              "data_type": "double",
+              "description": "Input register 2000 × 0.01 — read-only sensor, 0–100 range",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 2000,
+                "register_type": "input_register",
+                "scale": 0.01,
+                "min_poll_interval_ms": 500
+              },
+              "metadata": {
+                "display": { "limit_low": 0.0, "limit_high": 100.0, "description": "Sensor value", "precision": 2, "units": "PSIG" },
+                "control": { "limit_low": 0.0, "limit_high": 100.0, "min_step": 0.01 },
+                "alarm": { "low_alarm_limit": 5.0, "low_warning_limit": 10.0, "high_warning_limit": 90.0, "high_alarm_limit": 95.0, "low_alarm_severity": "MAJOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 1 }
+              }
+            },
+            {
+              "id": "modbus_counter_ir",
+              "type": "text_update",
+              "label": "Tick Counter (HR 1003)",
+              "data_type": "int32",
+              "description": "Holding register 1003 — wrapping counter, increments each 500 ms tick",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 1003,
+                "register_type": "holding_register",
+                "scale": 1.0,
+                "min_poll_interval_ms": 500
+              },
+              "metadata": {
+                "display": { "limit_low": 0, "limit_high": 65535, "description": "Tick counter", "precision": 0, "units": "" },
+                "control": { "limit_low": 0, "limit_high": 65535, "min_step": 1 },
+                "alarm": { "low_alarm_limit": 0, "low_warning_limit": 0, "high_warning_limit": 60000, "high_alarm_limit": 64000, "low_alarm_severity": "MINOR", "low_warning_severity": "MINOR", "high_warning_severity": "MINOR", "high_alarm_severity": "MAJOR", "hysteresis": 0 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
