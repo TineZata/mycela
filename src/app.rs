@@ -244,6 +244,7 @@ pub async fn stream_widget(
         WidgetType::ToggleButton => Box::pin(widgets::toggle_button::ToggleButton::new(config).into_sse_stream(ctx)),
         WidgetType::Chart        => Box::pin(widgets::chart::Chart::new(config).into_sse_stream(ctx)),
         WidgetType::Select       => Box::pin(widgets::select::Select::new(config).into_sse_stream(ctx)),
+        WidgetType::MultiStateLed => Box::pin(widgets::multi_state_led::MultiStateLed::new(config).into_sse_stream(ctx)),
         WidgetType::Group        => {
             let stream: SseStream = Box::pin(async_stream::stream! {
                 yield Ok(Event::default().data("<!-- group widget has no stream -->"));

@@ -3358,7 +3358,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "log",
- "smallvec",
+ "socket2",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",

@@ -17,6 +17,7 @@
 ///   0  — status LED (toggles every ~2 s)
 ///   1  — writable output coil (initial = false)
 ///
+///   2  — valve B status (toggles every ~3 s, out of phase with coil 0)
 /// Input registers (read-only):
 ///   2000  — sensor value (physical = raw * 0.01, range 0–100)
 use std::collections::HashMap;
@@ -75,6 +76,11 @@ pub fn start_modbus_simulator(port: u16) -> (tokio::task::JoinHandle<()>, tokio:
                 let mut c = coils_sim.lock().await;
                 let current = c.get(&0).copied().unwrap_or(false);
                 c.insert(0, !current);
+                // Valve B toggles every ~3 s (6 half-second ticks), out of phase
+                if toggle_count % 6 == 0 {
+                    let current_b = c.get(&2).copied().unwrap_or(false);
+                    c.insert(2, !current_b);
+                }
             }
         }
     });

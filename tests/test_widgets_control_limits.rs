@@ -10,19 +10,6 @@ mod test_widgets_control_limits {
             id: "w".to_string(),
             widget_type: WidgetType::TextEntry,
             label: "w label".to_string(),
-            protocol: None,
-            data_type: None,
-            description: None,
-            style: None,
-            options: None,
-            orientation: None,
-            level: None,
-            children: None,
-            max_points: None,
-            chart_type: None,
-            axis_label_x: None,
-            axis_label_y: None,
-            size: None,
             metadata: Some(PvMetadata {
                 display: None,
                 control: Some(ControlMetadata {
@@ -32,6 +19,7 @@ mod test_widgets_control_limits {
                 }),
                 alarm: None,
             }),
+            ..Default::default()
         }
     }
 
@@ -40,20 +28,7 @@ mod test_widgets_control_limits {
             id: "w".to_string(),
             widget_type: WidgetType::TextEntry,
             label: "w label".to_string(),
-            protocol: None,
-            data_type: None,
-            description: None,
-            style: None,
-            options: None,
-            orientation: None,
-            level: None,
-            children: None,
-            max_points: None,
-            chart_type: None,
-            axis_label_x: None,
-            axis_label_y: None,
-            size: None,
-            metadata: None,
+            ..Default::default()
         }
     }
 

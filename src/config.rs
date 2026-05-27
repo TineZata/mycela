@@ -210,7 +210,7 @@ pub enum ModbusRegisterType {
 
 
 /// Individual widget configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WidgetConfig {
     pub id: String,
     #[serde(rename = "type")]
@@ -259,6 +259,23 @@ pub struct WidgetConfig {
     /// source for protocols that carry no metadata themselves (e.g. Modbus TCP).
     #[serde(default)]
     pub metadata: Option<PvMetadata>,
+    /// SVG polygon `points` attribute for the `ValveState` widget.
+    /// Defaults to a rectangle; set to a bowtie shape in application config.
+    /// Example bowtie (30 × 18): `"0,0 0,18 15,9 30,18 30,0 15,9"`
+    #[serde(default)]
+    pub polygon_points: Option<String>,
+    /// Invert the open/closed interpretation of a `ValveState` register.
+    /// Set `true` when the register is a "closed" flag (1 = closed, 0 = open).
+    #[serde(default)]
+    pub invert: Option<bool>,
+    /// Position of the label and status text relative to the polygon SVG.
+    /// Accepted values: `"top"`, `"bottom"`, `"left"` (default), `"right"`.
+    #[serde(default)]
+    pub label_position: Option<String>,
+    /// Colour theme for buttons.
+    /// Accepted values: `"green"`, `"red"`, `"blue"` (default).
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 impl WidgetConfig {
@@ -374,10 +391,11 @@ impl AlarmMetadata {
 }
 
 /// Widget type enumeration
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum WidgetType {
     TextEntry,
+    #[default]
     TextUpdate,
     Gauge,
     Led,
@@ -387,6 +405,9 @@ pub enum WidgetType {
     Chart,
     Select,
     Group,
+    /// Multi-state polygon LED: open (green) / closed (red) / pending (grey).
+    /// Shape defaults to a rectangle; override with `polygon_points` for a bowtie.
+    MultiStateLed,
 }
 
 /// Explicit container size for Group widgets (applied as inline min-width/min-height)

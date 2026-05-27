@@ -450,8 +450,65 @@
               }
             }
           ]
+        },
+        {
+          "id": "valve_state_group",
+          "type": "group",
+          "label": "Valve State Indicators",
+          "level": 1,
+          "description": "MultiStateLed widgets — open/closed polygon indicators backed by Modbus coils",
+          "children": [
+            {
+              "id": "valve_a_rect",
+              "type": "multi_state_led",
+              "label": "Valve A (rectangle)",
+              "description": "Coil 0 — auto-toggles every ~2 s. Rectangle shape: open=green, closed=red.",
+              "style": { "width": "100%", "height": "auto" },
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 0,
+                "register_type": "coil",
+                "min_poll_interval_ms": 500
+              }
+            },
+            {
+              "id": "valve_a_bowtie",
+              "type": "multi_state_led",
+              "label": "Valve A (bowtie)",
+              "description": "Same Coil 0, bowtie SVG shape — compare shape vs rectangle above.",
+              "style": { "width": "100%", "height": "auto" },
+              "polygon_points": "0,0 0,18 15,9 30,18 30,0 15,9",
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 0,
+                "register_type": "coil",
+                "min_poll_interval_ms": 500
+              }
+            },
+            {
+              "id": "valve_b_inverted",
+              "type": "multi_state_led",
+              "label": "Valve B (inverted)",
+              "description": "Coil 2 — auto-toggles every ~3 s. invert=true: register 1 = CLOSED, 0 = OPEN.",
+              "style": { "width": "100%", "height": "auto" },
+              "invert": true,
+              "protocol": {
+                "type": "modbus-tcp",
+                "host": "127.0.0.1",
+                "port": 5020,
+                "register": 2,
+                "register_type": "coil",
+                "min_poll_interval_ms": 500
+              }
+            }
+          ]
         }
       ]
     }
   ]
 }
+

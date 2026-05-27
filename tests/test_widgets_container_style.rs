@@ -15,19 +15,8 @@ mod test_widgets_container_style {
                 server: None,
                 pv_names: None,
             })),
-            data_type: None,
-            description: None,
             style,
-            options: None,
-            orientation: None,
-            level: None,
-            children: None,
-            max_points: None,
-            chart_type: None,
-            axis_label_x: None,
-            axis_label_y: None,
-            size: None,
-            metadata: None,
+            ..Default::default()
         }
     }
 

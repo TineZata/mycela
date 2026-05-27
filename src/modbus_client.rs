@@ -34,7 +34,7 @@ pub struct DeviceHandle {
 }
 
 impl DeviceHandle {
-    async fn read(
+    pub async fn read(
         &self,
         register: u16,
         register_type: ModbusRegisterType,

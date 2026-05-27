@@ -897,17 +897,22 @@ input[type="number"] {
 }
 
 .widget-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--accent);
     color: white;
-    border: none;
+    border: 1.5px solid transparent;
     border-radius: 6px;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-family: "Courier New", monospace;
     font-weight: bold;
+    letter-spacing: 0.5px;
     cursor: pointer;
     transition: all 0.2s;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    white-space: nowrap;
 }
 
 .widget-button:hover {
@@ -918,6 +923,27 @@ input[type="number"] {
 
 .widget-button:active {
     transform: translateY(0);
+}
+
+/* Button colour variants */
+.widget-button--green {
+    background: #0d2e1a;
+    color: #22cc66;
+    border: 1.5px solid #22cc66;
+}
+.widget-button--green:hover {
+    background: #174d2a;
+    box-shadow: 0 4px 12px rgba(34, 204, 102, 0.4);
+}
+
+.widget-button--red {
+    background: #2e0d0d;
+    color: #cc2222;
+    border: 1.5px solid #cc2222;
+}
+.widget-button--red:hover {
+    background: #4d1717;
+    box-shadow: 0 4px 12px rgba(204, 34, 34, 0.4);
 }
 
 /* Toggle button ON/OFF states */
@@ -1806,3 +1832,52 @@ footer {
         font-size: 1.5rem;
     }
 }
+
+/* ── ValveState widget ─────────────────────────────────────────── */
+.vs-widget {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+}
+
+.vs-polygon {
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+/* Polygon fill states */
+polygon.vs-open {
+    fill: #22cc66;
+    stroke: #88ffaa;
+    stroke-width: 1.5;
+}
+
+polygon.vs-closed {
+    fill: #cc2222;
+    stroke: #ff8888;
+    stroke-width: 1.5;
+}
+
+polygon.vs-pending {
+    fill: #888888;
+    stroke: #bbbbbb;
+    stroke-width: 1.5;
+}
+
+.vs-label {
+    font-size: 9px;
+    color: #aaaaaa;
+    font-family: monospace;
+}
+
+.vs-state {
+    font-size: 8px;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.vs-open-text    { color: #22cc66; }
+.vs-closed-text  { color: #cc2222; }
+.vs-pending-text { color: #888888; }

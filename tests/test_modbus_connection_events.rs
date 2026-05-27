@@ -113,19 +113,7 @@ mod test_modbus_connection_events {
                 offset: 0.0,
                 word_count: 1,
             })),
-            data_type: None,
-            description: None,
-            style: None,
-            options: None,
-            orientation: None,
-            level: None,
-            children: None,
-            max_points: None,
-            chart_type: None,
-            axis_label_x: None,
-            axis_label_y: None,
-            size: None,
-            metadata: None,
+            ..Default::default()
         })
     }
 

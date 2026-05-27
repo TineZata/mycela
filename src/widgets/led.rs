@@ -61,7 +61,7 @@ pub fn render_inner_connected(config: &WidgetConfig, cv: &ChannelValue) -> Marku
         _ => None,
     };
     let is_on = cv.raw_value > 0.5;
-    render_led_html(config, is_on, icon, false, &super::build_tooltip(config, cv))
+    render_led_html(config, is_on, icon, false, &super::build_led_tooltip(config, cv))
 }
 
 pub fn render_inner_disconnected(config: &WidgetConfig) -> Markup {

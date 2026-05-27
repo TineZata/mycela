@@ -11,20 +11,7 @@ mod test_widget_button {
             id: "btn".to_string(),
             widget_type: WidgetType::Button,
             label: "btn label".to_string(),
-            protocol: None,
-            data_type: None,
-            description: None,
-            style: None,
-            options: None,
-            orientation: None,
-            level: None,
-            children: None,
-            max_points: None,
-            chart_type: None,
-            axis_label_x: None,
-            axis_label_y: None,
-            size: None,
-            metadata: None,
+            ..Default::default()
         }
     }
 

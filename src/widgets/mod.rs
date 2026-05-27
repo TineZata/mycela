@@ -44,6 +44,7 @@ pub mod toggle_button;
 pub mod chart;
 pub mod select;
 pub mod group;
+pub mod multi_state_led;
 
 // Re-export widget render functions
 pub use text_entry::render_text_entry;
@@ -56,6 +57,7 @@ pub use toggle_button::render_toggle_button;
 pub use chart::render_chart;
 pub use select::render_select;
 pub use group::render_group;
+pub use multi_state_led::render_multi_state_led;
 
 /// Recursively collect all data widgets (non-Group) from a widget tree,
 /// flattening children of Group containers so they can each get SSE monitors.
@@ -104,6 +106,7 @@ pub async fn run_widget_monitor_async(
         WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor_async(config, ctx, inner_tx).await,
         WidgetType::Chart        => chart::Chart::run_monitor_async(config, ctx, inner_tx).await,
         WidgetType::Select       => select::Select::run_monitor_async(config, ctx, inner_tx).await,
+        WidgetType::MultiStateLed => multi_state_led::MultiStateLed::run_monitor_async(config, ctx, inner_tx).await,
         WidgetType::Group        => {} // Groups have no channel — nothing to monitor
     }
 }
@@ -119,8 +122,9 @@ pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
         WidgetType::Button     => render_button(widget),
         WidgetType::ToggleButton => render_toggle_button(widget),
         WidgetType::Chart      => render_chart(widget),
-        WidgetType::Select     => render_select(widget),
-        WidgetType::Group      => render_group(widget),
+        WidgetType::Select      => render_select(widget),
+        WidgetType::MultiStateLed => render_multi_state_led(widget),
+        WidgetType::Group       => render_group(widget),
     }
 }
 
@@ -431,6 +435,24 @@ pub(super) fn build_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelVa
     t.push_str(&format!("Alarm Status: {}\n", alarm_status_str(cv.alarm_status)));
 
     t.trim_end().to_string()
+}
+
+/// Simplified tooltip for binary indicators (LED, MultiStateLed).
+/// Shows only the fields relevant to a coil/bool channel.
+pub(super) fn build_led_tooltip(config: &crate::config::WidgetConfig, cv: &ChannelValue) -> String {
+    let sev_str = match cv.alarm_severity {
+        0 => "No Alarm",
+        1 => "Minor",
+        2 => "Major",
+        _ => "Invalid",
+    };
+    format!(
+        "ID: {}\nProtocol: {}\nAlarm Severity: {}\nAlarm Status: {}",
+        config.id,
+        config.channel_address(),
+        sev_str,
+        alarm_status_str(cv.alarm_status),
+    )
 }
 
 /// Build an inline style string from the widget's optional style config (width/height).

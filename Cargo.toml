@@ -63,8 +63,8 @@ plotters = { version = "0.3", default-features = false, features = ["svg_backend
 # pvxs-sys = { path = "../pvxs-sys", optional = true }
 pvxs-sys = { version = "0.1.2", optional = true }
 
-# Modbus (optional — enable with feature "modbus")
-tokio-modbus = { version = "0.17.0", features = ["tcp"], optional = true }
+# Modbus (optional — enable with feature "modbus-tcp-client" or "modbus-tcp-server")
+tokio-modbus = { version = "0.17.0", default-features = false, features = ["tcp"], optional = true }
 
 # Desktop (optional — enable with feature "desktop")
 wry   = { version = "0.55", optional = true }
@@ -72,9 +72,10 @@ winit = { version = "0.30", optional = true }
 
 [features]
 default = ["epics", "modbus"]
-epics   = ["dep:pvxs-sys"]
-modbus  = ["dep:tokio-modbus"]
-desktop = ["dep:wry", "dep:winit"]
+epics          = ["dep:pvxs-sys"]
+modbus         = ["dep:tokio-modbus"]
+modbus-server  = ["dep:tokio-modbus", "tokio-modbus/tcp-server"]
+desktop        = ["dep:wry", "dep:winit"]
 
 [dev-dependencies]
 rand = "0.10.1"

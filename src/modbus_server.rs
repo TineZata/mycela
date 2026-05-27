@@ -1,0 +1,136 @@
+// Modbus TCP server infrastructure for mycela.
+//
+// Provides a shared `RegisterBank` (a `DashMap<u16, u16>`) and a
+// `start_modbus_server` helper that binds a Modbus TCP listener and spawns
+// a tokio task to service connections.
+//
+// The caller supplies an `on_write` callback:
+//   - Return `Ok(())` to accept the write (bank is updated automatically).
+//   - Return `Err(ExceptionCode)` to reject it (bank unchanged; client receives exception).
+//
+// Read requests (`ReadHoldingRegisters`) are served directly from the bank,
+// returning 0 for any register that has not been written yet.
+
+use std::future;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use dashmap::DashMap;
+use tokio::net::TcpListener;
+use tokio::task::JoinHandle;
+use tokio_modbus::prelude::*;
+use tokio_modbus::server::tcp::{accept_tcp_connection, Server};
+
+/// Shared virtual Modbus holding-register memory.
+/// Clone freely — all clones share the same underlying map.
+pub type RegisterBank = Arc<DashMap<u16, u16>>;
+
+/// Create a new empty register bank.
+pub fn new_register_bank() -> RegisterBank {
+    Arc::new(DashMap::new())
+}
+
+// ── Internal service impl ─────────────────────────────────────────────────────
+
+struct BankService<F> {
+    bank: RegisterBank,
+    on_write: Arc<F>,
+}
+
+impl<F> tokio_modbus::server::Service for BankService<F>
+where
+    F: Fn(u16, u16) -> Result<(), ExceptionCode> + Send + Sync + 'static,
+{
+    type Request = Request<'static>;
+    type Response = Response;
+    type Exception = ExceptionCode;
+    type Future = future::Ready<Result<Response, ExceptionCode>>;
+
+    fn call(&self, req: Request<'static>) -> Self::Future {
+        let result = match req {
+            Request::ReadHoldingRegisters(addr, cnt) => {
+                let values: Vec<u16> = (addr..addr.saturating_add(cnt))
+                    .map(|a| self.bank.get(&a).map(|v| *v).unwrap_or(0))
+                    .collect();
+                Ok(Response::ReadHoldingRegisters(values))
+            }
+
+            Request::WriteSingleRegister(addr, val) => match (self.on_write)(addr, val) {
+                Ok(()) => {
+                    self.bank.insert(addr, val);
+                    Ok(Response::WriteSingleRegister(addr, val))
+                }
+                Err(e) => Err(e),
+            },
+
+            Request::WriteMultipleRegisters(addr, data) => {
+                let count = data.len() as u16;
+                for (i, &val) in data.iter().enumerate() {
+                    let reg = addr + i as u16;
+                    match (self.on_write)(reg, val) {
+                        Ok(()) => {
+                            self.bank.insert(reg, val);
+                        }
+                        Err(e) => return future::ready(Err(e)),
+                    }
+                }
+                Ok(Response::WriteMultipleRegisters(addr, count))
+            }
+
+            _ => Err(ExceptionCode::IllegalFunction),
+        };
+        future::ready(result)
+    }
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/// Start a Modbus TCP server that exposes `bank` to Modbus clients.
+///
+/// `on_write(register, value)` is called for every write request before the
+/// bank is updated.  Return `Ok(())` to accept, or an [`ExceptionCode`] to
+/// reject (the bank is not updated and the client receives an exception).
+///
+/// The server runs in a background tokio task.  The returned [`JoinHandle`]
+/// can be used to await or abort the server.
+pub fn start_modbus_server<F>(
+    addr: SocketAddr,
+    bank: RegisterBank,
+    on_write: F,
+) -> JoinHandle<()>
+where
+    F: Fn(u16, u16) -> Result<(), ExceptionCode> + Send + Sync + 'static,
+{
+    let on_write = Arc::new(on_write);
+    tokio::spawn(async move {
+        let listener = match TcpListener::bind(addr).await {
+            Ok(l) => {
+                tracing::info!("Modbus TCP server listening on {addr}");
+                l
+            }
+            Err(e) => {
+                tracing::error!("Failed to bind Modbus TCP server on {addr}: {e}");
+                return;
+            }
+        };
+
+        let server = Server::new(listener);
+        let on_connected = |stream, peer| {
+            let bank = bank.clone();
+            let on_write = on_write.clone();
+            std::future::ready(accept_tcp_connection(stream, peer, move |_peer_addr| {
+                Ok(Some(BankService { bank: bank.clone(), on_write: on_write.clone() }))
+            }))
+        };
+
+        let result = server
+            .serve(&on_connected, |err| {
+                tracing::error!("Modbus server connection error: {err}");
+            })
+            .await;
+
+        if let Err(e) = result {
+            tracing::error!("Modbus TCP server stopped with error: {e}");
+        }
+    })
+}

@@ -74,7 +74,10 @@ fn render_button_html(
                     (super::render_info_btn(tooltip))
                 }
             }
-            button class="widget-button"
+            button class={
+                    "widget-button"
+                    @if let Some(c) = &config.color { " widget-button--" (c) }
+                }
                 disabled[disabled]
                 hx-post={"/api/widget/" (config.id) "/set"}
                 hx-vals=r#"{"value": "1"}"#
