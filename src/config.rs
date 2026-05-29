@@ -276,6 +276,10 @@ pub struct WidgetConfig {
     /// Accepted values: `"green"`, `"red"`, `"blue"` (default).
     #[serde(default)]
     pub color: Option<String>,
+    /// Value written to the channel when a button is clicked.
+    /// Defaults to `1` (ON). Set to `0` for a button that writes OFF/close.
+    #[serde(default)]
+    pub write_value: Option<u16>,
 }
 
 impl WidgetConfig {
@@ -428,6 +432,10 @@ pub struct WidgetStyle {
     pub height: Option<String>,
     #[serde(default)]
     pub background: Option<String>,
+    #[serde(default)]
+    pub left: Option<String>,
+    #[serde(default)]
+    pub top: Option<String>,
 }
 
 impl ScreenConfig {

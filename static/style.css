@@ -1606,23 +1606,24 @@ footer {
     cursor: help;
 }
 
-/* Info icon button inside widget label */
+/* Info icon button inside widget — absolutely positioned at top-left of widget container */
 .widget-info-btn {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: 10;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: none;
     border: none;
-    padding: 0 2px;
-    margin-left: 2px;
+    padding: 0;
     font-size: 0.85rem;
     color: var(--text-secondary);
     opacity: 0.45;
     cursor: pointer;
     transition: opacity 0.15s, color 0.15s;
     line-height: 1;
-    vertical-align: middle;
-    flex-shrink: 0;
 }
 
 .widget-info-btn:hover {
@@ -1631,6 +1632,7 @@ footer {
 }
 
 /* Show the correct info icon variant based on ancestor theme */
+.info-icon { width: 14px; height: 14px; vertical-align: middle; }
 .info-icon--light { display: none; }
 .info-icon--dark  { display: inline; }
 

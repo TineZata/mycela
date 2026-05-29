@@ -456,20 +456,27 @@ pub(super) fn build_led_tooltip(config: &crate::config::WidgetConfig, cv: &Chann
 }
 
 /// Build an inline style string from the widget's optional style config (width/height).
-/// Returns `None` when no sizing is configured, so maud's `style=[…]` omits the attribute.
+/// Always includes `position:relative` so the absolutely-positioned info button
+/// anchors to the widget container edge rather than a distant ancestor.
 pub fn widget_container_style(config: &crate::config::WidgetConfig) -> Option<String> {
-    let mut s = String::new();
+    let mut s = String::from("position:relative;");
     if let Some(style) = &config.style {
         if let Some(w) = &style.width  { s.push_str(&format!("width:{};",  w)); }
         if let Some(h) = &style.height { s.push_str(&format!("height:{};", h)); }
     }
-    if s.is_empty() { None } else { Some(s) }
+    Some(s)
 }
 
 /// Render an info button — two icon variants let CSS pick the right one per theme.
+/// The button is absolutely positioned in the top-left corner of the nearest
+/// `position:relative` ancestor (i.e. the widget container), so it never
+/// participates in the widget-inner flex layout.
 pub(super) fn render_info_btn(tooltip: &str) -> maud::Markup {
     html! {
-        button class="widget-info-btn" data-tooltip=(tooltip) type="button" {
+        button class="widget-info-btn"
+               data-tooltip=(tooltip)
+               type="button"
+               style="position:absolute;top:2px;left:2px;z-index:10;" {
             img class="info-icon info-icon--dark"  src=(INFO_SVG_DARK)  alt="info";
             img class="info-icon info-icon--light" src=(INFO_SVG_LIGHT) alt="info";
         }

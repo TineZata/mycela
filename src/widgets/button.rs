@@ -69,10 +69,7 @@ fn render_button_html(
     html! {
         div class="widget-inner" {
             @if !tooltip.is_empty() {
-                div class="button-label-row" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;" {
-                    span class="widget-label" { (config.label) }
-                    (super::render_info_btn(tooltip))
-                }
+                (super::render_info_btn(tooltip))
             }
             button class={
                     "widget-button"
@@ -80,7 +77,7 @@ fn render_button_html(
                 }
                 disabled[disabled]
                 hx-post={"/api/widget/" (config.id) "/set"}
-                hx-vals=r#"{"value": "1"}"#
+                hx-vals=(format!(r#"{{"value": "{}"}}"#, config.write_value.unwrap_or(1)))
                 hx-target="next .status"
                 hx-swap="innerHTML" {
                 (config.label)

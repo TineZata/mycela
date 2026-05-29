@@ -143,8 +143,11 @@ async fn run_device_task(
     loop {
         // Connect (or reconnect after an error)
         let mut ctx = loop {
-            match tcp::connect_slave(addr, unit).await {
-                Ok(c) => {
+            match tokio::time::timeout(
+                Duration::from_secs(2),
+                tcp::connect_slave(addr, unit),
+            ).await {
+                Ok(Ok(c)) => {
                     tracing::info!(
                         "Modbus connected to {}:{} unit {}",
                         host,
@@ -153,19 +156,43 @@ async fn run_device_task(
                     );
                     break c;
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     tracing::warn!(
                         "Modbus connect failed for {}:{}: {} -- retrying in 2 s",
                         host,
                         port,
                         e
                     );
-                    // Drain one pending request with an error so callers don't block.
-                    match rx.recv().await {
-                        Some(req) => send_error(req, format!("Connection failed: {}", e)),
-                        None => return, // pool dropped, exit
+                    // Drain ALL pending requests during the retry window so every
+                    // widget gets an immediate error response, not just the first.
+                    let retry_at = tokio::time::Instant::now() + Duration::from_secs(2);
+                    loop {
+                        tokio::select! {
+                            req = rx.recv() => match req {
+                                Some(r) => send_error(r, format!("Connection failed: {}", e)),
+                                None => return, // pool dropped
+                            },
+                            _ = tokio::time::sleep_until(retry_at) => break,
+                        }
                     }
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+                Err(_) => {
+                    tracing::warn!(
+                        "Modbus connect timed out for {}:{} -- retrying in 2 s",
+                        host,
+                        port,
+                    );
+                    // Drain ALL pending requests during the retry window.
+                    let retry_at = tokio::time::Instant::now() + Duration::from_secs(2);
+                    loop {
+                        tokio::select! {
+                            req = rx.recv() => match req {
+                                Some(r) => send_error(r, "Connection timed out".to_string()),
+                                None => return, // pool dropped
+                            },
+                            _ = tokio::time::sleep_until(retry_at) => break,
+                        }
+                    }
                 }
             }
         };
@@ -200,7 +227,12 @@ async fn handle_request(ctx: &mut tokio_modbus::client::Context, req: DeviceRequ
             word_count,
             respond,
         } => {
-            let result = execute_read(ctx, register, &register_type, word_count).await;
+            let result = tokio::time::timeout(
+                Duration::from_secs(1),
+                execute_read(ctx, register, &register_type, word_count),
+            )
+            .await
+            .unwrap_or_else(|_| Err("read timed out".to_string()));
             let ok = result.is_ok();
             let _ = respond.send(result);
             ok
@@ -211,7 +243,12 @@ async fn handle_request(ctx: &mut tokio_modbus::client::Context, req: DeviceRequ
             values,
             respond,
         } => {
-            let result = execute_write(ctx, register, &register_type, &values).await;
+            let result = tokio::time::timeout(
+                Duration::from_secs(1),
+                execute_write(ctx, register, &register_type, &values),
+            )
+            .await
+            .unwrap_or_else(|_| Err("write timed out".to_string()));
             let ok = result.is_ok();
             let _ = respond.send(result);
             ok

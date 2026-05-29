@@ -132,9 +132,10 @@ fn render_polygon_html(config: &WidgetConfig, state_cls: &str, icon: Option<&str
         Some("right")  => "row-reverse",
         _              => "row",   // "left" or unset → default
     };
+    let state_pos = config.label_position.as_deref().unwrap_or("bottom");
     let wrapper_style = format!("flex-direction:{};", flex_dir);
     html! {
-        div class="widget-inner vs-widget" style=(wrapper_style) {
+        div class="widget-inner vs-widget" style=(wrapper_style) data-state-pos=(state_pos) {
             label class="widget-label" {
                 (config.label)
                 @if let Some(src) = icon {
