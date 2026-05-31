@@ -4,7 +4,7 @@
 mod test_config_widget_config {
     use mycela::config::{
         AppConfig, EpicsPvaConfig, ModbusTCPConfig, ModbusRegisterType,
-        ProtocolConfig, ScreenConfig, WidgetConfig, WidgetType,
+        ProtocolConfig, WidgetConfig, WidgetType,
     };
 
     fn find_widget<'a>(widgets: &'a [WidgetConfig], id: &str) -> Option<&'a WidgetConfig> {
@@ -132,8 +132,8 @@ mod test_config_widget_config {
 
     #[test]
     fn test_demo_text_update_dark_retains_display_and_alarm_metadata() {
-        let config = ScreenConfig::load("examples/demo_config.json").unwrap();
-        let widget = find_widget(&config.widgets, "text_update_dark").unwrap();
+        let config = AppConfig::load("examples/demo_app.json").unwrap();
+        let widget = find_widget_in_screens(&config, "text_update_dark").unwrap();
 
         let metadata = widget.metadata.as_ref().unwrap();
         let display = metadata.display.as_ref().unwrap();
