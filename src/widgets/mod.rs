@@ -149,6 +149,7 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
 
                 script src="/static/htmx.min.js" {}
                 script src="/static/tooltip.js" {}
+                script src="/static/desktop_transport.js" {}
                 link rel="stylesheet" href="/static/style.css";
             }
             body {
@@ -168,17 +169,15 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                         div class="screen-status-strip" {
                             @if has_server_controls {
                                 div id="server-status" class="warning screen-status-pill"
-                                    hx-get="/api/server/status"
-                                    hx-trigger="load"
-                                    hx-swap="outerHTML" {
+                                    data-myce-status-path="/api/server/status"
+                                    data-myce-method="get" {
                                     span { "EPICS Server Status" }
                                 }
                             }
                             @if has_modbus_controls {
                                 div id="modbus-status" class="warning screen-status-pill"
-                                    hx-get="/api/modbus/status"
-                                    hx-trigger="load"
-                                    hx-swap="outerHTML" {
+                                    data-myce-status-path="/api/modbus/status"
+                                    data-myce-method="get" {
                                     span { "Modbus Status" }
                                 }
                             }
@@ -226,18 +225,18 @@ fn render_action(action: &ActionConfig) -> Markup {
             "post" => html! {
                 button class="nav-button"
                     type="button"
-                    hx-post=(path)
-                    hx-target="#screen-action-feedback"
-                    hx-swap="innerHTML" {
+                    data-myce-api-path=(path)
+                    data-myce-method="post"
+                    data-myce-target="#screen-action-feedback" {
                     (label)
                 }
             },
             _ => html! {
                 button class="nav-button"
                     type="button"
-                    hx-get=(path)
-                    hx-target="#screen-action-feedback"
-                    hx-swap="innerHTML" {
+                    data-myce-api-path=(path)
+                    data-myce-method="get"
+                    data-myce-target="#screen-action-feedback" {
                     (label)
                 }
             },

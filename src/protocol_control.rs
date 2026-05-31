@@ -95,6 +95,10 @@ pub fn start_modbus_tasks(
 
 #[cfg(feature = "modbus")]
 pub fn start_modbus_runtime(state: &AppState) -> Result<(), ProtocolControlError> {
+    if state.is_modbus_running() {
+        return Err(ProtocolControlError::AlreadyRunning("Modbus simulator already running"));
+    }
+
     let Some(hook) = state.modbus_start_hook.as_ref() else {
         return Err(ProtocolControlError::Operation(
             "Modbus start hook is not configured".to_string(),
@@ -102,7 +106,8 @@ pub fn start_modbus_runtime(state: &AppState) -> Result<(), ProtocolControlError
     };
 
     let tasks = hook(state)?;
-    start_modbus_tasks(state, tasks)
+    *state.modbus_task.lock().unwrap() = Some(tasks);
+    Ok(())
 }
 
 #[cfg(not(feature = "modbus"))]

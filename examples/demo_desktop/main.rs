@@ -239,6 +239,10 @@ impl ApplicationHandler<DesktopUserEvent> for DesktopApp {
 fn build_ipc_shell_html(session_token: &str) -> String {
     let token_json = serde_json::to_string(session_token)
         .expect("session token should serialize to JSON string");
+        let transport_script = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/static/desktop_transport.js"
+        ));
     r#"<!doctype html>
 <html lang="en">
 <head>
@@ -360,8 +364,9 @@ fn build_ipc_shell_html(session_token: &str) -> String {
         </div>
         <pre id="ipc-log">Waiting for IPC responses...</pre>
     </main>
+    <script>__MYCELA_TRANSPORT_SCRIPT__</script>
     <script>
-        const MYCELA_IPC_TOKEN = "__MYCELA_IPC_TOKEN__";
+        window.MYCELA_IPC_TOKEN = "__MYCELA_IPC_TOKEN__";
 
         function requestId() {
             if (window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -393,7 +398,7 @@ fn build_ipc_shell_html(session_token: &str) -> String {
                 kind: 'request',
                 id: customId || requestId(),
                 cmd,
-                token: MYCELA_IPC_TOKEN,
+                token: window.MYCELA_IPC_TOKEN,
                 payload: payload || {},
                 ts: Date.now()
             };
@@ -419,6 +424,7 @@ fn build_ipc_shell_html(session_token: &str) -> String {
     </script>
 </body>
 </html>"#
+        .replace("__MYCELA_TRANSPORT_SCRIPT__", transport_script)
         .replace("\"__MYCELA_IPC_TOKEN__\"", &token_json)
 }
 
