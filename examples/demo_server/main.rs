@@ -3,6 +3,7 @@ mod modbus_simulator;
 
 use mycela::app::{AppState, stop_server, server_status, stop_modbus, modbus_status};
 use mycela::config::AppConfig;
+use mycela::protocol_control::{self, ProtocolControlError};
 use mycela::{modbus_client, server_setup::setup_server_pvs};
 use mycela::axum::{routing::{get, post}, extract::State, response::{Html, IntoResponse, Response}, http::StatusCode};
 use mycela::maud;
@@ -67,27 +68,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
-    if state.is_server_running() {
-        let html = maud::html! { div class="warning" { "EPICS Server is already running" } };
-        return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
-    }
-
-    let config = state.config.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let server = pvxs_sys::Server::start_from_env()?;
-        for screen in &config.screens {
-            setup_server_pvs(&server, &screen.widgets)?;
-        }
-        pvxs_sys::Result::Ok(server)
-    })
-    .await;
-
-    match result {
-        Ok(Ok(server)) => {
+    match protocol_control::start_epics_server(&state).await {
+        Ok(server) => {
             for screen in &state.config.screens {
                 epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);
             }
-            *state.pv_server.lock().unwrap() = Some(server);
+            protocol_control::set_epics_server(&state, server);
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
                     span { "EPICS Server Running" }
@@ -95,13 +81,22 @@ async fn start_server(State(state): State<AppState>) -> Response {
             };
             Html(html.into_string()).into_response()
         }
-        Ok(Err(e)) => {
+        Err(ProtocolControlError::AlreadyRunning(_)) => {
+            let html = maud::html! { div class="warning" { "EPICS Server is already running" } };
+            (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
+        }
+        Err(ProtocolControlError::Operation(e)) => {
             tracing::error!("Failed to start server: {}", e);
             let html = maud::html! { div class="error" { "Error: " (e.to_string()) } };
             (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
         }
-        Err(e) => {
+        Err(ProtocolControlError::Internal(e)) => {
             tracing::error!("Server start task panicked: {}", e);
+            let html = maud::html! { div class="error" { "Internal error" } };
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to start server: {}", e);
             let html = maud::html! { div class="error" { "Internal error" } };
             (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
         }
@@ -110,18 +105,26 @@ async fn start_server(State(state): State<AppState>) -> Response {
 
 async fn start_modbus(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/modbus/start");
-    if state.is_modbus_running() {
-        let html = maud::html! { div class="warning" { "Modbus TCP simulator is already running" } };
-        return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
-    }
     let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
-    *state.modbus_task.lock().unwrap() = Some(vec![sim_h, listener_h]);
-    tracing::info!("Modbus TCP demo simulator restarted on port 5020");
-    let html = maud::html! {
-        div id="modbus-status" class="success" hx-swap-oob="true" {
-            span { "Modbus TCP Running" }
+    match protocol_control::start_modbus_tasks(&state, vec![sim_h, listener_h]) {
+        Ok(()) => {
+            tracing::info!("Modbus TCP demo simulator restarted on port 5020");
+            let html = maud::html! {
+                div id="modbus-status" class="success" hx-swap-oob="true" {
+                    span { "Modbus TCP Running" }
+                }
+            };
+            Html(html.into_string()).into_response()
         }
-    };
-    Html(html.into_string()).into_response()
+        Err(ProtocolControlError::AlreadyRunning(_)) => {
+            let html = maud::html! { div class="warning" { "Modbus TCP simulator is already running" } };
+            (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to start Modbus simulator: {}", e);
+            let html = maud::html! { div class="error" { "Internal error" } };
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
+        }
+    }
 }
 

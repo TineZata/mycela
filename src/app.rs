@@ -15,6 +15,7 @@ use axum::{
 use crate::{
     channel::ChannelContext,
     config::{AppConfig, WidgetType},
+    protocol_control::{self, ProtocolControlError},
     widgets,
 };
 
@@ -142,30 +143,33 @@ pub async fn stop_server(State(state): State<AppState>) -> Response {
 
 #[cfg(feature = "epics")]
 async fn stop_server_impl(state: AppState) -> Response {
-    let server = state.pv_server.lock().unwrap().take();
-    match server {
-        None => (StatusCode::BAD_REQUEST, Html(
+    match protocol_control::stop_epics_server(&state).await {
+        Ok(()) => Html(maud::html! {
+            div class="warning" hx-swap-oob="true" id="server-status" {
+                span { "EPICS Server Stopped" }
+            }
+        }.into_string()).into_response(),
+        Err(ProtocolControlError::NotRunning(_)) => (StatusCode::BAD_REQUEST, Html(
             maud::html! { div class="warning" { "EPICS Server is not running" } }.into_string()
         )).into_response(),
-        Some(server) => match tokio::task::spawn_blocking(move || server.stop_drop()).await {
-            Ok(Ok(())) => Html(maud::html! {
-                div class="warning" hx-swap-oob="true" id="server-status" {
-                    span { "EPICS Server Stopped" }
-                }
-            }.into_string()).into_response(),
-            Ok(Err(e)) => {
-                tracing::error!("Failed to stop server: {}", e);
-                (StatusCode::BAD_REQUEST, Html(
-                    maud::html! { div class="error" { "Error: " (e.to_string()) } }.into_string()
-                )).into_response()
-            }
-            Err(e) => {
-                tracing::error!("Server stop task panicked: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, Html(
-                    maud::html! { div class="error" { "Internal error" } }.into_string()
-                )).into_response()
-            }
-        },
+        Err(ProtocolControlError::Operation(e)) => {
+            tracing::error!("Failed to stop server: {}", e);
+            (StatusCode::BAD_REQUEST, Html(
+                maud::html! { div class="error" { "Error: " (e.to_string()) } }.into_string()
+            )).into_response()
+        }
+        Err(ProtocolControlError::Internal(e)) => {
+            tracing::error!("Server stop task panicked: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(
+                maud::html! { div class="error" { "Internal error" } }.into_string()
+            )).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to stop server: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(
+                maud::html! { div class="error" { "Internal error" } }.into_string()
+            )).into_response()
+        }
     }
 }
 
@@ -187,21 +191,23 @@ pub async fn server_status(State(state): State<AppState>) -> Html<String> {
 
 pub async fn stop_modbus(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/modbus/stop");
-    let handles = state.modbus_task.lock().unwrap().take();
-    match handles {
-        None => (StatusCode::BAD_REQUEST, Html(
-            maud::html! { div class="warning" { "Modbus TCP is not running" } }.into_string()
-        )).into_response(),
-        Some(handles) => {
-            for h in handles { h.abort(); }
-            #[cfg(feature = "modbus")]
-            state.channel_ctx.modbus_pool.disconnect_all();
+    match protocol_control::stop_modbus_tasks(&state) {
+        Ok(()) => {
             tracing::info!("Modbus TCP stopped");
             Html(maud::html! {
                 div id="modbus-status" class="warning" hx-swap-oob="true" {
                     span { "Modbus TCP Stopped" }
                 }
             }.into_string()).into_response()
+        }
+        Err(ProtocolControlError::NotRunning(_)) => (StatusCode::BAD_REQUEST, Html(
+            maud::html! { div class="warning" { "Modbus TCP is not running" } }.into_string()
+        )).into_response(),
+        Err(e) => {
+            tracing::error!("Failed to stop Modbus TCP: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(
+                maud::html! { div class="error" { "Internal error" } }.into_string()
+            )).into_response()
         }
     }
 }

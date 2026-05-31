@@ -26,6 +26,8 @@ use mycela::wry::{WebViewBuilder, NewWindowFeatures, NewWindowResponse};
 use mycela::pvxs_sys;
 use mycela::channel::ChannelContext;
 use mycela::config::AppConfig;
+use mycela::desktop_transport::{DESKTOP_TRANSPORT_ENV, DesktopTransport};
+use mycela::protocol_control::{self, ProtocolControlError};
 use mycela::server_setup::setup_server_pvs;
 use mycela::{modbus_client, widgets};
 use std::sync::{Arc, Mutex};
@@ -45,27 +47,12 @@ async fn static_file_handler(Path(path): Path<String>) -> impl IntoResponse {
 
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
-    if state.is_server_running() {
-        let html = maud::html! { div class="warning" { "Server is already running" } };
-        return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
-    }
-
-    let config = state.config.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let server = pvxs_sys::Server::start_from_env()?;
-        for screen in &config.screens {
-            setup_server_pvs(&server, &screen.widgets)?;
-        }
-        pvxs_sys::Result::Ok(server)
-    })
-    .await;
-
-    match result {
-        Ok(Ok(server)) => {
+    match protocol_control::start_epics_server(&state).await {
+        Ok(server) => {
             for screen in &state.config.screens {
                 epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);
             }
-            *state.pv_server.lock().unwrap() = Some(server);
+            protocol_control::set_epics_server(&state, server);
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
                     span { "Server Running" }
@@ -73,13 +60,22 @@ async fn start_server(State(state): State<AppState>) -> Response {
             };
             Html(html.into_string()).into_response()
         }
-        Ok(Err(e)) => {
+        Err(ProtocolControlError::AlreadyRunning(_)) => {
+            let html = maud::html! { div class="warning" { "Server is already running" } };
+            (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
+        }
+        Err(ProtocolControlError::Operation(e)) => {
             tracing::error!("Failed to start server: {}", e);
             let html = maud::html! { div class="error" { "Error: " (e.to_string()) } };
             (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
         }
-        Err(e) => {
+        Err(ProtocolControlError::Internal(e)) => {
             tracing::error!("Server start task panicked: {}", e);
+            let html = maud::html! { div class="error" { "Internal error" } };
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to start server: {}", e);
             let html = maud::html! { div class="error" { "Internal error" } };
             (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
         }
@@ -88,19 +84,27 @@ async fn start_server(State(state): State<AppState>) -> Response {
 
 async fn start_modbus(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/modbus/start");
-    if state.is_modbus_running() {
-        let html = maud::html! { div class="warning" { "Modbus TCP simulator is already running" } };
-        return (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response();
-    }
     let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
-    *state.modbus_task.lock().unwrap() = Some(vec![sim_h, listener_h]);
-    tracing::info!("Modbus TCP demo simulator restarted on port 5020");
-    let html = maud::html! {
-        div id="modbus-status" class="success" hx-swap-oob="true" {
-            span { "Modbus TCP Running" }
+    match protocol_control::start_modbus_tasks(&state, vec![sim_h, listener_h]) {
+        Ok(()) => {
+            tracing::info!("Modbus TCP demo simulator restarted on port 5020");
+            let html = maud::html! {
+                div id="modbus-status" class="success" hx-swap-oob="true" {
+                    span { "Modbus TCP Running" }
+                }
+            };
+            Html(html.into_string()).into_response()
         }
-    };
-    Html(html.into_string()).into_response()
+        Err(ProtocolControlError::AlreadyRunning(_)) => {
+            let html = maud::html! { div class="warning" { "Modbus TCP simulator is already running" } };
+            (StatusCode::BAD_REQUEST, Html(html.into_string())).into_response()
+        }
+        Err(e) => {
+            tracing::error!("Failed to start Modbus simulator: {}", e);
+            let html = maud::html! { div class="error" { "Internal error" } };
+            (StatusCode::INTERNAL_SERVER_ERROR, Html(html.into_string())).into_response()
+        }
+    }
 }
 
 // --- Desktop window ----------------------------------------------------------
@@ -167,6 +171,36 @@ fn main() {
         include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/examples/demo_app.json")),
     )
     .expect("embedded demo_app.json is invalid");
+
+    if let Ok(raw_transport) = std::env::var(DESKTOP_TRANSPORT_ENV) {
+        if DesktopTransport::parse(&raw_transport).is_none() {
+            tracing::warn!(
+                "Unknown {} value '{}'; falling back to loopback",
+                DESKTOP_TRANSPORT_ENV,
+                raw_transport
+            );
+        }
+    }
+
+    let transport = DesktopTransport::from_env();
+    tracing::info!(
+        "Selected desktop transport: {} (set with {})",
+        transport.as_str(),
+        DESKTOP_TRANSPORT_ENV
+    );
+
+    match transport {
+        DesktopTransport::Loopback => run_loopback_desktop(config),
+        DesktopTransport::Ipc => {
+            tracing::warn!(
+                "IPC transport selected but bridge is not wired yet; using loopback transport for this build"
+            );
+            run_loopback_desktop(config);
+        }
+    }
+}
+
+fn run_loopback_desktop(config: AppConfig) {
 
     // Channel: background server thread sends the bound port to the main thread.
     let (port_tx, port_rx) = std::sync::mpsc::channel::<u16>();
