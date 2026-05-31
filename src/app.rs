@@ -22,6 +22,16 @@ use crate::{
 #[cfg(feature = "epics")]
 use crate::server_setup::setup_server_pvs;
 
+#[cfg(feature = "epics")]
+pub type EpicsStartHook = Arc<
+    dyn Fn(&AppState, &pvxs_sys::Server) -> Result<(), ProtocolControlError> + Send + Sync,
+>;
+
+#[cfg(feature = "modbus")]
+pub type ModbusStartHook = Arc<
+    dyn Fn(&AppState) -> Result<Vec<tokio::task::JoinHandle<()>>, ProtocolControlError> + Send + Sync,
+>;
+
 // --- Application state -------------------------------------------------------
 
 /// Shared application state threaded through every axum handler.
@@ -39,6 +49,12 @@ pub struct AppState {
     pub channel_ctx: Arc<ChannelContext>,
     /// Handles for any background Modbus simulator/connection tasks.
     pub modbus_task: Arc<Mutex<Option<Vec<tokio::task::JoinHandle<()>>>>>,
+    /// Optional callback to attach app-specific EPICS simulator behavior after server start.
+    #[cfg(feature = "epics")]
+    pub epics_start_hook: Option<EpicsStartHook>,
+    /// Optional callback to construct app-specific Modbus tasks when starting Modbus runtime.
+    #[cfg(feature = "modbus")]
+    pub modbus_start_hook: Option<ModbusStartHook>,
 }
 
 impl AppState {

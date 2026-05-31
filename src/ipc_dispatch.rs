@@ -3,6 +3,7 @@ use crate::ipc::{
     IpcCommand, IpcError, IpcErrorCode, IpcRequest, IpcResponse,
     IpcMessageKind,
 };
+use crate::protocol_control::{self, ProtocolControlError};
 use serde_json::json;
 
 pub async fn dispatch_request(
@@ -33,10 +34,26 @@ pub async fn dispatch_request(
     }
 
     match request.cmd {
+        IpcCommand::EpicsServerStart => match protocol_control::start_epics_runtime(state).await {
+            Ok(()) => ok_response(&request.id, json!({ "running": true })),
+            Err(error) => protocol_error_response(&request.id, error),
+        },
+        IpcCommand::EpicsServerStop => match protocol_control::stop_epics_server(state).await {
+            Ok(()) => ok_response(&request.id, json!({ "running": false })),
+            Err(error) => protocol_error_response(&request.id, error),
+        },
         IpcCommand::EpicsServerStatusGet => ok_response(
             &request.id,
             json!({ "running": state.is_server_running() }),
         ),
+        IpcCommand::ModbusSimStart => match protocol_control::start_modbus_runtime(state) {
+            Ok(()) => ok_response(&request.id, json!({ "running": true })),
+            Err(error) => protocol_error_response(&request.id, error),
+        },
+        IpcCommand::ModbusSimStop => match protocol_control::stop_modbus_tasks(state) {
+            Ok(()) => ok_response(&request.id, json!({ "running": false })),
+            Err(error) => protocol_error_response(&request.id, error),
+        },
         IpcCommand::ModbusSimStatusGet => ok_response(
             &request.id,
             json!({ "running": state.is_modbus_running() }),
@@ -79,5 +96,19 @@ fn error_response(id: &str, code: IpcErrorCode, message: &str) -> IpcResponse {
             details: None,
         }),
         ts: chrono::Utc::now().timestamp_millis(),
+    }
+}
+
+fn protocol_error_response(id: &str, error: ProtocolControlError) -> IpcResponse {
+    match error {
+        ProtocolControlError::AlreadyRunning(message) | ProtocolControlError::NotRunning(message) => {
+            error_response(id, IpcErrorCode::StateConflict, message)
+        }
+        ProtocolControlError::Operation(message) => {
+            error_response(id, IpcErrorCode::InternalError, &message)
+        }
+        ProtocolControlError::Internal(message) => {
+            error_response(id, IpcErrorCode::InternalError, &message)
+        }
     }
 }

@@ -49,12 +49,8 @@ async fn static_file_handler(Path(path): Path<String>) -> impl IntoResponse {
 
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
-    match protocol_control::start_epics_server(&state).await {
-        Ok(server) => {
-            for screen in &state.config.screens {
-                epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);
-            }
-            protocol_control::set_epics_server(&state, server);
+    match protocol_control::start_epics_runtime(&state).await {
+        Ok(()) => {
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
                     span { "Server Running" }
@@ -86,8 +82,7 @@ async fn start_server(State(state): State<AppState>) -> Response {
 
 async fn start_modbus(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/modbus/start");
-    let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
-    match protocol_control::start_modbus_tasks(&state, vec![sim_h, listener_h]) {
+    match protocol_control::start_modbus_runtime(&state) {
         Ok(()) => {
             tracing::info!("Modbus TCP demo simulator restarted on port 5020");
             let html = maud::html! {
@@ -145,7 +140,7 @@ impl DesktopApp {
                 .build(&window)
                 .expect("failed to create webview"),
             DesktopTransport::Ipc => WebViewBuilder::new()
-                .with_html(build_ipc_shell_html())
+                .with_html(url.expect("ipc window requires HTML shell"))
                 .with_ipc_handler(move |request| {
                     let _ = proxy.send_event(DesktopUserEvent::IpcMessage(request.body().clone()));
                 })
@@ -241,8 +236,10 @@ impl ApplicationHandler<DesktopUserEvent> for DesktopApp {
     }
 }
 
-fn build_ipc_shell_html() -> String {
-        r#"<!doctype html>
+fn build_ipc_shell_html(session_token: &str) -> String {
+    let token_json = serde_json::to_string(session_token)
+        .expect("session token should serialize to JSON string");
+    r#"<!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -347,15 +344,25 @@ fn build_ipc_shell_html() -> String {
             <section class="card">
                 <h2>EPICS</h2>
                 <p id="epics-status" class="status">Unknown</p>
+                <div class="actions">
+                    <button onclick="sendLifecycle('epics_server_start', 'epics-status-')">Start</button>
+                    <button class="secondary" onclick="sendLifecycle('epics_server_stop', 'epics-status-')">Stop</button>
+                </div>
             </section>
             <section class="card">
                 <h2>Modbus</h2>
                 <p id="modbus-status" class="status">Unknown</p>
+                <div class="actions">
+                    <button onclick="sendLifecycle('modbus_sim_start', 'modbus-status-')">Start</button>
+                    <button class="secondary" onclick="sendLifecycle('modbus_sim_stop', 'modbus-status-')">Stop</button>
+                </div>
             </section>
         </div>
         <pre id="ipc-log">Waiting for IPC responses...</pre>
     </main>
     <script>
+        const MYCELA_IPC_TOKEN = "__MYCELA_IPC_TOKEN__";
+
         function requestId() {
             if (window.crypto && typeof window.crypto.randomUUID === 'function') {
                 return window.crypto.randomUUID();
@@ -386,7 +393,7 @@ fn build_ipc_shell_html() -> String {
                 kind: 'request',
                 id: customId || requestId(),
                 cmd,
-                token: null,
+                token: MYCELA_IPC_TOKEN,
                 payload: payload || {},
                 ts: Date.now()
             };
@@ -398,6 +405,11 @@ fn build_ipc_shell_html() -> String {
             sendCommand('modbus_sim_status_get', {}, 'modbus-status-' + requestId());
         }
 
+        function sendLifecycle(cmd, prefix) {
+            sendCommand(cmd, {}, prefix + requestId());
+            window.setTimeout(refreshStatuses, 150);
+        }
+
         window.__MYCELA_IPC_DELIVER = function(response) {
             logResponse(response);
             updateStatuses(response);
@@ -406,7 +418,8 @@ fn build_ipc_shell_html() -> String {
         refreshStatuses();
     </script>
 </body>
-</html>"#.to_string()
+</html>"#
+        .replace("\"__MYCELA_IPC_TOKEN__\"", &token_json)
 }
 
 fn build_app_state(config: AppConfig) -> AppState {
@@ -447,10 +460,20 @@ fn build_app_state(config: AppConfig) -> AppState {
                 config: Arc::new(config),
                 channel_ctx,
                 modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
+            epics_start_hook: Some(Arc::new(|state, server| {
+                for screen in &state.config.screens {
+                    epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);
+                }
+                Ok(())
+            })),
+            modbus_start_hook: Some(Arc::new(|_state| {
+                let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
+                Ok(vec![sim_h, listener_h])
+            })),
         }
 }
 
-fn spawn_ipc_backend(config: AppConfig) -> mpsc::Sender<BackendRequest> {
+fn spawn_ipc_backend(config: AppConfig, session_token: String) -> mpsc::Sender<BackendRequest> {
         let (backend_tx, backend_rx) = mpsc::channel::<BackendRequest>();
 
         std::thread::spawn(move || {
@@ -461,7 +484,7 @@ fn spawn_ipc_backend(config: AppConfig) -> mpsc::Sender<BackendRequest> {
                         let response = runtime.block_on(ipc_dispatch::dispatch_request(
                                 &state,
                                 backend_request.request,
-                                None,
+                        Some(&session_token),
                         ));
                         if let Err(error) = backend_request.response_tx.send(response) {
                                 tracing::error!("Failed to send IPC response to UI thread: {}", error);
@@ -470,6 +493,14 @@ fn spawn_ipc_backend(config: AppConfig) -> mpsc::Sender<BackendRequest> {
         });
 
         backend_tx
+}
+
+fn generate_ipc_session_token() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock before unix epoch")
+        .as_nanos();
+    format!("ipc-{}-{}", std::process::id(), now)
 }
 
 // --- Entry point -------------------------------------------------------------
@@ -507,13 +538,14 @@ fn main() {
 }
 
 fn run_ipc_desktop(config: AppConfig) {
-    let backend_tx = spawn_ipc_backend(config);
+    let session_token = generate_ipc_session_token();
+    let backend_tx = spawn_ipc_backend(config, session_token.clone());
 
     let event_loop = EventLoop::<DesktopUserEvent>::with_user_event().build().unwrap();
     let proxy = event_loop.create_proxy();
     let mut app = DesktopApp {
         transport: DesktopTransport::Ipc,
-        base_url: None,
+        base_url: Some(build_ipc_shell_html(&session_token)),
         windows: Vec::new(),
         proxy,
         backend_tx: Some(backend_tx),

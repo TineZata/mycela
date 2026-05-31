@@ -48,6 +48,21 @@ pub async fn start_epics_server(state: &AppState) -> Result<pvxs_sys::Server, Pr
 }
 
 #[cfg(feature = "epics")]
+pub async fn start_epics_runtime(state: &AppState) -> Result<(), ProtocolControlError> {
+    let server = start_epics_server(state).await?;
+
+    if let Some(hook) = state.epics_start_hook.as_ref() {
+        if let Err(error) = hook(state, &server) {
+            let _ = server.stop_drop();
+            return Err(error);
+        }
+    }
+
+    set_epics_server(state, server);
+    Ok(())
+}
+
+#[cfg(feature = "epics")]
 pub fn set_epics_server(state: &AppState, server: pvxs_sys::Server) {
     *state.pv_server.lock().unwrap() = Some(server);
 }
@@ -78,11 +93,30 @@ pub fn start_modbus_tasks(
     Ok(())
 }
 
+#[cfg(feature = "modbus")]
+pub fn start_modbus_runtime(state: &AppState) -> Result<(), ProtocolControlError> {
+    let Some(hook) = state.modbus_start_hook.as_ref() else {
+        return Err(ProtocolControlError::Operation(
+            "Modbus start hook is not configured".to_string(),
+        ));
+    };
+
+    let tasks = hook(state)?;
+    start_modbus_tasks(state, tasks)
+}
+
 #[cfg(not(feature = "modbus"))]
 pub fn start_modbus_tasks(
     _state: &AppState,
     _tasks: Vec<tokio::task::JoinHandle<()>>,
 ) -> Result<(), ProtocolControlError> {
+    Err(ProtocolControlError::Operation(
+        "Modbus feature is not enabled".to_string(),
+    ))
+}
+
+#[cfg(not(feature = "modbus"))]
+pub fn start_modbus_runtime(_state: &AppState) -> Result<(), ProtocolControlError> {
     Err(ProtocolControlError::Operation(
         "Modbus feature is not enabled".to_string(),
     ))

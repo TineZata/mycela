@@ -44,6 +44,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config:      Arc::new(config),
         channel_ctx,
         modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
+        epics_start_hook: Some(Arc::new(|state, server| {
+            for screen in &state.config.screens {
+                epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);
+            }
+            Ok(())
+        })),
+        modbus_start_hook: Some(Arc::new(|_state| {
+            let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
+            Ok(vec![sim_h, listener_h])
+        })),
     };
 
     let app = state.screen_routes()
@@ -68,12 +78,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn start_server(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/server/start");
-    match protocol_control::start_epics_server(&state).await {
-        Ok(server) => {
-            for screen in &state.config.screens {
-                epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);
-            }
-            protocol_control::set_epics_server(&state, server);
+    match protocol_control::start_epics_runtime(&state).await {
+        Ok(()) => {
             let html = maud::html! {
                 div class="success" hx-swap-oob="true" id="server-status" {
                     span { "EPICS Server Running" }
@@ -105,8 +111,7 @@ async fn start_server(State(state): State<AppState>) -> Response {
 
 async fn start_modbus(State(state): State<AppState>) -> Response {
     tracing::info!("POST /api/modbus/start");
-    let (sim_h, listener_h) = modbus_simulator::start_modbus_simulator(5020);
-    match protocol_control::start_modbus_tasks(&state, vec![sim_h, listener_h]) {
+    match protocol_control::start_modbus_runtime(&state) {
         Ok(()) => {
             tracing::info!("Modbus TCP demo simulator restarted on port 5020");
             let html = maud::html! {
