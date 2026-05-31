@@ -1,4 +1,4 @@
-use maud::{html, Markup};
+use maud::{html, Markup, PreEscaped};
 use std::sync::{Arc, Mutex};
 use crate::channel::{ChannelContext, ChannelValue};
 #[cfg(feature = "modbus")]
@@ -75,6 +75,27 @@ pub fn collect_data_widgets(widgets: &[WidgetConfig]) -> Vec<WidgetConfig> {
     result
 }
 
+pub async fn run_widget_monitor_html_async(
+    config: WidgetConfig,
+    ctx: Arc<ChannelContext>,
+    tx: tokio::sync::mpsc::UnboundedSender<String>,
+) {
+    let config = Arc::new(config);
+    match config.widget_type {
+        WidgetType::TextEntry => text_entry::TextEntry::run_monitor_async(config, ctx, tx).await,
+        WidgetType::TextUpdate => text_update::TextUpdate::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Gauge => gauge::Gauge::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Led => led::Led::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Slider => slider::Slider::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Button => button::Button::run_monitor_async(config, ctx, tx).await,
+        WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Chart => chart::Chart::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Select => select::Select::run_monitor_async(config, ctx, tx).await,
+        WidgetType::MultiStateLed => multi_state_led::MultiStateLed::run_monitor_async(config, ctx, tx).await,
+        WidgetType::Group => {}
+    }
+}
+
 /// Dispatch an async widget monitor, tagging each HTML fragment with the widget ID.
 /// Used by the multiplexed `/stream/all` SSE endpoint.
 pub async fn run_widget_monitor_async(
@@ -95,20 +116,7 @@ pub async fn run_widget_monitor_async(
         }
     });
 
-    let config = Arc::new(config);
-    match config.widget_type {
-        WidgetType::TextEntry    => text_entry::TextEntry::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::TextUpdate   => text_update::TextUpdate::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Gauge        => gauge::Gauge::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Led          => led::Led::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Slider       => slider::Slider::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Button       => button::Button::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::ToggleButton => toggle_button::ToggleButton::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Chart        => chart::Chart::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Select       => select::Select::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::MultiStateLed => multi_state_led::MultiStateLed::run_monitor_async(config, ctx, inner_tx).await,
-        WidgetType::Group        => {} // Groups have no channel — nothing to monitor
-    }
+    run_widget_monitor_html_async(config, ctx, inner_tx).await;
 }
 
 /// Render widget from config — each widget's outer div contains its own SSE connection.
@@ -130,6 +138,20 @@ pub fn render_widget_from_config(widget: &WidgetConfig) -> Markup {
 
 /// Render a complete screen from configuration
 pub fn render_screen(config: &ScreenConfig) -> Markup {
+    render_screen_with_options(config, true, None, None)
+}
+
+pub fn render_screen_with_options(
+    config: &ScreenConfig,
+    enable_streaming: bool,
+    ipc_token: Option<&str>,
+    loopback_token: Option<&str>,
+) -> Markup {
+    let nav_base = if ipc_token.is_some() {
+        Some("mycela://app")
+    } else {
+        None
+    };
     let has_server_controls = config.actions.as_ref().map(|actions| {
         actions.iter().any(|action| matches!(action,
             ActionConfig::Api { path, .. } if path.starts_with("/api/server/")))
@@ -150,16 +172,26 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                 script src="/static/htmx.min.js" {}
                 script src="/static/tooltip.js" {}
                 script src="/static/desktop_transport.js" {}
+                @if let Some(token) = ipc_token {
+                    @let token_json = serde_json::to_string(token)
+                        .expect("IPC session token should serialize to JSON string");
+                    script { (PreEscaped(format!("window.MYCELA_IPC_TOKEN = {};", token_json))) }
+                }
+                @if let Some(token) = loopback_token {
+                    @let token_json = serde_json::to_string(token)
+                        .expect("loopback session token should serialize to JSON string");
+                    script { (PreEscaped(format!("window.MYCELA_HTTP_TOKEN = {};", token_json))) }
+                }
                 link rel="stylesheet" href="/static/style.css";
             }
-            body {
+            body data-myce-screen-id=(config.id) {
                 header class="screen-header" {
                     h1 { (config.title) }
                     p class="description" { (config.description) }
                     nav class="screen-actions" {
                         @if let Some(actions) = &config.actions {
                             @for action in actions {
-                                (render_action(action))
+                                (render_action(action, nav_base))
                             }
                         } @else {
                             a href="/" class="back-link" { "← Home" }
@@ -186,12 +218,24 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
                     }
                 }
 
-                main class="screen-container" hx-sse=(format!("connect:/stream/screen/{}", config.id)) {
-                    @let num_widgets = config.widgets.len();
-                    @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
-                    div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
-                        @for widget in &config.widgets {
-                            (render_widget_from_config(widget))
+                @if enable_streaming {
+                    main class="screen-container" hx-sse=(format!("connect:/stream/screen/{}", config.id)) {
+                        @let num_widgets = config.widgets.len();
+                        @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
+                        div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
+                            @for widget in &config.widgets {
+                                (render_widget_from_config(widget))
+                            }
+                        }
+                    }
+                } @else {
+                    main class="screen-container" {
+                        @let num_widgets = config.widgets.len();
+                        @let columns = if num_widgets <= 2 { num_widgets } else if num_widgets <= 4 { 2 } else if num_widgets <= 6 { 3 } else { 4 };
+                        div class="widget-grid" style=(format!("grid-template-columns: repeat({}, 1fr);", columns)) {
+                            @for widget in &config.widgets {
+                                (render_widget_from_config(widget))
+                            }
                         }
                     }
                 }
@@ -207,20 +251,34 @@ pub fn render_screen(config: &ScreenConfig) -> Markup {
     }
 }
 
-fn render_action(action: &ActionConfig) -> Markup {
+fn render_action(action: &ActionConfig, nav_base: Option<&str>) -> Markup {
+    let home_target = "/".to_string();
     match action {
-        ActionConfig::Navigate { label, to } => html! {
-            button class="nav-button" onclick=(format!("window.location='/screen/{}'", to)) { (label) }
-        },
+        ActionConfig::Navigate { label, to } => {
+            let target = format!("/screen/{}", to);
+            html! {
+                button class="nav-button" onclick=(format!("window.__MYCELA_NAVIGATE ? window.__MYCELA_NAVIGATE({}) : (window.location={});", serde_json::to_string(&target).unwrap(), serde_json::to_string(&target).unwrap())) { (label) }
+            }
+        }
         ActionConfig::Back { label } => html! {
-            button class="nav-button" onclick="window.location='/'" { (label) }
+            button class="nav-button" onclick=(format!("window.__MYCELA_NAVIGATE ? window.__MYCELA_NAVIGATE({}) : (window.location={});", serde_json::to_string(&home_target).unwrap(), serde_json::to_string(&home_target).unwrap())) { (label) }
         },
-        ActionConfig::Popup { label, to } => html! {
-            button class="nav-button" onclick=(format!("window.open('/screen/{}','_blank')", to)) { (label) }
-        },
-        ActionConfig::Window { label, to } => html! {
-            button class="nav-button" onclick=(format!("window.open('/screen/{}','_blank','width=1200,height=800,resizable=yes,scrollbars=yes')", to)) { (label) }
-        },
+        ActionConfig::Popup { label, to } => {
+            let target = nav_base
+                .map(|base| format!("{}/screen/{}", base, to))
+                .unwrap_or_else(|| format!("/screen/{}", to));
+            html! {
+                button class="nav-button" onclick=(format!("window.open({},'_blank');", serde_json::to_string(&target).unwrap())) { (label) }
+            }
+        }
+        ActionConfig::Window { label, to } => {
+            let target = nav_base
+                .map(|base| format!("{}/screen/{}", base, to))
+                .unwrap_or_else(|| format!("/screen/{}", to));
+            html! {
+                button class="nav-button" onclick=(format!("window.open({},'_blank','width=1200,height=800,resizable=yes,scrollbars=yes');", serde_json::to_string(&target).unwrap())) { (label) }
+            }
+        }
         ActionConfig::Api { label, method, path } => match method.to_lowercase().as_str() {
             "post" => html! {
                 button class="nav-button"

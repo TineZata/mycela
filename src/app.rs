@@ -55,6 +55,9 @@ pub struct AppState {
     /// Optional callback to construct app-specific Modbus tasks when starting Modbus runtime.
     #[cfg(feature = "modbus")]
     pub modbus_start_hook: Option<ModbusStartHook>,
+        /// Optional loopback session token for rendering.
+        pub loopback_token: Option<String>,
+    
 }
 
 impl AppState {
@@ -111,18 +114,30 @@ pub async fn write_widget(
     State(state): State<AppState>,
     Form(form): Form<widgets::WriteForm>,
 ) -> Response {
+    let (status, markup) = write_widget_markup(&state, &widget_id, form.value).await;
+    (status, Html(markup.into_string())).into_response()
+}
+
+pub async fn write_widget_markup(
+    state: &AppState,
+    widget_id: &str,
+    value: String,
+) -> (StatusCode, maud::Markup) {
     let widget = state.config.screens.iter()
         .flat_map(|s| widgets::collect_data_widgets(&s.widgets))
         .find(|w| w.id == widget_id);
+
     match widget {
-        None => (StatusCode::NOT_FOUND, Html(format!(
-            "<span class=\"write-err\">Widget '{}' not found</span>", widget_id
-        ))).into_response(),
-        Some(w) => Html(
-            widgets::write_channel(w, form.value, state.channel_ctx.clone())
-                .await
-                .into_string(),
-        ).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            maud::html! {
+                span class="write-err" { "Widget '" (widget_id) "' not found" }
+            },
+        ),
+        Some(w) => (
+            StatusCode::OK,
+            widgets::write_channel(w, value, state.channel_ctx.clone()).await,
+        ),
     }
 }
 
@@ -133,7 +148,15 @@ async fn render_home(State(state): State<AppState>) -> Result<Html<String>, Stat
         Some(id) => state.config.screens.iter().find(|s| &s.id == id),
         None     => state.config.screens.first(),
     }.ok_or(StatusCode::NOT_FOUND)?;
-    Ok(Html(widgets::render_screen(screen).into_string()))
+    Ok(Html(
+        widgets::render_screen_with_options(
+            screen,
+            true,
+            None,
+            state.loopback_token.as_deref(),
+        )
+        .into_string(),
+    ))
 }
 
 pub async fn render_screen(
@@ -147,7 +170,15 @@ pub async fn render_screen(
             tracing::error!("Screen '{}' not found in AppConfig", screen_id);
             StatusCode::NOT_FOUND
         })?;
-    Ok(Html(widgets::render_screen(screen).into_string()))
+    Ok(Html(
+        widgets::render_screen_with_options(
+            screen,
+            true,
+            None,
+            state.loopback_token.as_deref(),
+        )
+        .into_string(),
+    ))
 }
 
 // --- Server control ----------------------------------------------------------

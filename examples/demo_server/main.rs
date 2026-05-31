@@ -44,6 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config:      Arc::new(config),
         channel_ctx,
         modbus_task: Arc::new(Mutex::new(Some(vec![sim_h, listener_h]))),
+        loopback_token: None,
         epics_start_hook: Some(Arc::new(|state, server| {
             for screen in &state.config.screens {
                 epics_simulator::start_demo_simulator(server.handle(), &screen.widgets);

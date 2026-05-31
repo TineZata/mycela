@@ -368,6 +368,19 @@ async fn run_modbus_poll(
     pool: Arc<ModbusPool>,
     tx: tokio::sync::mpsc::UnboundedSender<ChannelEvent>,
 ) {
+    tracing::info!(
+        "Modbus monitor starting: widget_id='{}' label='{}' host='{}' port={} unit_id={} register={} register_type='{:?}' word_count={} poll_ms={}",
+        config.id,
+        config.label,
+        m.host,
+        m.port,
+        m.unit_id,
+        m.register,
+        m.register_type,
+        m.word_count,
+        m.min_poll_interval_ms.max(50)
+    );
+
     let mut handle = pool.get_or_create(&m.host, m.port, m.unit_id);
     let mut interval =
         tokio::time::interval(Duration::from_millis(m.min_poll_interval_ms.max(50)));

@@ -12,21 +12,43 @@ pub enum IpcMessageKind {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum IpcCommand {
+    #[serde(rename = "app.screen.subscribe", alias = "app_screen_subscribe")]
+    AppScreenSubscribe,
+    #[serde(rename = "app.screen.unsubscribe", alias = "app_screen_unsubscribe")]
+    AppScreenUnsubscribe,
+    #[serde(rename = "app.widget.write", alias = "app_widget_write")]
+    AppWidgetWrite,
+    #[serde(rename = "epics.server.start", alias = "epics_server_start")]
     EpicsServerStart,
+    #[serde(rename = "epics.server.stop", alias = "epics_server_stop")]
     EpicsServerStop,
+    #[serde(rename = "epics.server.status.get", alias = "epics_server_status_get")]
     EpicsServerStatusGet,
+    #[serde(rename = "epics.pv.read", alias = "epics_pv_read")]
     EpicsPvRead,
+    #[serde(rename = "epics.pv.write", alias = "epics_pv_write")]
     EpicsPvWrite,
+    #[serde(rename = "epics.pv.subscribe", alias = "epics_pv_subscribe")]
     EpicsPvSubscribe,
+    #[serde(rename = "epics.pv.unsubscribe", alias = "epics_pv_unsubscribe")]
     EpicsPvUnsubscribe,
+    #[serde(rename = "modbus.sim.start", alias = "modbus_sim_start")]
     ModbusSimStart,
+    #[serde(rename = "modbus.sim.stop", alias = "modbus_sim_stop")]
     ModbusSimStop,
+    #[serde(rename = "modbus.sim.status.get", alias = "modbus_sim_status_get")]
     ModbusSimStatusGet,
+    #[serde(rename = "modbus.read", alias = "modbus_read")]
     ModbusRead,
+    #[serde(rename = "modbus.write", alias = "modbus_write")]
     ModbusWrite,
+    #[serde(rename = "modbus.subscribe", alias = "modbus_subscribe")]
     ModbusSubscribe,
+    #[serde(rename = "modbus.unsubscribe", alias = "modbus_unsubscribe")]
     ModbusUnsubscribe,
+    #[serde(rename = "app.ping", alias = "app_ping")]
     AppPing,
+    #[serde(rename = "app.version.get", alias = "app_version_get")]
     AppVersionGet,
 }
 
@@ -34,7 +56,8 @@ impl IpcCommand {
     pub fn is_mutating(&self) -> bool {
         matches!(
             self,
-            Self::EpicsServerStart
+            Self::AppWidgetWrite
+                | Self::EpicsServerStart
                 | Self::EpicsServerStop
                 | Self::EpicsPvWrite
                 | Self::ModbusSimStart
